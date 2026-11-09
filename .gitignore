@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Streamlit secrets (CRITICAL: prevents API key leaks)
+.streamlit/secrets.toml
+
+# Environment & local OS files
+.env
+venv/
+.venv/
+.DS_Store
+Thumbs.db
