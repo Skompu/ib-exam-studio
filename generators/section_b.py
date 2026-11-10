@@ -14,12 +14,12 @@ from core.randomizer import (
     part,
     plane_expr,
     sample_cubic,
-    sample_implicit_model,
     sample_skew_lines,
     step,
     vlatex,
     x,
 )
+from generators.modelling import clearance_extended, newton_extended, sample_clearance, sample_newton
 
 
 def _plot_cubic(function, points):
@@ -151,7 +151,7 @@ def gen_extended_calculus(clean_integers: bool, difficulty: str = "standard"):
                 ),
                 part("e", prompt_e, 3, scheme_e),
             ],
-            fig=fig,
+            fig=fig, plot_type="illustrative",
             archetype=archetype,
             family="Cubic built by integrating a derivative with chosen integer roots",
         )
@@ -229,69 +229,6 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
 
 
 def gen_extended_model(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers
-    model = sample_implicit_model()
-    slope = model["p"]
-    initial = model["y0"]
-    at_one = model["y1"]
-    solution = sp.sqrt(slope * x**2 + initial**2)
-    assert_zero(sp.simplify(2 * solution * (slope * x / solution) - 2 * slope * x), "Implicit model residual failed.")
-    if sp.simplify(solution.subs(x, 0) - initial) != 0 or as_int(solution.subs(x, 1)) != at_one:
-        raise RuntimeError("Implicit model does not meet its checkpoints.")
     if difficulty == "challenging":
-        prompt_e = "Find the exact value of $y$ when $x=1$, and explain why the solution is defined for every real $x$."
-        scheme_e = step(
-            f"The expression under the square root is at least ${initial**2} > 0$:",
-            f"y(1) = {at_one}",
-            "A1 R1",
-        )
-        archetype = "Extended separable model, with a domain argument"
-    else:
-        prompt_e = "Find the exact value of $y$ when $x=1$."
-        scheme_e = step("Substitute $x=1$ and take the positive root:", f"y(1) = {at_one}", "M1 A1")
-        archetype = "Extended separable model"
-    return pack_task(
-        title="Extended response: a separable equation",
-        intro=(
-            f"A curve in the plane satisfies the differential equation below. "
-            f"The $y$-coordinate is positive, and the curve passes through $(0,\\, {initial})$."
-        ),
-        latex_main=rf"\frac{{dy}}{{dx}} = \frac{{{slope} x}}{{y}}",
-        parts=[
-            part(
-                "a",
-                rf"Show that the equation can be written as $y\,{{\mathrm{{d}}}}y = {slope} x\,{{\mathrm{{d}}}}x$.",
-                2,
-                step(
-                    "Multiply by $y$ and separate the variables. This is valid because $y>0$:",
-                    rf"y\,dy = {slope} x\,dx",
-                    "M1 A1",
-                ),
-            ),
-            part(
-                "b",
-                "Integrate both sides.",
-                3,
-                step("Integrate:", rf"\frac{{y^2}}{{2}} = \frac{{{slope}}}{{2}} x^2 + c", "M1 A1 A1"),
-            ),
-            part(
-                "c",
-                "Write down the general solution.",
-                2,
-                step("Multiply by 2:", rf"y^2 = {slope} x^2 + A", "M1 A1"),
-            ),
-            part(
-                "d",
-                "Find the particular solution.",
-                3,
-                step(
-                    f"The curve passes through $(0,\\, {initial})$ and $y>0$:",
-                    rf"y = \sqrt{{{slope} x^2 + {initial**2}}}",
-                    "M1 A1 A1",
-                ),
-            ),
-            part("e", prompt_e, 2, scheme_e),
-        ],
-        archetype=archetype,
-        family="Implicit model $y^2 = px^2 + y_0^2$ with an integer value at $x=1$",
-    )
+        return clearance_extended(sample_clearance(clean_integers))
+    return newton_extended(sample_newton(clean_integers))

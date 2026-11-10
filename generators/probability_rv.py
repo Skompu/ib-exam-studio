@@ -73,7 +73,7 @@ def _continuous(clean_integers, difficulty):
             part("b", "Find $E(X)$.", 2, step("Mean:", f"E(X) = {sp.latex(mean)}", "M1 A1")),
             part("c", prompt_c, 3, scheme_c),
         ],
-        fig=_plot_pdf(density, 0, width),
+        fig=_plot_pdf(density, 0, width), plot_type="illustrative",
         archetype=archetype,
         family="Quadratic density on a chosen integer interval",
     )
@@ -138,8 +138,8 @@ def _expectation_recovery(clean_integers, difficulty):
     # E = k*left + (1-k)*right = right - k*(right-left)
     gap = right - left
     # Target a mean strictly between the two values, at a quarter or half step.
-    step = random.choice((1, gap // 2 if gap % 2 == 0 else 1))
-    mean = sp.Rational(left + right, 2) if step == gap // 2 else sp.Rational(right * 3 + left, 4)
+    offset = random.choice((1, gap // 2 if gap % 2 == 0 else 1))
+    mean = sp.Rational(left + right, 2) if offset == gap // 2 else sp.Rational(right * 3 + left, 4)
     # Recompute k from the chosen mean and reject anything outside (0, 1).
     constant = sp.simplify((right - mean) / gap)
     if not (0 < constant < 1) or constant.q > 4:

@@ -66,7 +66,7 @@ def _gaussian(difficulty):
             ),
             part("b", prompt_b, 4, scheme_b),
         ],
-        fig=_plot_series(function, series),
+        fig=_plot_series(function, series), plot_type="illustrative",
         archetype=archetype,
         family="Composite exponential $e^{-x^2}$",
     )
@@ -108,7 +108,7 @@ def _cosine(difficulty):
             ),
             part("b", prompt_b, 4, scheme_b),
         ],
-        fig=_plot_series(function, series),
+        fig=_plot_series(function, series), plot_type="illustrative",
         archetype=archetype,
         family="Trigonometric family $\\cos(bx)$",
     )
@@ -150,7 +150,7 @@ def _exp_sin(difficulty):
             ),
             part("b", prompt_b, 4, scheme_b),
         ],
-        fig=_plot_series(function, series),
+        fig=_plot_series(function, series), plot_type="illustrative",
         archetype=archetype,
         family="Composite $e^{\\sin x}$",
     )

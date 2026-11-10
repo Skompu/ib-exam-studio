@@ -1,6 +1,6 @@
 import random
 
-from core.randomizer import pack_task, part, plane_expr, sample_plane_from_cross, sample_skew_lines, step, vlatex
+from core.randomizer import pack_task, part, plane_expr, sample_plane_from_cross, sample_skew_lines, step, vlatex, coordinates
 
 
 def _line(point, direction, parameter):
@@ -22,7 +22,7 @@ def _plane_question(difficulty):
         parts = [
             part(
                 "a",
-                "Find $\\mathbf{u} \\times \\mathbf{v}$, and hence find the Cartesian equation of $\\Pi$.",
+                r"Find $\mathbf{u} \times \mathbf{v}$, and hence find the Cartesian equation of $\Pi$.",
                 4,
                 step(
                     "Cross product, then $\\mathbf{n}\\cdot(\\mathbf{r}-\\mathbf{a})=0$:",
@@ -32,7 +32,7 @@ def _plane_question(difficulty):
             ),
             part(
                 "b",
-                f"Find the shortest distance from the point $Q{vlatex(exterior)}$ to $\\Pi$.",
+                rf"Find the shortest distance from the point $Q{coordinates(exterior)}$ to $\Pi$.",
                 3,
                 step(
                     "Point-to-plane distance. The point was placed on the normal, so the distance is an integer:",
@@ -43,8 +43,8 @@ def _plane_question(difficulty):
         ]
         archetype = "Plane from a cross product, then a point-to-plane distance"
         intro = (
-            f"The plane $\\Pi$ passes through $A{vlatex(item['point'])}$ and is parallel to the vectors "
-            f"$\\mathbf{{u}}$ and $\\mathbf{{v}}$. The point $Q$ does not lie on $\\Pi$."
+            rf"The plane $\Pi$ passes through $A{coordinates(item['point'])}$ and is parallel to the vectors "
+            rf"$\mathbf{{u}}$ and $\mathbf{{v}}$. The point $Q$ does not lie on $\Pi$."
         )
     else:
         parts = [
@@ -56,15 +56,15 @@ def _plane_question(difficulty):
             ),
             part(
                 "b",
-                "Hence find the Cartesian equation of $\\Pi$.",
+                r"Hence find the Cartesian equation of $\Pi$.",
                 4,
                 step("Use the normal and the point $A$:", equation, "M1 A1 A1 A1"),
             ),
         ]
         archetype = "Normal vector and Cartesian plane"
         intro = (
-            f"The plane $\\Pi$ passes through $A{vlatex(item['point'])}$ and is parallel to the vectors "
-            f"$\\mathbf{{u}}$ and $\\mathbf{{v}}$."
+            rf"The plane $\Pi$ passes through $A{coordinates(item['point'])}$ and is parallel to the vectors "
+            rf"$\mathbf{{u}}$ and $\mathbf{{v}}$."
         )
     return pack_task(
         title="Vectors: Cross Product and Planes",
@@ -143,20 +143,20 @@ def _combined(difficulty):
     return pack_task(
         title="Vectors in Three Dimensions",
         intro=(
-            "The plane $\\Pi$ contains the line $L_1$ and is parallel to the line $L_2$. "
+            r"The plane $\Pi$ contains the line $L_1$ and is parallel to the line $L_2$. "
             "The lines have the equations below."
         ),
         latex_main=rf"L_1:\ {_line(item['a1'], item['d1'], r'\lambda')}, \qquad L_2:\ {_line(item['a2'], item['d2'], r'\mu')}",
         parts=[
             part(
                 "a",
-                "Find a normal vector to $\\Pi$.",
+                r"Find a normal vector to $\Pi$.",
                 2,
                 step("A normal is the cross product of the two direction vectors:", cross_tex, "M1 A1"),
             ),
             part(
                 "b",
-                "Find the Cartesian equation of $\\Pi$.",
+                r"Find the Cartesian equation of $\Pi$.",
                 2,
                 step("The plane passes through the given point of $L_1$:", equation, "A1 A1"),
             ),

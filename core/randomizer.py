@@ -41,7 +41,7 @@ def as_int(expr) -> int:
     return int(value)
 
 
-def pack_task(title, intro, latex_main, parts, fig=None, archetype="", family=""):
+def pack_task(title, intro, latex_main, parts, fig=None, archetype="", family="", plot_type="none"):
     """Build a Task. Mark totals come from the parts, not from question text."""
     return Task(
         title=title,
@@ -51,12 +51,18 @@ def pack_task(title, intro, latex_main, parts, fig=None, archetype="", family=""
         fig=fig,
         archetype=archetype,
         family=family,
+        plot_type=plot_type,
     )
 
 
 def vlatex(vec) -> str:
     body = r" \\ ".join(str(int(component)) for component in vec)
     return r"\begin{pmatrix} " + body + r" \end{pmatrix}"
+
+
+def coordinates(vec) -> str:
+    """A point sits in a flat bracket. A vector stays a column."""
+    return "(" + ",\\ ".join(str(int(component)) for component in vec) + ")"
 
 
 def plane_expr(normal, rhs):
@@ -302,22 +308,3 @@ def assert_zero(expr, message: str):
     if sp.simplify(expr) != 0:
         raise RuntimeError(message)
 
-
-# Implicit models y^2 = p x^2 + y0^2 with y(1) an integer.
-IMPLICIT_MODELS = (
-    {"p": 3, "y0": 1, "y1": 2},
-    {"p": 8, "y0": 1, "y1": 3},
-    {"p": 15, "y0": 1, "y1": 4},
-    {"p": 5, "y0": 2, "y1": 3},
-    {"p": 12, "y0": 2, "y1": 4},
-    {"p": 7, "y0": 3, "y1": 4},
-    {"p": 20, "y0": 3, "y1": 5},
-    {"p": 9, "y0": 4, "y1": 5},
-)
-
-
-def sample_implicit_model():
-    model = dict(random.choice(IMPLICIT_MODELS))
-    if model["y1"] ** 2 != model["p"] + model["y0"] ** 2:
-        raise RuntimeError("Implicit model table is inconsistent.")
-    return model

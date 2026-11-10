@@ -40,6 +40,9 @@ def build_prompt(task_title: str, task_latex: str, subquestions: list) -> str:
 
     ### 3. Master Solution & Mark Breakdown
     * Clean, fully-written step-by-step mathematical reasoning using clear dollar LaTeX ($...$) and official mark allocations (M1, A1, R1).
+
+    ### 4. Official IB Formula Booklet Alignment
+    * Specify whether the required formulas are explicitly found in the official IB Mathematics AA Formula Booklet (with Section reference), or if the student must derive or recall them from memory.
     """
 
 def stream_tutor_hints(task_title: str, task_latex: str, subquestions: list):

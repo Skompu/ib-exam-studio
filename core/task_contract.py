@@ -7,6 +7,10 @@ editable exports already read.
 """
 
 from dataclasses import dataclass
+from typing import Literal
+
+PlotType = Literal["none", "essential", "illustrative", "grid_to_sketch"]
+PLOT_TYPES = ("none", "essential", "illustrative", "grid_to_sketch")
 
 
 @dataclass
@@ -54,6 +58,7 @@ class Task:
     fig: object = None
     archetype: str = ""
     family: str = ""
+    plot_type: str = "none"
 
     def __post_init__(self):
         for name in ("title", "intro", "latex_main", "archetype", "family"):
@@ -74,6 +79,10 @@ class Task:
         if letters != expected:
             raise ValueError(
                 f"Task {self.title!r} part letters must run a..{expected[-1]} without gaps, got {letters}."
+            )
+        if self.plot_type not in PLOT_TYPES:
+            raise ValueError(
+                f"Task {self.title!r} plot_type must be one of {PLOT_TYPES}, got {self.plot_type!r}."
             )
 
     @property
@@ -100,6 +109,7 @@ class Task:
             "fig": self.fig,
             "archetype": self.archetype,
             "family": self.family,
+            "plot_type": self.plot_type,
         }
 
 

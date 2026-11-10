@@ -5,25 +5,79 @@ from core.randomizer import pack_task, part, step
 
 x = sp.Symbol('x')
 
+
+def _monic_quadratic(linear: int, constant: int) -> str:
+    """Write ax^2 + bx + c = 0 in that order, with a coefficient of 1 hidden."""
+    pieces = ["x^2"]
+    if linear == 1:
+        pieces.append("+ x")
+    elif linear == -1:
+        pieces.append("- x")
+    elif linear > 0:
+        pieces.append(f"+ {linear}x")
+    elif linear < 0:
+        pieces.append(f"- {abs(linear)}x")
+    if constant > 0:
+        pieces.append(f"+ {constant}")
+    elif constant < 0:
+        pieces.append(f"- {abs(constant)}")
+    return " ".join(pieces) + " = 0"
+
+
 def gen_algebra_quadratics(clean_integers: bool, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    k = random.randint(-3, 3)
+    del clean_integers
+    if difficulty == "challenging":
+        shift = random.choice((1, 2, 3, 4))
+        root_gap = random.choice((1, 2, 3))
+        constant = root_gap ** 2
+        threshold = 2 * root_gap
+        low = shift - threshold
+        high = shift + threshold
+        discriminant = f"(k-{shift})^2 - {4 * constant}"
+        return pack_task(
+            title="Algebra: Quadratic Discriminant & Roots",
+            intro="Consider the quadratic equation in terms of $x$, where $k$ is a real parameter:",
+            latex_main=f"x^2 + (k-{shift})x + {constant} = 0",
+            parts=[
+                part(
+                    "a",
+                    "Find the discriminant $\\Delta$ in terms of $k$.",
+                    2,
+                    step("Recall $\\Delta = b^2 - 4ac$ with $a=1$:", f"\\Delta = (k-{shift})^2 - 4({constant})", "M1"),
+                    step("Simplify:", f"\\Delta = {discriminant}", "A1"),
+                ),
+                part(
+                    "b",
+                    "Find the range of values of $k$ for which the equation has two distinct real roots.",
+                    2,
+                    step(
+                        f"Two distinct real roots require $\\Delta > 0$, so $|k-{shift}| > {threshold}$:",
+                        f"k < {low} \\quad \\text{{or}} \\quad k > {high}",
+                        "M1 A1",
+                    ),
+                ),
+            ],
+            archetype="Discriminant in a parameter, then a quadratic inequality",
+            family="Monic quadratic $x^2+(k-a)x+b=0$ with a perfect-square constant",
+        )
+
+    linear = random.randint(-3, 3)
     c_val = random.randint(-7, 7)
-    disc = (2*k)**2 - 4*1*c_val
+    disc = (2 * linear) ** 2 - 4 * 1 * c_val
     rel = ">" if disc > 0 else ("=" if disc == 0 else "<")
     nature = "two distinct real roots" if disc > 0 else ("one repeated real root" if disc == 0 else "no real roots")
-    
+
     return pack_task(
         title="Algebra: Quadratic Discriminant & Roots",
-        intro="Consider the quadratic equation in terms of x:",
-        latex_main=f"x^2 + {sp.latex(2*k*x + c_val)} = 0",
+        intro="Consider the quadratic equation in terms of $x$:",
+        latex_main=_monic_quadratic(2 * linear, c_val),
         parts=[
             part(
                 "a",
                 "Calculate the exact value of the discriminant $\\Delta$.",
                 2,
                 step("Recall discriminant definition:", "\\Delta = b^2 - 4ac", "M1"),
-                step("Substitute coefficients:", f"\\Delta = ({2*k})^2 - 4(1)({c_val}) = {disc}", "A1"),
+                step("Substitute coefficients:", f"\\Delta = ({2 * linear})^2 - 4(1)({c_val}) = {disc}", "A1"),
             ),
             part(
                 "b",

@@ -63,8 +63,8 @@ def build_editable_tex(papers: list, meta: dict) -> str:
                 title = "Section A — short response" if section == "A" else "Section B — extended response"
                 lines.append(rf"\subsubsection*{{{title}}}")
             lines.append(
-                rf"\paragraph{{Question {task['q_number']}. {_tex_escape_plain(task['title'])} "
-                rf"[{task['marks']} marks]}}"
+                rf"\noindent\textbf{{Question {task['q_number']}. [{_tex_escape_plain(task['title'])}]}} "
+                rf"\hfill \textit{{[{task['marks']} marks]}}\par\vspace{{0.4em}}"
             )
             if task.get("intro"):
                 lines.append(_tex_mixed(task["intro"]))
@@ -75,7 +75,9 @@ def build_editable_tex(papers: list, meta: dict) -> str:
         lines.append(r"\newpage")
         lines.append(r"\subsection*{Mark scheme}")
         for task in paper["tasks"]:
-            lines.append(rf"\paragraph{{Question {task['q_number']}}}")
+            lines.append(
+                rf"\noindent\textbf{{Question {task['q_number']}.}}\par\vspace{{0.4em}}"
+            )
             if task.get("archetype"):
                 lines.append(_tex_mixed(f"Archetype: {task['archetype']}"))
             lines.append(r"\[ " + task["latex_main"] + r" \]")

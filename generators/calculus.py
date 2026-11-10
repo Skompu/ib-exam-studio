@@ -120,7 +120,7 @@ def _cubic_tangent(clean_integers, difficulty):
             part("b", "Find the gradient of $C$ at $P$.", 2, step(f"Substitute $x = {x0}$:", f"f'({x0}) = {gradient}", "M1 A1")),
             part("c", prompt_c, 3, scheme_c),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Cubic polynomial, built from chosen stationary roots",
     )
@@ -161,7 +161,7 @@ def _quartic_tangent(clean_integers, difficulty):
             part("b", "Find the gradient of $C$ at $P$.", 2, step(f"Substitute $x = {x0}$:", f"f'({x0}) = {gradient}", "M1 A1")),
             part("c", prompt_c, 3, scheme_c),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Quartic polynomial, built from three chosen derivative roots",
     )
@@ -196,7 +196,7 @@ def _exponential_tangent(clean_integers, difficulty):
             part("b", "Find the gradient of $C$ at $P$.", 2, step("Evaluate at $x=0$:", f"f'(0) = {gradient}", "M1 A1")),
             part("c", prompt_c, 3, scheme_c),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Product-exponential $(ax+b)e^{kx}$",
     )
@@ -228,7 +228,7 @@ def _trig_tangent(clean_integers, difficulty):
             part("b", "Find the gradient of $C$ at $P$.", 2, step("Evaluate at $x=0$:", f"f'(0) = {gradient}", "M1 A1")),
             part("c", prompt_c, 3, scheme_c),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Trigonometric form $a\\sin(bx)+c\\cos(bx)$",
     )
@@ -288,7 +288,7 @@ def _cubic_stationary(clean_integers, difficulty):
                 ),
             ),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype="Stationary points and inflection",
         family="Cubic polynomial, built from chosen stationary roots",
     )
@@ -336,7 +336,7 @@ def _exponential_stationary(clean_integers):
                 ),
             ),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype="Stationary points and inflection",
         family="Product-exponential $(ax+b)e^{kx}$",
     )
@@ -381,7 +381,7 @@ def _quadratic_trap(clean_integers):
                 ),
             ),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype="No inflection, and a line that misses the curve",
         family="Quadratic, built from a chosen vertex",
     )
@@ -473,7 +473,7 @@ def _parameter_recovery(clean_integers, difficulty):
         ),
         latex_main=r"f(x) = ax^{3} + bx^{2} + cx + d",
         parts=parts,
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Cubic with unknown coefficients, recovered from chosen critical points",
     )
@@ -552,7 +552,7 @@ def gen_calculus_area(clean_integers: bool, difficulty: str = "standard"):
             ),
             part("c", prompt_c, 3, scheme_c),
         ],
-        fig=fig,
+        fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Quadratic with two chosen integer roots",
     )

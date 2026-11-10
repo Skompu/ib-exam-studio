@@ -3,6 +3,7 @@ import random
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step, x
+from generators.modelling import newton_short, sample_newton
 
 y = sp.symbols("y", real=True)
 
@@ -126,6 +127,23 @@ def _power_integrating_factor(clean_integers, difficulty):
     )
 
 
+def _term(coefficient: int, variable: str = "y") -> str:
+    """Hide a coefficient of 1. `1y` is just `y`, and `-1y` is `-y`."""
+    if coefficient == 1:
+        return variable
+    if coefficient == -1:
+        return f"-{variable}"
+    return f"{coefficient}{variable}"
+
+
+def _exponent(coefficient: int) -> str:
+    if coefficient == 1:
+        return "x"
+    if coefficient == -1:
+        return "-x"
+    return f"{coefficient}x"
+
+
 def _constant_integrating_factor(clean_integers, difficulty):
     rate = random.choice((1, 2) if clean_integers else (1, 2, 3))
     equilibrium = random.choice((2, 3, 4))
@@ -150,16 +168,18 @@ def _constant_integrating_factor(clean_integers, difficulty):
         prompt_d = "Find the particular solution."
         scheme_d = step(f"Use $y(0)={initial}$:", f"y = {sp.latex(solution)}", "M1 A1")
         archetype = "Integrating factor"
+    exponent = _exponent(rate)
+    integrand = r"\mathrm{d}x" if rate == 1 else rf"{rate}\,\mathrm{{d}}x"
     return pack_task(
         title="Differential Equations",
         intro=f"The variables $x$ and $y$ satisfy the differential equation below, and $y={initial}$ when $x=0$.",
-        latex_main=rf"\frac{{dy}}{{dx}} + {rate}y = {forcing}",
+        latex_main=rf"\frac{{dy}}{{dx}} + {_term(rate)} = {forcing}",
         parts=[
             part(
                 "a",
                 "Find an integrating factor.",
                 2,
-                step("Integrating factor:", f"e^{{\\int {rate}\\,dx}} = e^{{{rate} x}}", "M1 A1"),
+                step("Integrating factor:", rf"e^{{\int {integrand}}} = e^{{{exponent}}}", "M1 A1"),
             ),
             part(
                 "b",
@@ -167,7 +187,7 @@ def _constant_integrating_factor(clean_integers, difficulty):
                 2,
                 step(
                     "The left side is an exact derivative:",
-                    rf"\frac{{d}}{{dx}}\left(y e^{{{rate} x}}\right) = {forcing} e^{{{rate} x}}",
+                    rf"\frac{{d}}{{dx}}\left(y e^{{{exponent}}}\right) = {forcing} e^{{{exponent}}}",
                     "M1 A1",
                 ),
             ),
@@ -175,7 +195,7 @@ def _constant_integrating_factor(clean_integers, difficulty):
                 "c",
                 "Find the general solution.",
                 2,
-                step("Integrate and rearrange:", f"y = {equilibrium} + A e^{{-{rate} x}}", "M1 A1"),
+                step("Integrate and rearrange:", rf"y = {equilibrium} + A e^{{-{exponent}}}", "M1 A1"),
             ),
             part("d", prompt_d, 2, scheme_d),
         ],
@@ -185,5 +205,7 @@ def _constant_integrating_factor(clean_integers, difficulty):
 
 
 def gen_differential_equation(clean_integers: bool, difficulty: str = "standard"):
+    if difficulty == "challenging":
+        return newton_short(sample_newton(clean_integers))
     builder = random.choice((_explicit_separation, _power_integrating_factor, _constant_integrating_factor))
     return builder(clean_integers, difficulty)

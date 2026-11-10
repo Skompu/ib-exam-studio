@@ -1,14 +1,23 @@
 import io
+import re
 from xml.sax.saxutils import escape
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, CondPageBreak, Image as RLImage,
+    Flowable,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
+
+_MATH = re.compile(r"\$([^$]+)\$")
 
 class NumberedCanvas(canvas.Canvas):
     """
@@ -49,6 +58,306 @@ class NumberedCanvas(canvas.Canvas):
         self.restoreState()
 
 
+def _png_size(data: bytes) -> tuple[int, int]:
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def _image_from_png(data: bytes, dpi: int, max_width: float):
+    if not data or not data.startswith(b"\x89PNG"):
+        return None
+    width_px, height_px = _png_size(data)
+    width = width_px * 72 / dpi
+    height = height_px * 72 / dpi
+    if width > max_width and width > 0:
+        scale = max_width / width
+        width *= scale
+        height *= scale
+    image = RLImage(io.BytesIO(data), width=width, height=height)
+    image.hAlign = "CENTER"
+    return image
+
+
+def _save_figure(fig, dpi: int):
+    buffer = io.BytesIO()
+    try:
+        fig.savefig(buffer, format="png", dpi=dpi, transparent=True, bbox_inches="tight", pad_inches=0.03)
+    except Exception:
+        plt.close(fig)
+        return None
+    plt.close(fig)
+    return buffer.getvalue()
+
+
+def _math_png(formula: str, fontsize: int, dpi: int):
+    prepared = _prepare_math(formula)
+    if not prepared:
+        return None
+    fig = plt.figure(figsize=(0.01, 0.01))
+    fig.patch.set_alpha(0)
+    fig.text(0, 0, f"${prepared}$", fontsize=fontsize, ha="left", va="bottom", color="#1e293b")
+    return _save_figure(fig, dpi)
+
+
+def _column_png(body: str, fontsize: int, dpi: int):
+    """Draw one column vector. Mathtext cannot set a pmatrix."""
+    cells = [cell.strip() for cell in re.split(r"\\\\", body) if cell.strip()]
+    if not cells:
+        return None
+    count = len(cells)
+    if count == 1:
+        lefts, rights = ["("], [")"]
+    else:
+        lefts = ["⎛"] + ["⎜"] * (count - 2) + ["⎝"]
+        rights = ["⎞"] + ["⎟"] * (count - 2) + ["⎠"]
+    fig = plt.figure(figsize=(0.62, 0.24 * count + 0.04))
+    fig.patch.set_alpha(0)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, 3)
+    ax.set_ylim(0, count)
+    ax.axis("off")
+    for index, cell in enumerate(cells):
+        level = count - index - 0.5
+        prepared = _prepare_math(cell) or cell
+        ax.text(0.28, level, lefts[index], ha="center", va="center", fontsize=fontsize + 2, color="#1e293b")
+        ax.text(1.5, level, f"${prepared}$", ha="center", va="center", fontsize=fontsize, color="#1e293b")
+        ax.text(2.72, level, rights[index], ha="center", va="center", fontsize=fontsize + 2, color="#1e293b")
+    return _save_figure(fig, dpi)
+
+
+def _stitch_pngs(pieces: list[bytes]) -> bytes | None:
+    from PIL import Image
+
+    images = [Image.open(io.BytesIO(piece)).convert("RGBA") for piece in pieces]
+    gap = 4
+    width = sum(image.width for image in images) + gap * (len(images) - 1)
+    height = max(image.height for image in images)
+    canvas = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    cursor = 0
+    for image in images:
+        canvas.paste(image, (cursor, (height - image.height) // 2), image)
+        cursor += image.width + gap
+    buffer = io.BytesIO()
+    canvas.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _compose_vector_formula(latex_code: str, fontsize: int, dpi: int):
+    pattern = re.compile(r"\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}", re.DOTALL)
+    pieces = []
+    cursor = 0
+    for match in pattern.finditer(latex_code):
+        if match.start() > cursor:
+            pieces.append(("text", latex_code[cursor:match.start()]))
+        pieces.append(("column", match.group(1)))
+        cursor = match.end()
+    if cursor < len(latex_code):
+        pieces.append(("text", latex_code[cursor:]))
+    rendered = []
+    for kind, value in pieces:
+        if kind == "text" and not value.strip(" ,"):
+            if value.strip():
+                blob = _math_png(value, fontsize, dpi)
+                if blob:
+                    rendered.append(blob)
+            continue
+        blob = _column_png(value, fontsize, dpi) if kind == "column" else _math_png(value, fontsize, dpi)
+        if blob is None:
+            return None
+        rendered.append(blob)
+    if not rendered:
+        return None
+    if len(rendered) == 1:
+        return rendered[0]
+    return _stitch_pngs(rendered)
+
+
+def _prepare_math(code: str) -> str:
+    """Make generator LaTeX something matplotlib's mathtext can draw."""
+    text = code.strip()
+    if text.startswith("$$") and text.endswith("$$"):
+        text = text[2:-2].strip()
+    text = text.replace(r"\dfrac", r"\frac").replace(r"\tfrac", r"\frac")
+    text = text.replace(r"\displaystyle", "")
+    text = re.sub(r"\\text\{([^{}]*)\}", r"\\mathrm{\1}", text)
+    text = text.replace(r"\left", "").replace(r"\right", "")
+    return " ".join(text.split())
+
+
+def render_math_to_image(latex_code: str, fontsize: int = 12, dpi: int = 200, max_width: float = 460):
+    """Draw one formula and return a ReportLab image. Column vectors stay vertical."""
+    if r"\begin{pmatrix}" in latex_code:
+        data = _compose_vector_formula(latex_code, fontsize, dpi)
+    else:
+        data = _math_png(latex_code, fontsize, dpi)
+    return _image_from_png(data, dpi, max_width)
+
+
+def _simple_math(code: str):
+    """Turn `$x$` and `$x^2$` into ReportLab markup. Anything richer stays an image."""
+    text = code.strip()
+    symbols = {
+        r"\pi": "π", r"\theta": "θ", r"\lambda": "λ", r"\mu": "μ", r"\Pi": "Π",
+        r"\cdot": "·", r"\times": "×",
+        r"\le": "≤", r"\leq": "≤", r"\ge": "≥", r"\geq": "≥",
+        r"\ne": "≠", r"\neq": "≠", r"\infty": "∞",
+        r"\,": "", r"\;": "", r"\:": "", r"\ ": " ",
+    }
+    for source, target in symbols.items():
+        text = text.replace(source, target)
+    if "\\" in text:
+        return None
+    script = re.fullmatch(r"([A-Za-zπθλμ]+)(?:_(\{?[A-Za-z0-9]+\}?)|\^(\{?[0-9]+\}?))?", text)
+    if script:
+        body = f"<i>{escape(script.group(1))}</i>"
+        if script.group(2):
+            body += f"<sub>{escape(script.group(2).strip('{}'))}</sub>"
+        if script.group(3):
+            body += f"<sup>{escape(script.group(3).strip('{}'))}</sup>"
+        return body
+    if re.fullmatch(r"[A-Za-z0-9πθλμΠ≤≥≠·×∞ ,;:.()+\-/'=]+", text):
+        return f"<i>{escape(text)}</i>"
+    return None
+
+
+def _plain_width(text: str, style) -> float:
+    return stringWidth(re.sub(r"<[^>]+>", "", text), style.fontName, style.fontSize)
+
+
+def _append_rich(story, text: str, style, max_width: float):
+    """Write a sentence, drawing any real formula instead of printing its source."""
+    if not text:
+        return
+    pieces = []
+    all_simple = True
+    cursor = 0
+    for match in _MATH.finditer(text):
+        if match.start() > cursor:
+            pieces.append(("text", text[cursor:match.start()]))
+        pieces.append(("math", match.group(1)))
+        if _simple_math(match.group(1)) is None:
+            all_simple = False
+        cursor = match.end()
+    if cursor < len(text):
+        pieces.append(("text", text[cursor:]))
+    if not pieces:
+        pieces = [("text", text)]
+    if all_simple:
+        html = []
+        for kind, value in pieces:
+            html.append(escape(value) if kind == "text" else _simple_math(value))
+        story.append(Paragraph("".join(html), style))
+        return
+    row = []
+    used = 0
+    rows = []
+    for kind, value in pieces:
+        if kind == "text":
+            if not value:
+                continue
+            paragraph = Paragraph(escape(value), style)
+            width = min(max_width, _plain_width(value, style) + 2)
+            flowable = paragraph
+        else:
+            simple = _simple_math(value)
+            if simple is not None:
+                flowable = Paragraph(simple, style)
+                width = min(max_width, _plain_width(simple, style) + 2)
+            else:
+                flowable = render_math_to_image(value, fontsize=11, max_width=max_width)
+                if flowable is None:
+                    flowable = Paragraph(escape(value), style)
+                    width = min(max_width, _plain_width(value, style) + 2)
+                else:
+                    width = flowable.drawWidth + 2
+        if row and used + width > max_width:
+            rows.append(row)
+            row = []
+            used = 0
+        row.append((flowable, width))
+        used += width
+    if row:
+        rows.append(row)
+    for packed in rows:
+        story.append(Table(
+            [[item for item, _width in packed]],
+            colWidths=[width for _item, width in packed],
+            style=TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]),
+        ))
+
+
+def figure_visible(task: dict, *, is_markscheme: bool, exam_mode: bool) -> bool:
+    """Mark schemes keep every figure. A booklet hides illustrative spoilers."""
+    if not task.get("png_bytes"):
+        return False
+    if is_markscheme:
+        return True
+    kind = task.get("plot_type") or "illustrative"
+    if kind in {"essential", "grid_to_sketch"}:
+        return True
+    if kind == "illustrative":
+        return not exam_mode
+    return False
+
+
+class WorkingSpaceGrid(Flowable):
+    """Ruled lines and the examiner's mark box, drawn on the canvas."""
+
+    def __init__(self, marks: int, width=6.8 * inch, line_spacing=21):
+        super().__init__()
+        self.marks = marks
+        self.grid_width = width
+        self.line_spacing = line_spacing
+        self.num_lines = max(4, int(marks * 1.5))
+        self.grid_height = self.num_lines * self.line_spacing
+
+    def wrap(self, availWidth, availHeight):
+        return self.grid_width, self.grid_height
+
+    def draw(self):
+        canv = self.canv
+        canv.saveState()
+        canv.setStrokeColor(colors.HexColor("#A0AEC0"))
+        canv.setLineWidth(0.75)
+        line_end = self.grid_width - 0.7 * inch
+        for index in range(self.num_lines):
+            y = (index + 1) * self.line_spacing - 1
+            canv.line(0, y, line_end, y)
+        box_w = 0.65 * inch
+        box_h = self.line_spacing
+        box_x = self.grid_width - box_w
+        box_y = self.grid_height - box_h
+        canv.setFillColor(colors.HexColor("#F7FAFC"))
+        canv.setStrokeColor(colors.HexColor("#718096"))
+        canv.setLineWidth(1)
+        canv.rect(box_x, box_y, box_w, box_h, fill=1, stroke=1)
+        canv.setFillColor(colors.HexColor("#2D3748"))
+        canv.setFont("Helvetica-Bold", 8)
+        canv.drawCentredString(box_x + box_w / 2, box_y + box_h / 2 - 3, f"[   / {self.marks} ]")
+        canv.restoreState()
+
+
+def _placed_image(data: bytes, max_width: float, max_height: float):
+    """Scale a figure without changing its aspect ratio."""
+    width_px, height_px = _png_size(data)
+    if width_px <= 0 or height_px <= 0:
+        return None
+    aspect = width_px / height_px
+    width = max_width
+    height = width / aspect
+    if height > max_height:
+        height = max_height
+        width = height * aspect
+    image = RLImage(io.BytesIO(data), width=width, height=height)
+    image.hAlign = "CENTER"
+    return image
+
+
 def build_multi_question_pdf(
     papers: list, 
     institution_name: str, 
@@ -56,8 +365,10 @@ def build_multi_question_pdf(
     syllabus: str, 
     paper_type: str, 
     time_allowed: str, 
-    logo_bytes: bytes, 
-    is_markscheme: bool = False
+    logo_bytes: bytes,
+    is_markscheme: bool = False,
+    exam_mode: bool = True,
+    paper_format: str = "exam_booklet",
 ) -> bytes:
     """
     Generates a high-resolution, branded PDF for student papers or teacher mark schemes.
@@ -152,7 +463,6 @@ def build_multi_question_pdf(
         
         if logo_bytes:
             try:
-                from reportlab.platypus import Image as RLImage
                 logo_io = io.BytesIO(logo_bytes)
                 logo_img = RLImage(logo_io, width=1.2 * inch, height=0.6 * inch)
                 header_data = [[header_left, logo_img]]
@@ -194,12 +504,17 @@ def build_multi_question_pdf(
         story.append(Spacer(1, 10))
 
         # Tasks Iteration
+        usable = A4[0] - 72
+        mark_col = 0.6 * inch
+        text_width = usable - mark_col
         section_marks = {}
         for task in tasks:
             section_marks[task.get("section", "A")] = section_marks.get(task.get("section", "A"), 0) + task["marks"]
         current_section = None
         for task in tasks:
             section = task.get("section", "A")
+            if section == "B" and paper_format == "exam_booklet":
+                story.append(CondPageBreak(4.5 * inch))
             if section != current_section:
                 current_section = section
                 banner = "SECTION A — Short-response questions" if section == "A" else "SECTION B — Extended-response questions"
@@ -208,48 +523,70 @@ def build_multi_question_pdf(
             q_num = task["q_number"]
             q_title = task["title"]
             q_marks = task["marks"]
-            
-            story.append(Paragraph(f"<b>Question {q_num}. [{escape(q_title)}]</b> &nbsp;&mdash;&nbsp; <i>[Total: {q_marks} marks]</i>", q_title_style))
+            story.append(Paragraph(
+                f"<b>Question {q_num}. [{escape(q_title)}]</b> &nbsp;&mdash;&nbsp; <i>[Total: {q_marks} marks]</i>",
+                q_title_style,
+            ))
             if is_markscheme and task.get("archetype"):
                 story.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
-            
+
             if task.get("intro"):
-                story.append(Paragraph(escape(task["intro"]), body_style))
-                
-            story.append(Paragraph(f"<b>{escape(task['latex_main'])}</b>", body_style))
-            
-            # Embed diagram/plot from cached PNG bytes (Kluczowa zmiana dla unikania wycieków Figure)
-            if task.get("png_bytes"):
-                try:
-                    from reportlab.platypus import Image as RLImage
-                    img_io = io.BytesIO(task["png_bytes"])
-                    # Dopasowanie rozmiaru wykresu do szerokości strony PDF
-                    img = RLImage(img_io, width=4.0 * inch, height=2.6 * inch)
-                    img.hAlign = 'CENTER'
+                _append_rich(story, task["intro"], body_style, usable)
+
+            formula = render_math_to_image(task["latex_main"], fontsize=13, max_width=usable)
+            if formula is None:
+                story.append(Paragraph(escape(task["latex_main"]), body_style))
+            else:
+                story.append(Spacer(1, 4))
+                story.append(formula)
+                story.append(Spacer(1, 4))
+
+            has_figure = figure_visible(task, is_markscheme=is_markscheme, exam_mode=exam_mode)
+            if has_figure:
+                kind = task.get("plot_type")
+                if kind in {"essential", "grid_to_sketch"}:
+                    diagram = _placed_image(task["png_bytes"], 2.8 * inch, 2.8 * inch)
+                else:
+                    diagram = _placed_image(task["png_bytes"], min(usable, 4.8 * inch), 2.6 * inch)
+                if diagram is not None:
                     story.append(Spacer(1, 4))
-                    story.append(img)
+                    story.append(diagram)
                     story.append(Spacer(1, 4))
-                except Exception:
-                    pass
 
             if not is_markscheme:
-                # Subquestions for Student Paper
-                for sq in task["subquestions"]:
-                    story.append(Paragraph(escape(sq), body_style))
-                story.append(Spacer(1, 8))
-                story.append(Paragraph("<i>[Working space continues on next page / below]</i>", ParagraphStyle('Ws', parent=meta_style, fontSize=8, textColor=colors.HexColor("#A0AEC0"))))
-                story.append(Spacer(1, 12))
+                for subquestion in task["subquestions"] or []:
+                    _append_rich(story, subquestion, body_style, usable)
+                if paper_format == "worksheet":
+                    story.append(Spacer(1, 14))
+                else:
+                    story.append(WorkingSpaceGrid(q_marks))
+                    story.append(Spacer(1, 8))
             else:
-                # Mark Scheme Breakdown for Teachers
                 story.append(Spacer(1, 4))
                 for step in task["markscheme"]:
-                    step_text = f"• <b>{escape(step['desc'])}</b>: &nbsp; ${escape(step['tex'])}$ &nbsp;&nbsp; <code>[{escape(step['code'])}]</code>"
-                    story.append(Paragraph(step_text, body_style))
-                story.append(Spacer(1, 10))
+                    _append_rich(story, f"• {step['desc']}", body_style, text_width)
+                    formula = render_math_to_image(step["tex"], fontsize=11, max_width=text_width)
+                    code = Paragraph(f"[{escape(step['code'])}]", meta_style)
+                    if formula is None:
+                        shown = Paragraph(escape(step["tex"]), body_style)
+                    else:
+                        shown = formula
+                    scheme_row = Table([[shown, code]], colWidths=[text_width, mark_col])
+                    scheme_row.setStyle(TableStyle([
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ]))
+                    story.append(scheme_row)
+                story.append(Spacer(1, 8))
 
         # Page break between different variants/cohorts
         if p_idx < len(papers) - 1:
-            story.append(PageBreak())
+            # A raw PageBreak at the top of a page that the previous cohort
+            # already filled leaves a sheet with nothing but the footer.
+            live = A4[1] - 45 - 45 - 12
+            story.append(CondPageBreak(live - 1))
 
     doc.build(story, canvasmaker=NumberedCanvas)
     buffer.seek(0)
