@@ -11,8 +11,8 @@ from reportlab.lib import colors
 from reportlab.lib.units import inch
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, CondPageBreak, Image as RLImage,
-    Flowable, KeepTogether,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, CondPageBreak, PageBreak,
+    Image as RLImage, Flowable, KeepTogether,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -534,35 +534,41 @@ def build_multi_question_pdf(
 
         # Candidate Details Block (Only for student paper)
         if not is_markscheme:
-            line = ParagraphStyle(
-                "WriteLine",
-                parent=meta_style,
-                textColor=colors.HexColor("#A0AEC0"),
+            blank = Paragraph("&nbsp;", meta_style)
+            score = Paragraph(f"<b>/ {total_marks}</b>", meta_style)
+            cand_table = Table(
+                [
+                    [
+                        Paragraph("<b>Candidate Name</b>", meta_style),
+                        blank,
+                        Paragraph("<b>Date</b>", meta_style),
+                        blank,
+                    ],
+                    [
+                        Paragraph("<b>Candidate Number</b>", meta_style),
+                        blank,
+                        Paragraph("<b>Total Score</b>", meta_style),
+                        score,
+                    ],
+                ],
+                colWidths=[1.55 * inch, 2.55 * inch, 1.15 * inch, 1.55 * inch],
+                rowHeights=[22, 22],
             )
-            cand_data = [
-                [
-                    Paragraph("<b>Candidate Name</b>", meta_style),
-                    Paragraph("." * 42, line),
-                    Paragraph("<b>Date</b>", meta_style),
-                    Paragraph("." * 18, line),
-                ],
-                [
-                    Paragraph("<b>Candidate Number</b>", meta_style),
-                    Paragraph("." * 42, line),
-                    Paragraph("<b>Total Score</b>", meta_style),
-                    Paragraph(f"....... / {total_marks}", line),
-                ],
-            ]
-            cand_table = Table(cand_data, colWidths=[1.55 * inch, 2.55 * inch, 1.05 * inch, 1.65 * inch])
             cand_table.setStyle(TableStyle([
-                ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-                ('TOPPADDING', (0,0), (-1,-1), 5),
-                ('LEFTPADDING', (0,0), (-1,-1), 6),
-                ('RIGHTPADDING', (0,0), (-1,-1), 6),
-                ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F7FAFC")),
-                ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E0")),
-                ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#E2E8F0"))
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#4A5568")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E0")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                # Signature / score writing lines inside the blank cells.
+                ("LINEBELOW", (1, 0), (1, 0), 0.8, colors.HexColor("#718096")),
+                ("LINEBELOW", (3, 0), (3, 0), 0.8, colors.HexColor("#718096")),
+                ("LINEBELOW", (1, 1), (1, 1), 0.8, colors.HexColor("#718096")),
+                ("LINEBELOW", (3, 1), (3, 1), 0.8, colors.HexColor("#718096")),
+                ("ALIGN", (3, 1), (3, 1), "RIGHT"),
             ]))
             story.append(cand_table)
             story.append(Spacer(1, 10))
@@ -587,48 +593,55 @@ def build_multi_question_pdf(
         )
         for task in tasks:
             section = task.get("section", "A")
-            if section == "B" and paper_format == "exam_booklet":
-                story.append(CondPageBreak(2.4 * inch))
-            if section != current_section:
+            entering_section = section != current_section
+
+            if section == "B" and paper_format == "exam_booklet" and not is_markscheme:
+                # Each extended question starts at the top of a fresh page.
+                story.append(PageBreak())
+                if entering_section:
+                    current_section = section
+                    banner = f"SECTION B — Extended-response questions ({section_marks[section]} marks)"
+                    story.append(Paragraph(banner, section_style))
+            elif entering_section:
                 current_section = section
-                banner = "SECTION A — Short-response questions" if section == "A" else "SECTION B — Extended-response questions"
+                banner = (
+                    "SECTION A — Short-response questions"
+                    if section == "A"
+                    else "SECTION B — Extended-response questions"
+                )
                 story.append(Paragraph(f"{banner} ({section_marks[section]} marks)", section_style))
 
             q_num = task["q_number"]
             q_title = task["title"]
             q_marks = task["marks"]
-            stem = []
+            question_flowables = []
             short_title = re.sub(r"^Paper 2:\s*", "", q_title).strip()
-            stem.append(Paragraph(
+            question_flowables.append(Paragraph(
                 f"<b>Question {q_num}.</b> {escape(short_title)} "
                 f"<font color='#718096'>({q_marks} marks)</font>",
                 q_title_style,
             ))
             if is_markscheme and task.get("archetype"):
-                stem.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
+                question_flowables.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
 
             if task.get("intro"):
-                _append_rich(stem, task["intro"], body_style, usable)
+                _append_rich(question_flowables, task["intro"], body_style, usable)
 
             latex_main = (task.get("latex_main") or "").strip()
-            has_table = bool(task.get("display_table"))
-            if has_table:
-                # Force enough room for title + intro + unbroken 2-row table + model.
-                if paper_format == "exam_booklet" and not is_markscheme:
-                    story.append(CondPageBreak(2.6 * inch))
-                stem.append(Spacer(1, 4))
-                stem.append(_frequency_table(task["display_table"], usable, table_cell_style))
+            if task.get("display_table"):
+                question_flowables.append(Spacer(1, 4))
+                question_flowables.append(_frequency_table(task["display_table"], usable, table_cell_style))
                 if latex_main and latex_main.lower() not in {"observed frequencies", "contingency table"}:
-                    stem.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
-                stem.append(Spacer(1, 4))
+                    question_flowables.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
+                question_flowables.append(Spacer(1, 4))
             elif latex_main:
                 formula = render_math_to_image(latex_main, fontsize=13, max_width=usable)
                 if formula is None:
-                    stem.append(Paragraph(escape(latex_main), body_style))
+                    question_flowables.append(Paragraph(escape(latex_main), body_style))
                 else:
-                    stem.append(Spacer(1, 4))
-                    stem.append(formula)
-                    stem.append(Spacer(1, 4))
+                    question_flowables.append(Spacer(1, 4))
+                    question_flowables.append(formula)
+                    question_flowables.append(Spacer(1, 4))
 
             has_figure = figure_visible(task, is_markscheme=is_markscheme, exam_mode=exam_mode)
             if has_figure:
@@ -638,26 +651,29 @@ def build_multi_question_pdf(
                 else:
                     diagram = _placed_image(task["png_bytes"], min(usable, 4.8 * inch), 2.6 * inch)
                 if diagram is not None:
-                    stem.append(Spacer(1, 4))
-                    stem.append(diagram)
-                    stem.append(Spacer(1, 4))
+                    question_flowables.append(Spacer(1, 4))
+                    question_flowables.append(diagram)
+                    question_flowables.append(Spacer(1, 4))
 
             if not is_markscheme:
-                parts_and_marks = []
                 for subquestion in task["subquestions"] or []:
-                    _append_rich(parts_and_marks, subquestion, body_style, usable)
+                    _append_rich(question_flowables, subquestion, body_style, usable)
                 if paper_format == "worksheet":
-                    parts_and_marks.append(Spacer(1, 14))
-                    story.append(KeepTogether(stem))
-                    story.extend(parts_and_marks)
+                    question_flowables.append(Spacer(1, 14))
+                    story.append(KeepTogether(question_flowables))
+                    story.append(Spacer(1, 14))
+                elif section == "A":
+                    question_flowables.append(WorkingSpaceGrid(q_marks))
+                    # Critical: one Section A question is never split across pages.
+                    story.append(KeepTogether(question_flowables))
+                    story.append(Spacer(1, 14))
                 else:
-                    parts_and_marks.append(WorkingSpaceGrid(q_marks))
-                    # Stem (esp. frequency tables) must not split; Table.splitByRow=0 enforces that.
-                    story.append(KeepTogether(stem))
-                    story.append(KeepTogether(parts_and_marks))
-                    story.append(Spacer(1, 6))
+                    # Section B already starts on a fresh page; keep stem+parts together.
+                    story.append(KeepTogether(question_flowables))
+                    story.append(WorkingSpaceGrid(q_marks))
+                    story.append(Spacer(1, 10))
             else:
-                story.append(KeepTogether(stem))
+                story.append(KeepTogether(question_flowables))
                 story.append(Spacer(1, 4))
                 for step in task["markscheme"]:
                     _append_rich(story, f"• {step['desc']}", body_style, text_width)

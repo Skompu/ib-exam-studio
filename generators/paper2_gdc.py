@@ -183,7 +183,10 @@ def _numerical_area(difficulty: str):
             ),
             part(
                 "b",
-                f"Find the value of $t$, where ${lower} < t < {upper}$, for which the area from $x = {lower}$ to $x = t$ is half the area in part (a).",
+                (
+                    f"Find the value of t, where {lower} < t < {upper}, "
+                    f"for which the area from x = {lower} to x = t is half the area in part (a)."
+                ),
                 3,
                 step(
                     "Solve the integral equation numerically:",
