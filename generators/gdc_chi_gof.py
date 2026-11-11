@@ -146,7 +146,7 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
             "Under the model below, test whether the sample fits the stated distribution at the 5% level."
         ),
         latex_main=item["model_line"],
-        display_table=_observed_table(item["labels"], item["observed"]),
+        table_data=_observed_table(item["labels"], item["observed"]),
         parts=[
             part(
                 "a",

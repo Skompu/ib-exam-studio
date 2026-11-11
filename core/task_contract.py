@@ -59,16 +59,18 @@ class Task:
     archetype: str = ""
     family: str = ""
     plot_type: str = "none"
-    display_table: tuple | None = None
+    table_data: tuple | None = None
 
     def __post_init__(self):
         for name in ("title", "intro", "latex_main", "archetype", "family"):
             value = getattr(self, name)
             if not isinstance(value, str):
                 raise TypeError(f"Task {name} must be a string.")
-        for name in ("title", "intro", "latex_main"):
+        for name in ("title", "intro"):
             if not getattr(self, name).strip():
                 raise ValueError(f"Task {name} must be non-empty.")
+        if not self.latex_main.strip() and self.table_data is None:
+            raise ValueError("Task latex_main must be non-empty unless table_data is provided.")
         if not self.parts:
             raise ValueError(f"Task {self.title!r} needs at least one part.")
         self.parts = tuple(self.parts)
@@ -85,11 +87,11 @@ class Task:
             raise ValueError(
                 f"Task {self.title!r} plot_type must be one of {PLOT_TYPES}, got {self.plot_type!r}."
             )
-        if self.display_table is not None:
-            rows = tuple(tuple(str(cell) for cell in row) for row in self.display_table)
+        if self.table_data is not None:
+            rows = tuple(tuple(str(cell) for cell in row) for row in self.table_data)
             if not rows or any(len(row) != len(rows[0]) for row in rows):
-                raise ValueError(f"Task {self.title!r} display_table must be a non-empty rectangular grid.")
-            self.display_table = rows
+                raise ValueError(f"Task {self.title!r} table_data must be a non-empty rectangular grid.")
+            self.table_data = rows
 
     @property
     def marks(self) -> int:
@@ -117,8 +119,8 @@ class Task:
             "family": self.family,
             "plot_type": self.plot_type,
         }
-        if self.display_table is not None:
-            payload["display_table"] = [list(row) for row in self.display_table]
+        if self.table_data is not None:
+            payload["table_data"] = [list(row) for row in self.table_data]
         return payload
 
 

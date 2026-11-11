@@ -160,8 +160,8 @@ def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
             "Give numerical answers to three significant figures where appropriate. "
             "The observed frequencies in a contingency table are shown below."
         ),
-        latex_main="Observed frequencies",
-        display_table=table,
+        latex_main="",
+        table_data=table,
         parts=[
             part(
                 "a",

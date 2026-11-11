@@ -318,7 +318,7 @@ def test_gdc_chi_gof_off_fixed_presets_and_variants():
             assert task.marks == 8
             paper = task.to_paper_dict()
             assert paper["markscheme"]
-            assert paper["display_table"]
+            assert paper["table_data"]
             assert "begin{array}" not in paper["latex_main"]
             assert "nu" in " ".join(part.prompt for part in task.parts).replace("\\nu", "nu")
         assert len(seen) >= 2, (difficulty, seen)
@@ -328,9 +328,10 @@ def test_gdc_chi_uses_native_display_table():
     for difficulty in ("standard", "challenging"):
         task = _one("gdc_chi", difficulty)
         paper = task.to_paper_dict()
-        assert paper["display_table"]
+        assert paper["table_data"]
         assert "begin{array}" not in paper["latex_main"]
-        assert len(paper["display_table"]) >= 2
+        assert "|" not in paper["intro"]
+        assert len(paper["table_data"]) >= 2
 
 
 def test_chi_exponential_and_gdc_chi_preset():

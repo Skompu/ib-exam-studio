@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, CondPageBreak, PageBreak,
     Image as RLImage, Flowable, KeepTogether,
@@ -18,6 +20,28 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
 
 _MATH = re.compile(r"\$([^$]+)\$")
+
+
+def _register_unicode_fonts() -> str:
+    """Helvetica has no Greek. DejaVu does, and ships with matplotlib."""
+    if "DejaVu-Oblique" in pdfmetrics.getRegisteredFontNames():
+        return "DejaVu-Oblique"
+    try:
+        from pathlib import Path
+
+        folder = Path(matplotlib.get_data_path()) / "fonts" / "ttf"
+        regular = folder / "DejaVuSans.ttf"
+        oblique = folder / "DejaVuSans-Oblique.ttf"
+        if not regular.exists() or not oblique.exists():
+            return "Helvetica"
+        pdfmetrics.registerFont(TTFont("DejaVu", str(regular)))
+        pdfmetrics.registerFont(TTFont("DejaVu-Oblique", str(oblique)))
+        return "DejaVu-Oblique"
+    except Exception:
+        return "Helvetica"
+
+
+_GREEK_MATH = _register_unicode_fonts()
 
 class NumberedCanvas(canvas.Canvas):
     """
@@ -215,15 +239,22 @@ def _simple_math(code: str):
         return None
     script = re.fullmatch(r"([A-Za-zπθλμσνχ]+)(?:_(\{?[A-Za-z0-9]+\}?)|\^(\{?[0-9]+\}?))?", text)
     if script:
-        body = f"<i>{escape(script.group(1))}</i>"
+        body = escape(script.group(1))
         if script.group(2):
             body += f"<sub>{escape(script.group(2).strip('{}'))}</sub>"
         if script.group(3):
             body += f"<sup>{escape(script.group(3).strip('{}'))}</sup>"
-        return body
+        return _math_span(body)
     if re.fullmatch(r"[A-Za-z0-9πθλμσνχΠ≤≥≠·×∞<> ,;:.()+\-/'=]+", text):
-        return f"<i>{escape(text)}</i>"
+        return _math_span(escape(text))
     return None
+
+
+def _math_span(inner: str) -> str:
+    """Italic math; Greek uses DejaVu so Helvetica cannot swallow μ/σ."""
+    if re.search(r"[μπθλσνχΠ]", inner) and _GREEK_MATH != "Helvetica":
+        return f'<font name="{_GREEK_MATH}" size="10">{inner}</font>'
+    return f"<i>{inner}</i>"
 
 
 def _plain_width(text: str, style) -> float:
@@ -257,9 +288,16 @@ def _append_rich(story, text: str, style, max_width: float):
     row = []
     used = 0
     rows = []
+    expanded = []
     for kind, value in pieces:
         if kind == "text":
-            if not value:
+            for chunk in re.findall(r"\S+\s*|\s+", value):
+                expanded.append(("text", chunk))
+        else:
+            expanded.append((kind, value))
+    for kind, value in expanded:
+        if kind == "text":
+            if not value or (not row and not value.strip()):
                 continue
             paragraph = Paragraph(escape(value), style)
             width = min(max_width, _plain_width(value, style) + 2)
@@ -272,20 +310,27 @@ def _append_rich(story, text: str, style, max_width: float):
             else:
                 flowable = render_math_to_image(value, fontsize=11, max_width=max_width)
                 if flowable is None:
-                    # Prefer a cleaned mathtext retry / readable plain text over raw TeX.
                     cleaned = _prepare_math(value)
                     retry = render_math_to_image(cleaned, fontsize=11, max_width=max_width)
                     if retry is not None:
                         flowable = retry
-                        width = flowable.drawWidth + 2
+                        width = max(flowable.drawWidth, 10) + 2
                     else:
-                        readable = cleaned.replace(r"\leq", "≤").replace(r"\geq", "≥")
-                        readable = readable.replace(r"\frac", "").replace("{", "").replace("}", "/")
-                        readable = re.sub(r"/+", "/", readable).strip(" /")
-                        flowable = Paragraph(escape(readable or value), style)
-                        width = min(max_width, _plain_width(readable or value, style) + 2)
+                        symbol = {"\\mu": "m", "\\sigma": "s"}.get(value.strip())
+                        if symbol is not None:
+                            flowable = Paragraph(
+                                f'<font name="Symbol" size="11">{symbol}</font>',
+                                style,
+                            )
+                            width = 12
+                        else:
+                            readable = cleaned.replace(r"\leq", "≤").replace(r"\geq", "≥")
+                            readable = readable.replace(r"\frac", "").replace("{", "").replace("}", "/")
+                            readable = re.sub(r"/+", "/", readable).strip(" /")
+                            flowable = Paragraph(escape(readable or value), style)
+                            width = min(max_width, _plain_width(readable or value, style) + 2)
                 else:
-                    width = flowable.drawWidth + 2
+                    width = max(flowable.drawWidth, 10) + 2
         if row and used + width > max_width:
             rows.append(row)
             row = []
@@ -360,32 +405,43 @@ class WorkingSpaceGrid(Flowable):
         canv.restoreState()
 
 
+def _frequency_widths(rows: list) -> list[float]:
+    """Fixed column widths: 2×2 contingency vs goodness-of-fit."""
+    columns = len(rows[0])
+    if len(rows) == 2:
+        return [0.6 * inch] * columns
+    if columns == 3:
+        return [1.5 * inch, 1.2 * inch, 1.2 * inch]
+    return [1.5 * inch] + [1.2 * inch] * (columns - 1)
+
+
 def _frequency_table(rows: list, usable: float, cell_style=None) -> Table:
     """Bordered contingency / frequency table; never splits across pages."""
     del cell_style  # plain strings keep wrap height predictable
+    del usable
     if not rows:
         raise ValueError("display_table is empty.")
-    columns = len(rows[0])
-    col_width = min(0.55 * inch, (usable - 12) / max(columns, 1))
     table = Table(
         [[str(cell) for cell in row] for row in rows],
-        colWidths=[col_width] * columns,
+        colWidths=_frequency_widths(rows),
         hAlign="CENTER",
     )
     table.splitByRow = 0
     table.setStyle(
         TableStyle(
             [
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#718096")),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F7FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#2D3748")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#4A5568")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EDF2F7")),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
                 ("FONTSIZE", (0, 0), (-1, -1), 9),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
             ]
         )
     )
@@ -393,61 +449,118 @@ def _frequency_table(rows: list, usable: float, cell_style=None) -> Table:
 
 
 def _candidate_details_table(total_marks: int, label_style, meta_style) -> Table:
-    """Candidate name, number, date, and total-score box — no pipe characters."""
-    dotted = ParagraphStyle(
-        "CandidateWrite",
-        parent=meta_style,
-        fontSize=9,
-        leading=12,
-        textColor=colors.HexColor("#718096"),
-        alignment=0,
-    )
-    score_style = ParagraphStyle(
-        "CandidateScore",
-        parent=meta_style,
-        fontSize=10,
-        leading=12,
-        alignment=1,
-    )
-    name_line = Paragraph("." * 58, dotted)
-    number_line = Paragraph("." * 58, dotted)
-    date_line = Paragraph("." * 22, dotted)
-    score_box = Paragraph(f"/&nbsp;{total_marks}", score_style)
+    """Two-by-four write-in block. Empty cells stay empty so labels cannot wrap into a column."""
+    del label_style, meta_style
+    rule = colors.HexColor("#718096")
     cand_table = Table(
         [
-            [
-                Paragraph("<b>Candidate Name</b>", label_style),
-                name_line,
-                Paragraph("<b>Date</b>", label_style),
-                date_line,
-            ],
-            [
-                Paragraph("<b>Candidate Number</b>", label_style),
-                number_line,
-                Paragraph("<b>Total Score</b>", label_style),
-                score_box,
-            ],
+            ["Candidate Name:", "", "Date:", ""],
+            ["Candidate Number:", "", "Total Score:", f"/{total_marks}"],
         ],
-        colWidths=[1.45 * inch, 2.65 * inch, 1.1 * inch, 1.6 * inch],
-        rowHeights=[26, 28],
+        colWidths=[1.4 * inch, 2.2 * inch, 1.2 * inch, 1.8 * inch],
+        rowHeights=[20, 22],
     )
     cand_table.setStyle(
         TableStyle(
             [
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7FAFC")),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#4A5568")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E0")),
-                ("LINEBELOW", (1, 0), (1, 0), 0.9, colors.HexColor("#718096")),
-                ("LINEBELOW", (3, 0), (3, 0), 0.9, colors.HexColor("#718096")),
-                ("LINEBELOW", (1, 1), (1, 1), 0.9, colors.HexColor("#718096")),
-                ("BOX", (3, 1), (3, 1), 0.9, colors.HexColor("#718096")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica"),
+                ("FONTNAME", (2, 0), (2, -1), "Helvetica"),
+                ("FONTNAME", (3, 1), (3, 1), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#2D3748")),
+                ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                ("ALIGN", (3, 1), (3, 1), "CENTER"),
+                ("LINEBELOW", (1, 0), (1, 0), 0.6, rule),
+                ("LINEBELOW", (3, 0), (3, 0), 0.6, rule),
+                ("LINEBELOW", (1, 1), (1, 1), 0.6, rule),
+                ("BOX", (3, 1), (3, 1), 0.9, rule),
+                ("BACKGROUND", (3, 1), (3, 1), colors.HexColor("#F7FAFC")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
             ]
         )
     )
     return cand_table
+
+
+def _task_table_rows(task: dict) -> list | None:
+    rows = task.get("table_data") or task.get("display_table")
+    return rows if rows else None
+
+
+def _append_paper_cover(
+    story: list,
+    *,
+    institution_name: str,
+    contact_info: str,
+    syllabus: str,
+    paper_type: str,
+    time_allowed: str,
+    variant: str,
+    total_marks: int,
+    doc_type_label: str,
+    is_markscheme: bool,
+    logo_bytes: bytes | None,
+    meta_style,
+    title_style,
+) -> None:
+    """Institution banner plus candidate block — once per cohort variant."""
+    header_left = [
+        Paragraph(
+            institution_name.upper(),
+            ParagraphStyle(
+                "Inst",
+                fontName="Helvetica-Bold",
+                fontSize=12,
+                textColor=colors.HexColor("#1A365D"),
+            ),
+        ),
+        Paragraph(f"{contact_info} · {syllabus}", meta_style),
+        Spacer(1, 4),
+        Paragraph(f"<b>{doc_type_label}</b>", title_style),
+        Paragraph(
+            f"<b>Session / Policy:</b> {paper_type} · <b>Time Allowed:</b> {time_allowed}",
+            meta_style,
+        ),
+        Paragraph(
+            f"<b>Cohort / Variant:</b> <b>{variant}</b> · <b>Total Available Marks:</b> {total_marks}",
+            meta_style,
+        ),
+    ]
+    if logo_bytes:
+        try:
+            logo_io = io.BytesIO(logo_bytes)
+            logo_img = RLImage(logo_io, width=1.2 * inch, height=0.6 * inch)
+            header_table = Table([[header_left, logo_img]], colWidths=[4.5 * inch, 2.3 * inch])
+            header_table.setStyle(
+                TableStyle(
+                    [
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                    ]
+                )
+            )
+        except Exception:
+            header_table = Table([[header_left]], colWidths=[6.8 * inch])
+    else:
+        header_table = Table([[header_left]], colWidths=[6.8 * inch])
+    header_table.setStyle(TableStyle([("BOTTOMPADDING", (0, 0), (-1, -1), 10)]))
+    story.append(header_table)
+    story.append(Spacer(1, 6))
+    if not is_markscheme:
+        story.append(_candidate_details_table(total_marks, meta_style, meta_style))
+        story.append(Spacer(1, 10))
+    story.append(
+        Table(
+            [[""]],
+            colWidths=[6.8 * inch],
+            rowHeights=[1],
+            style=[("LINEBELOW", (0, 0), (-1, -1), 1, colors.HexColor("#2B6CB0"))],
+        )
+    )
+    story.append(Spacer(1, 10))
 
 
 def _placed_image(data: bytes, max_width: float, max_height: float):
@@ -549,58 +662,34 @@ def build_multi_question_pdf(
     story = []
 
     for p_idx, paper in enumerate(papers):
+        if p_idx > 0:
+            story.append(PageBreak())
         variant = paper["variant"]
         tasks = paper["tasks"]
         total_marks = paper["total_marks"]
-        
+
         doc_type_label = "OFFICIAL MARK SCHEME & SOLUTIONS" if is_markscheme else "ASSESSMENT EXAMINATION PAPER"
-        
-        # Header Section with optional Logo
-        header_data = []
-        header_left = [
-            Paragraph(institution_name.upper(), ParagraphStyle('Inst', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor("#1A365D"))),
-            Paragraph(f"{contact_info} · {syllabus}", meta_style),
-            Spacer(1, 4),
-            Paragraph(f"<b>{doc_type_label}</b>", title_style),
-            Paragraph(
-                f"<b>Session / Policy:</b> {paper_type} · <b>Time Allowed:</b> {time_allowed}",
-                meta_style,
-            ),
-            Paragraph(
-                f"<b>Cohort / Variant:</b> <b>{variant}</b> · <b>Total Available Marks:</b> {total_marks}",
-                meta_style,
-            )
-        ]
+        _append_paper_cover(
+            story,
+            institution_name=institution_name,
+            contact_info=contact_info,
+            syllabus=syllabus,
+            paper_type=paper_type,
+            time_allowed=time_allowed,
+            variant=variant,
+            total_marks=total_marks,
+            doc_type_label=doc_type_label,
+            is_markscheme=is_markscheme,
+            logo_bytes=logo_bytes,
+            meta_style=meta_style,
+            title_style=title_style,
+        )
         if is_markscheme and paper.get("difficulty"):
-            difficulty_label = "Challenging (IB exam-trap)" if paper["difficulty"] == "challenging" else "Standard procedures"
-            header_left.append(Paragraph(f"<b>Difficulty profile:</b> {difficulty_label}", meta_style))
-        
-        if logo_bytes:
-            try:
-                logo_io = io.BytesIO(logo_bytes)
-                logo_img = RLImage(logo_io, width=1.2 * inch, height=0.6 * inch)
-                header_data = [[header_left, logo_img]]
-                header_table = Table(header_data, colWidths=[4.5 * inch, 2.3 * inch])
-                header_table.setStyle(TableStyle([
-                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                    ('ALIGN', (1,0), (1,0), 'RIGHT'),
-                ]))
-            except Exception:
-                header_table = Table([[header_left]], colWidths=[6.8 * inch])
-        else:
-            header_table = Table([[header_left]], colWidths=[6.8 * inch])
-            
-        header_table.setStyle(TableStyle([('BOTTOMPADDING', (0,0), (-1,-1), 10)]))
-        story.append(header_table)
-        story.append(Spacer(1, 6))
-
-        # Candidate Details Block (Only for student paper)
-        if not is_markscheme:
-            story.append(_candidate_details_table(total_marks, meta_style, meta_style))
-            story.append(Spacer(1, 10))
-
-        story.append(Table([[""]], colWidths=[6.8 * inch], rowHeights=[1], style=[('LINEBELOW', (0,0), (-1,-1), 1, colors.HexColor("#2B6CB0"))]))
-        story.append(Spacer(1, 10))
+            difficulty_label = (
+                "Challenging (IB exam-trap)" if paper["difficulty"] == "challenging" else "Standard procedures"
+            )
+            story.append(Paragraph(f"<b>Difficulty profile:</b> {difficulty_label}", meta_style))
+            story.append(Spacer(1, 6))
 
         # Tasks Iteration
         usable = A4[0] - 72
@@ -654,9 +743,10 @@ def build_multi_question_pdf(
                 _append_rich(question_flowables, task["intro"], body_style, usable)
 
             latex_main = (task.get("latex_main") or "").strip()
-            if task.get("display_table"):
+            table_rows = _task_table_rows(task)
+            if table_rows:
                 question_flowables.append(Spacer(1, 4))
-                question_flowables.append(_frequency_table(task["display_table"], usable, table_cell_style))
+                question_flowables.append(_frequency_table(table_rows, usable, table_cell_style))
                 if latex_main and latex_main.lower() not in {"observed frequencies", "contingency table"}:
                     question_flowables.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
                 question_flowables.append(Spacer(1, 4))
@@ -718,13 +808,6 @@ def build_multi_question_pdf(
                     ]))
                     story.append(scheme_row)
                 story.append(Spacer(1, 8))
-
-        # Page break between different variants/cohorts
-        if p_idx < len(papers) - 1:
-            # A raw PageBreak at the top of a page that the previous cohort
-            # already filled leaves a sheet with nothing but the footer.
-            live = A4[1] - 45 - 45 - 12
-            story.append(CondPageBreak(live - 1))
 
     doc.build(story, canvasmaker=NumberedCanvas)
     buffer.seek(0)

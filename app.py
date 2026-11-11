@@ -160,7 +160,7 @@ def group_by_category(tasks: list[dict], difficulty: str) -> list[tuple[str, lis
 
 def _render_stem_math(task: dict) -> None:
     """Show a frequency table and/or the main equation without leaking raw LaTeX."""
-    table = task.get("display_table")
+    table = task.get("table_data") or task.get("display_table")
     if table:
         header, *body = table
         if body:
