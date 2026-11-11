@@ -360,18 +360,21 @@ class WorkingSpaceGrid(Flowable):
         canv.restoreState()
 
 
-def _frequency_table(rows: list, usable: float, cell_style) -> Table:
-    """Bordered contingency / frequency table for Paper 2 statistics items."""
+def _frequency_table(rows: list, usable: float, cell_style=None) -> Table:
+    """Bordered contingency / frequency table; never splits across pages."""
+    del cell_style  # plain strings keep wrap height predictable
     if not rows:
         raise ValueError("display_table is empty.")
     columns = len(rows[0])
     # Wide goodness-of-fit tables must stay on one line without blowing the margins.
-    col_width = min(1.15 * inch, (usable - 12) / max(columns, 1))
+    col_width = min(0.95 * inch, (usable - 12) / max(columns, 1))
     table = Table(
-        [[Paragraph(escape(str(cell)), cell_style) for cell in row] for row in rows],
+        [[str(cell) for cell in row] for row in rows],
         colWidths=[col_width] * columns,
         hAlign="CENTER",
     )
+    # ReportLab Tables split by row by default — that orphans the header on the previous page.
+    table.splitByRow = 0
     table.setStyle(
         TableStyle(
             [
@@ -379,10 +382,12 @@ def _frequency_table(rows: list, usable: float, cell_style) -> Table:
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EDF2F7")),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
             ]
         )
     )
@@ -592,34 +597,38 @@ def build_multi_question_pdf(
             q_num = task["q_number"]
             q_title = task["title"]
             q_marks = task["marks"]
-            block = []
+            stem = []
             short_title = re.sub(r"^Paper 2:\s*", "", q_title).strip()
-            block.append(Paragraph(
+            stem.append(Paragraph(
                 f"<b>Question {q_num}.</b> {escape(short_title)} "
                 f"<font color='#718096'>({q_marks} marks)</font>",
                 q_title_style,
             ))
             if is_markscheme and task.get("archetype"):
-                block.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
+                stem.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
 
             if task.get("intro"):
-                _append_rich(block, task["intro"], body_style, usable)
+                _append_rich(stem, task["intro"], body_style, usable)
 
             latex_main = (task.get("latex_main") or "").strip()
-            if task.get("display_table"):
-                table_block = [Spacer(1, 4), _frequency_table(task["display_table"], usable, table_cell_style)]
+            has_table = bool(task.get("display_table"))
+            if has_table:
+                # Force enough room for title + intro + unbroken 2-row table + model.
+                if paper_format == "exam_booklet" and not is_markscheme:
+                    story.append(CondPageBreak(2.6 * inch))
+                stem.append(Spacer(1, 4))
+                stem.append(_frequency_table(task["display_table"], usable, table_cell_style))
                 if latex_main and latex_main.lower() not in {"observed frequencies", "contingency table"}:
-                    table_block.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
-                table_block.append(Spacer(1, 4))
-                block.append(KeepTogether(table_block))
+                    stem.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
+                stem.append(Spacer(1, 4))
             elif latex_main:
                 formula = render_math_to_image(latex_main, fontsize=13, max_width=usable)
                 if formula is None:
-                    block.append(Paragraph(escape(latex_main), body_style))
+                    stem.append(Paragraph(escape(latex_main), body_style))
                 else:
-                    block.append(Spacer(1, 4))
-                    block.append(formula)
-                    block.append(Spacer(1, 4))
+                    stem.append(Spacer(1, 4))
+                    stem.append(formula)
+                    stem.append(Spacer(1, 4))
 
             has_figure = figure_visible(task, is_markscheme=is_markscheme, exam_mode=exam_mode)
             if has_figure:
@@ -629,9 +638,9 @@ def build_multi_question_pdf(
                 else:
                     diagram = _placed_image(task["png_bytes"], min(usable, 4.8 * inch), 2.6 * inch)
                 if diagram is not None:
-                    block.append(Spacer(1, 4))
-                    block.append(diagram)
-                    block.append(Spacer(1, 4))
+                    stem.append(Spacer(1, 4))
+                    stem.append(diagram)
+                    stem.append(Spacer(1, 4))
 
             if not is_markscheme:
                 parts_and_marks = []
@@ -639,16 +648,16 @@ def build_multi_question_pdf(
                     _append_rich(parts_and_marks, subquestion, body_style, usable)
                 if paper_format == "worksheet":
                     parts_and_marks.append(Spacer(1, 14))
-                    story.extend(block)
+                    story.append(KeepTogether(stem))
                     story.extend(parts_and_marks)
                 else:
                     parts_and_marks.append(WorkingSpaceGrid(q_marks))
-                    story.extend(block)
-                    # Keep the part list with the [/n] box so the mark frame is not orphaned.
+                    # Stem (esp. frequency tables) must not split; Table.splitByRow=0 enforces that.
+                    story.append(KeepTogether(stem))
                     story.append(KeepTogether(parts_and_marks))
                     story.append(Spacer(1, 6))
             else:
-                story.extend(block)
+                story.append(KeepTogether(stem))
                 story.append(Spacer(1, 4))
                 for step in task["markscheme"]:
                     _append_rich(story, f"• {step['desc']}", body_style, text_width)
