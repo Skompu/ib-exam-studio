@@ -109,21 +109,23 @@ _NARROW = tuple(item for item in _BANK if item["shape"] == "2x2")
 _WIDE = tuple(item for item in _BANK if item["shape"] == "2x3")
 
 
-def _table_2x2(observed) -> str:
+def _table_2x2(observed):
     a, b = observed[0]
     c, d = observed[1]
     return (
-        rf"\begin{{array}}{{c|cc}} & \text{{Group 1}} & \text{{Group 2}} \\ \hline "
-        rf"\text{{Type A}} & {a} & {b} \\ \text{{Type B}} & {c} & {d} \end{{array}}"
+        ("", "Group 1", "Group 2"),
+        ("Type A", str(a), str(b)),
+        ("Type B", str(c), str(d)),
     )
 
 
-def _table_2x3(observed) -> str:
+def _table_2x3(observed):
     a, b, c = observed[0]
     d, e, f = observed[1]
     return (
-        rf"\begin{{array}}{{c|ccc}} & C_1 & C_2 & C_3 \\ \hline "
-        rf"R_1 & {a} & {b} & {c} \\ R_2 & {d} & {e} & {f} \end{{array}}"
+        ("", "C1", "C2", "C3"),
+        ("R1", str(a), str(b), str(c)),
+        ("R2", str(d), str(e), str(f)),
     )
 
 
@@ -150,7 +152,7 @@ def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
         if item["reject"]
         else r"\text{Do not reject } H_0 \text{ at the 5\% level.}"
     )
-    table_tex = _table_2x2(item["observed"]) if item["shape"] == "2x2" else _table_2x3(item["observed"])
+    table = _table_2x2(item["observed"]) if item["shape"] == "2x2" else _table_2x3(item["observed"])
     task = pack_task(
         title="Paper 2: Chi-squared Test",
         intro=(
@@ -158,7 +160,8 @@ def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
             "Give numerical answers to three significant figures where appropriate. "
             "The observed frequencies in a contingency table are shown below."
         ),
-        latex_main=table_tex,
+        latex_main="Observed frequencies",
+        display_table=table,
         parts=[
             part(
                 "a",

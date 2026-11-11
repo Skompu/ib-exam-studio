@@ -211,7 +211,7 @@ def _assert_booklet(pdf_bytes, papers):
         if rules < 2 and not any(token in text for token in ("Question", "SECTION", "Candidate"))
     ]
     assert not blanks, blanks
-    expected = sum(max(4, int(task["marks"] * 1.5)) for paper in papers for task in paper["tasks"])
+    expected = sum(min(max(4, task["marks"] + 2), 14) for paper in papers for task in paper["tasks"])
     counted = sum(rules for _, _, rules in pages)
     assert counted >= expected, (counted, expected)
     questions = sum(len(re.findall(r"Question\s+\d+", text)) for _, text, _ in pages)

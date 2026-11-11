@@ -59,6 +59,7 @@ class Task:
     archetype: str = ""
     family: str = ""
     plot_type: str = "none"
+    display_table: tuple | None = None
 
     def __post_init__(self):
         for name in ("title", "intro", "latex_main", "archetype", "family"):
@@ -84,6 +85,11 @@ class Task:
             raise ValueError(
                 f"Task {self.title!r} plot_type must be one of {PLOT_TYPES}, got {self.plot_type!r}."
             )
+        if self.display_table is not None:
+            rows = tuple(tuple(str(cell) for cell in row) for row in self.display_table)
+            if not rows or any(len(row) != len(rows[0]) for row in rows):
+                raise ValueError(f"Task {self.title!r} display_table must be a non-empty rectangular grid.")
+            self.display_table = rows
 
     @property
     def marks(self) -> int:
@@ -99,7 +105,7 @@ class Task:
                 markscheme.append(
                     {"desc": scheme_step.desc, "tex": scheme_step.tex, "code": scheme_step.code}
                 )
-        return {
+        payload = {
             "title": self.title,
             "marks": self.marks,
             "intro": self.intro,
@@ -111,6 +117,9 @@ class Task:
             "family": self.family,
             "plot_type": self.plot_type,
         }
+        if self.display_table is not None:
+            payload["display_table"] = [list(row) for row in self.display_table]
+        return payload
 
 
 def step(desc: str, tex: str, code: str) -> SchemeStep:

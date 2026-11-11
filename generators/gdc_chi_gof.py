@@ -47,6 +47,7 @@ def _build_bank():
             "probs": (sp.Rational(1, 6),) * 6,
             "labels": tuple(str(face) for face in range(1, 7)),
             "totals": (120, 180, 90),
+            "model_line": r"$P(X = k) = 1/6$ for $k = 1, 2, \ldots, 6$",
         },
         {
             "kind": "genetics",
@@ -54,6 +55,10 @@ def _build_bank():
             "probs": (sp.Rational(9, 16), sp.Rational(3, 16), sp.Rational(3, 16), sp.Rational(1, 16)),
             "labels": ("Round yellow", "Round green", "Wrinkled yellow", "Wrinkled green"),
             "totals": (160, 240, 128),
+            "model_line": (
+                r"$P(\mathrm{RY})=9/16$, $P(\mathrm{RG})=3/16$, "
+                r"$P(\mathrm{WY})=3/16$, $P(\mathrm{WG})=1/16$"
+            ),
         },
         {
             "kind": "survey",
@@ -61,6 +66,9 @@ def _build_bank():
             "probs": (sp.Rational(1, 2), sp.Rational(1, 4), sp.Rational(1, 8), sp.Rational(1, 8)),
             "labels": ("Product A", "Product B", "Product C", "Product D"),
             "totals": (200, 160, 88),
+            "model_line": (
+                r"$P(A)=1/2$, $P(B)=1/4$, $P(C)=1/8$, $P(D)=1/8$"
+            ),
         },
     )
     perturbations = (
@@ -76,10 +84,7 @@ def _build_bank():
         for total in scenario["totals"]:
             base_expected = [float(total * p) for p in scenario["probs"]]
             for delta in perturbations:
-                if len(delta) < count:
-                    pad = delta + (0,) * (count - len(delta))
-                else:
-                    pad = delta[:count]
+                pad = delta[:count] if len(delta) >= count else delta + (0,) * (count - len(delta))
                 if len(pad) != count:
                     continue
                 observed = tuple(
@@ -100,6 +105,7 @@ def _build_bank():
                         "story": scenario["title"],
                         "labels": scenario["labels"],
                         "probs": scenario["probs"],
+                        "model_line": scenario["model_line"],
                         "observed": observed,
                         "expected": expected,
                         "statistic": statistic,
@@ -118,17 +124,8 @@ _DIE = tuple(item for item in _BANK if item["kind"] == "die")
 _OTHER = tuple(item for item in _BANK if item["kind"] != "die")
 
 
-def _prob_line(probs, labels) -> str:
-    return r",\quad ".join(
-        rf"P(\text{{{labels[index]}}})={sp.latex(probs[index])}" for index in range(len(labels))
-    )
-
-
-def _observed_table(labels, observed) -> str:
-    cols = "c" * len(labels)
-    header = " & ".join(rf"\text{{{label}}}" for label in labels)
-    cells = " & ".join(str(value) for value in observed)
-    return rf"\begin{{array}}{{{cols}}} {header} \\ {cells} \end{{array}}"
+def _observed_table(labels, observed):
+    return (tuple(labels), tuple(str(value) for value in observed))
 
 
 def _expected_scheme(expected) -> str:
@@ -144,20 +141,17 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
         if item["reject"]
         else r"\text{Do not reject } H_0 \text{ at the 5\% level.}"
     )
-    table_tex = _observed_table(item["labels"], item["observed"])
-    model_tex = _prob_line(item["probs"], item["labels"])
     task = pack_task(
         title="Paper 2: Chi-squared Goodness of Fit",
         intro=(
             "A graphic display calculator is required. "
             "Give numerical answers to three significant figures where appropriate. "
-            f"A study recorded observed category frequencies from {item['total']} trials. "
-            f"Under the model below, test whether the sample fits the stated distribution at the 5% level."
+            f"A study recorded observed category frequencies from {item['total']} trials "
+            f"({item['story']}). "
+            "Under the model below, test whether the sample fits the stated distribution at the 5% level."
         ),
-        latex_main=(
-            rf"\text{{Categories: }} {table_tex} "
-            rf"\\ \text{{Model (}}{item['story']}\text{{): }} {model_tex}"
-        ),
+        latex_main=f"Model: {item['model_line']}",
+        display_table=_observed_table(item["labels"], item["observed"]),
         parts=[
             part(
                 "a",
@@ -191,8 +185,10 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
             ),
             part(
                 "d",
-                rf"For $\\nu={item['df']}$, the critical value at the 5% level is "
-                rf"$\chi^2_{{\mathrm{{crit}}}} = {three_sf(critical)}$. State your conclusion.",
+                (
+                    f"For $\\nu = {item['df']}$, the critical value at the 5% level is "
+                    f"$\\chi^2_{{\\mathrm{{crit}}}} = {three_sf(critical)}$. State your conclusion."
+                ),
                 2,
                 step(
                     rf"Compare $\chi^2_{{\mathrm{{calc}}}} = {three_sf(item['statistic'])}$ with {three_sf(critical)}:",

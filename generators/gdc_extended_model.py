@@ -98,7 +98,7 @@ def gen_extended_gdc_model(clean_integers: bool, difficulty: str = "standard"):
         parts=[
             part(
                 "a",
-                "Find the $x$-coordinate of the stationary point for $x > 0$.",
+                "Find the $x$-coordinate of the stationary point for positive $x$.",
                 3,
                 step(
                     r"Solve $f'(x)=0$ numerically. The equation is "

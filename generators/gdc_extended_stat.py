@@ -201,7 +201,7 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
             part(
                 "b",
                 (
-                    f"Find the threshold $k$ such that the greatest $8\\%$ of "
+                    f"Find the threshold $k$ such that the greatest 8% of "
                     f"{story['measure']} values exceed $k$. "
                     "Write a probability statement for $k$, then find $k$."
                 ),
@@ -215,15 +215,15 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
             part(
                 "c",
                 (
-                    r"It is also known that "
-                    rf"$P(X < {shown['a']}) = 0.2$ and $P(X > {shown['b']}) = 0.1$. "
+                    "It is also known that "
+                    f"$P(X < {shown['a']}) = 0.2$ and $P(X > {shown['b']}) = 0.1$. "
                     r"Using these two conditions only, find $\mu$ and $\sigma$."
                 ),
                 4,
                 step(
                     r"Use $z=\operatorname{invNorm}$ for each cumulative probability, then solve "
                     r"the linear system for $\mu$ and $\sigma$:",
-                    rf"\mu = {shown['mu']}, \quad \sigma = {shown['sigma']}",
+                    rf"\mu = {shown['mu']},\ \sigma = {shown['sigma']}",
                     "M1 A1 A1 A1",
                 ),
             ),

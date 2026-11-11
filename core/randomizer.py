@@ -41,7 +41,17 @@ def as_int(expr) -> int:
     return int(value)
 
 
-def pack_task(title, intro, latex_main, parts, fig=None, archetype="", family="", plot_type="none"):
+def pack_task(
+    title,
+    intro,
+    latex_main,
+    parts,
+    fig=None,
+    archetype="",
+    family="",
+    plot_type="none",
+    display_table=None,
+):
     """Build a Task. Mark totals come from the parts, not from question text."""
     return Task(
         title=title,
@@ -52,6 +62,7 @@ def pack_task(title, intro, latex_main, parts, fig=None, archetype="", family=""
         archetype=archetype,
         family=family,
         plot_type=plot_type,
+        display_table=display_table,
     )
 
 

@@ -12,7 +12,7 @@ from reportlab.lib.units import inch
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, CondPageBreak, Image as RLImage,
-    Flowable,
+    Flowable, KeepTogether,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.pdfgen import canvas
@@ -196,7 +196,8 @@ def _simple_math(code: str):
     """Turn `$x$` and `$x^2$` into ReportLab markup. Anything richer stays an image."""
     text = code.strip()
     symbols = {
-        r"\pi": "π", r"\theta": "θ", r"\lambda": "λ", r"\mu": "μ", r"\Pi": "Π",
+        r"\pi": "π", r"\theta": "θ", r"\lambda": "λ", r"\mu": "μ", r"\sigma": "σ",
+        r"\nu": "ν", r"\chi": "χ", r"\Pi": "Π",
         r"\cdot": "·", r"\times": "×",
         r"\le": "≤", r"\leq": "≤", r"\ge": "≥", r"\geq": "≥",
         r"\ne": "≠", r"\neq": "≠", r"\infty": "∞",
@@ -206,7 +207,7 @@ def _simple_math(code: str):
         text = text.replace(source, target)
     if "\\" in text:
         return None
-    script = re.fullmatch(r"([A-Za-zπθλμ]+)(?:_(\{?[A-Za-z0-9]+\}?)|\^(\{?[0-9]+\}?))?", text)
+    script = re.fullmatch(r"([A-Za-zπθλμσνχ]+)(?:_(\{?[A-Za-z0-9]+\}?)|\^(\{?[0-9]+\}?))?", text)
     if script:
         body = f"<i>{escape(script.group(1))}</i>"
         if script.group(2):
@@ -214,7 +215,7 @@ def _simple_math(code: str):
         if script.group(3):
             body += f"<sup>{escape(script.group(3).strip('{}'))}</sup>"
         return body
-    if re.fullmatch(r"[A-Za-z0-9πθλμΠ≤≥≠·×∞ ,;:.()+\-/'=]+", text):
+    if re.fullmatch(r"[A-Za-z0-9πθλμσνχΠ≤≥≠·×∞ ,;:.()+\-/'=]+", text):
         return f"<i>{escape(text)}</i>"
     return None
 
@@ -313,7 +314,8 @@ class WorkingSpaceGrid(Flowable):
         self.marks = marks
         self.grid_width = width
         self.line_spacing = line_spacing
-        self.num_lines = max(4, int(marks * 1.5))
+        # Cap height so long Section B items do not orphan the mark box on a blank page.
+        self.num_lines = min(max(4, marks + 2), 14)
         self.grid_height = self.num_lines * self.line_spacing
 
     def wrap(self, availWidth, availHeight):
@@ -340,6 +342,34 @@ class WorkingSpaceGrid(Flowable):
         canv.setFont("Helvetica-Bold", 8)
         canv.drawCentredString(box_x + box_w / 2, box_y + box_h / 2 - 3, f"[   / {self.marks} ]")
         canv.restoreState()
+
+
+def _frequency_table(rows: list, usable: float, cell_style) -> Table:
+    """Bordered contingency / frequency table for Paper 2 statistics items."""
+    if not rows:
+        raise ValueError("display_table is empty.")
+    columns = len(rows[0])
+    col_width = min(1.35 * inch, usable / max(columns, 1))
+    table = Table(
+        [[Paragraph(escape(str(cell)), cell_style) for cell in row] for row in rows],
+        colWidths=[col_width] * columns,
+        hAlign="CENTER",
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.75, colors.HexColor("#4A5568")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EDF2F7")),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    return table
 
 
 def _placed_image(data: bytes, max_width: float, max_height: float):
@@ -511,10 +541,17 @@ def build_multi_question_pdf(
         for task in tasks:
             section_marks[task.get("section", "A")] = section_marks.get(task.get("section", "A"), 0) + task["marks"]
         current_section = None
+        table_cell_style = ParagraphStyle(
+            "TableCell",
+            parent=body_style,
+            fontSize=9,
+            leading=11,
+            alignment=1,
+        )
         for task in tasks:
             section = task.get("section", "A")
             if section == "B" and paper_format == "exam_booklet":
-                story.append(CondPageBreak(4.5 * inch))
+                story.append(CondPageBreak(3.2 * inch))
             if section != current_section:
                 current_section = section
                 banner = "SECTION A — Short-response questions" if section == "A" else "SECTION B — Extended-response questions"
@@ -523,23 +560,34 @@ def build_multi_question_pdf(
             q_num = task["q_number"]
             q_title = task["title"]
             q_marks = task["marks"]
-            story.append(Paragraph(
+            block = []
+            block.append(Paragraph(
                 f"<b>Question {q_num}. [{escape(q_title)}]</b> &nbsp;&mdash;&nbsp; <i>[Total: {q_marks} marks]</i>",
                 q_title_style,
             ))
             if is_markscheme and task.get("archetype"):
-                story.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
+                block.append(Paragraph(f"Archetype: {escape(task['archetype'])}", meta_style))
 
             if task.get("intro"):
-                _append_rich(story, task["intro"], body_style, usable)
+                _append_rich(block, task["intro"], body_style, usable)
 
-            formula = render_math_to_image(task["latex_main"], fontsize=13, max_width=usable)
-            if formula is None:
-                story.append(Paragraph(escape(task["latex_main"]), body_style))
-            else:
-                story.append(Spacer(1, 4))
-                story.append(formula)
-                story.append(Spacer(1, 4))
+            if task.get("display_table"):
+                block.append(Spacer(1, 4))
+                block.append(_frequency_table(task["display_table"], usable, table_cell_style))
+                block.append(Spacer(1, 4))
+
+            latex_main = task.get("latex_main") or ""
+            if latex_main and not task.get("display_table"):
+                formula = render_math_to_image(latex_main, fontsize=13, max_width=usable)
+                if formula is None:
+                    block.append(Paragraph(escape(latex_main), body_style))
+                else:
+                    block.append(Spacer(1, 4))
+                    block.append(formula)
+                    block.append(Spacer(1, 4))
+            elif latex_main and task.get("display_table"):
+                # Short model line under a native table (no array environments).
+                _append_rich(block, latex_main, body_style, usable)
 
             has_figure = figure_visible(task, is_markscheme=is_markscheme, exam_mode=exam_mode)
             if has_figure:
@@ -549,19 +597,26 @@ def build_multi_question_pdf(
                 else:
                     diagram = _placed_image(task["png_bytes"], min(usable, 4.8 * inch), 2.6 * inch)
                 if diagram is not None:
-                    story.append(Spacer(1, 4))
-                    story.append(diagram)
-                    story.append(Spacer(1, 4))
+                    block.append(Spacer(1, 4))
+                    block.append(diagram)
+                    block.append(Spacer(1, 4))
 
             if not is_markscheme:
+                parts_and_marks = []
                 for subquestion in task["subquestions"] or []:
-                    _append_rich(story, subquestion, body_style, usable)
+                    _append_rich(parts_and_marks, subquestion, body_style, usable)
                 if paper_format == "worksheet":
-                    story.append(Spacer(1, 14))
+                    parts_and_marks.append(Spacer(1, 14))
+                    story.extend(block)
+                    story.extend(parts_and_marks)
                 else:
-                    story.append(WorkingSpaceGrid(q_marks))
-                    story.append(Spacer(1, 8))
+                    parts_and_marks.append(WorkingSpaceGrid(q_marks))
+                    story.extend(block)
+                    # Keep the part list with the [/n] box so the mark frame is not orphaned.
+                    story.append(KeepTogether(parts_and_marks))
+                    story.append(Spacer(1, 6))
             else:
+                story.extend(block)
                 story.append(Spacer(1, 4))
                 for step in task["markscheme"]:
                     _append_rich(story, f"• {step['desc']}", body_style, text_width)
