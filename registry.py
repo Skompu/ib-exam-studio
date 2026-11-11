@@ -698,10 +698,17 @@ PRESETS = {
         "keys": ("gdc_intersect", "gdc_area", "gdc_dist", "bivar"),
     },
     "paper2plus": {
-        "label": "Paper 2, longer extract (GDC, 90 min)",
-        "description": "Nine questions finished on a GDC: an intersection, a numerical area, a distribution, linear regression, kinematics, a trigonometric equation, the stationary point and area of a curve with no elementary antiderivative, a three-equation linear system, and a chi-squared test of independence. Numerical answers are to three significant figures where they apply; the linear system is exact. 57 marks. This is a longer extract, not a full Paper 2.",
-        "time": "95 minutes",
-        "marks": 57,
+        "label": "Paper 2, extended extract (GDC, 70 min)",
+        "description": (
+            "Ten short questions finished on a GDC: an intersection, a numerical area, a distribution, "
+            "linear regression, kinematics, a trigonometric equation, the stationary point and area of a curve "
+            "with no elementary antiderivative, a three-equation linear system, a chi-squared test of independence, "
+            "and a chi-squared goodness-of-fit test. Numerical answers are to three significant figures where they "
+            "apply; the linear system is exact. 65 marks. This is an extended extract, not a full IB HL Paper 2 "
+            "(110 marks) and not a 100-mark mock."
+        ),
+        "time": "70 minutes",
+        "marks": 65,
         "calculator": "gdc",
         "keys": (
             "gdc_intersect",
@@ -713,6 +720,7 @@ PRESETS = {
             "gdc_curve",
             "gdc_system",
             "gdc_chi",
+            "gdc_chi_gof",
         ),
     },
     "paper3_probe": {

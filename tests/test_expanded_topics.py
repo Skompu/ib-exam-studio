@@ -24,7 +24,8 @@ def _one(key, difficulty):
 
 def test_longer_paper_two_uses_existing_gdc_topics():
     preset = PRESETS["paper2plus"]
-    assert preset["marks"] == 57
+    assert preset["marks"] == 65
+    assert "gdc_chi_gof" in preset["keys"]
     assert preset["calculator"] == "gdc"
     assert "kin_gdc" in preset["keys"]
     assert "gdc_trig" in preset["keys"]
@@ -198,7 +199,7 @@ def test_linear_systems_implicit_and_lhopital():
     assert PRESETS["mid"]["marks"] == 50
     assert PRESETS["mock"]["marks"] == 100
     assert PRESETS["paper2"]["marks"] == 24
-    assert PRESETS["paper2plus"]["marks"] == 57
+    assert PRESETS["paper2plus"]["marks"] == 65
 
 
 def test_trig_paper3_and_probe_presets():
@@ -258,7 +259,8 @@ def test_prob_rv_includes_binomial_and_poisson_variants():
 
 def test_gdc_chi_gof_off_fixed_presets_and_variants():
     locked = {item for preset in PRESETS.values() for item in preset["keys"]}
-    assert "gdc_chi_gof" not in locked
+    assert "gdc_chi_gof" not in PRESETS["mock"]["keys"]
+    assert "gdc_chi_gof" in PRESETS["paper2plus"]["keys"]
     for difficulty in ("standard", "challenging"):
         seen = set()
         for index in range(8):
