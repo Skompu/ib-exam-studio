@@ -30,6 +30,7 @@ from generators.functions_transformations import gen_transformations_modulus
 from generators.gdc_chi_squared import gen_gdc_chi_squared
 from generators.gdc_chi_gof import gen_gdc_chi_gof
 from generators.gdc_curve import gen_gdc_curve
+from generators.gdc_extended_model import gen_extended_gdc_model
 from generators.gdc_linear_system import gen_linear_system
 from generators.gdc_statistics import gen_gdc_distributions
 from generators.gdc_trigonometry import gen_gdc_trigonometry
@@ -613,6 +614,15 @@ TASK_REGISTRY = {
         "category": "Section B",
         "section": "B",
         "search": "logarithm derivative inflection area parameter",
+    },
+    "ext_gdc_model": {
+        "name": "Section B: GDC functional model",
+        "func": gen_extended_gdc_model,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "search": "GDC exponential logarithm model stationary point area average value",
     },
 }
 

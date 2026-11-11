@@ -257,6 +257,26 @@ def test_prob_rv_includes_binomial_and_poisson_variants():
         assert len(seen) >= 4, (difficulty, seen)
 
 
+def test_extended_gdc_model_variants():
+    for difficulty in ("standard", "challenging"):
+        seen = set()
+        for index in range(6):
+            random.seed(f"ext_gdc_model-{difficulty}-{index}")
+            token = bind(f"ext_gdc_model-{difficulty}-{index}")
+            try:
+                task = call_generator("ext_gdc_model", True, difficulty)
+            finally:
+                release(token)
+            seen.add(task.archetype)
+            assert task.marks == 16
+            scheme = task.to_paper_dict()["markscheme"]
+            assert len(scheme) == 5
+            for item in scheme:
+                assert item.get("tex")
+                assert item.get("code")
+        assert len(seen) >= 2, (difficulty, seen)
+
+
 def test_gdc_chi_gof_off_fixed_presets_and_variants():
     locked = {item for preset in PRESETS.values() for item in preset["keys"]}
     assert "gdc_chi_gof" not in PRESETS["mock"]["keys"]

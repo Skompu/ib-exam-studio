@@ -24,6 +24,8 @@ GDC_PAPER2_POOL = frozenset(
 
 GDC_PAPER3_ONLY = frozenset({"paper3_geo", "paper3_mac"})
 
+GDC_SECTION_B = frozenset({"ext_gdc_model"})
+
 # Section B extended items exist but are non-GDC; cannot fill a calculator-only preset yet.
 SECTION_B_NON_GDC = frozenset({"ext_calculus", "ext_vectors", "ext_model", "ext_ln"})
 
@@ -34,7 +36,7 @@ def _gdc_keys():
 
 def test_every_gdc_key_is_classified():
     gdc = _gdc_keys()
-    assert gdc == GDC_PAPER2_POOL | GDC_PAPER3_ONLY
+    assert gdc == GDC_PAPER2_POOL | GDC_PAPER3_ONLY | GDC_SECTION_B
 
 
 def test_gdc_paper2_pool_marks_and_coverage():
@@ -77,3 +79,12 @@ def test_gdc_paper2_pool_preset_membership():
     in_presets = GDC_PAPER2_POOL & locked
     assert in_presets == GDC_PAPER2_POOL
     assert "gdc_chi_gof" in PRESETS["paper2plus"]["keys"]
+
+
+def test_extended_gdc_model_is_section_b_and_off_extracts():
+    spec = TASK_REGISTRY["ext_gdc_model"]
+    assert spec["section"] == "B"
+    assert spec["calculator"] == "gdc"
+    assert spec["marks"] == 16
+    for preset in PRESETS.values():
+        assert "ext_gdc_model" not in preset["keys"]
