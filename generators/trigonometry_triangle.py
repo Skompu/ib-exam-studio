@@ -1,5 +1,10 @@
 """Non-calculator triangle trigonometry: sine rule, area, and the double-angle identity."""
 
+import math
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step
@@ -80,6 +85,9 @@ def _right_item(length: int, given_angle: int):
             rf"\frac{{1}}{{2}} \times {length} \times {sp.latex(side)} \times \sin 90^\circ = {sp.latex(area)}",
         ),
         "area": area,
+        "angles": {"A": 30, "B": 60, "C": 90},
+        "known": "B" if given_angle == 60 else "A",
+        "length": length,
     }
 
 
@@ -102,7 +110,104 @@ def _isosceles_item(length: int):
             rf"\frac{{1}}{{2}} \times {sp.latex(side)} \times {sp.latex(side)} \times \sin 120^\circ = {sp.latex(area)}",
         ),
         "area": area,
+        "angles": {"A": 30, "B": 30, "C": 120},
+        "known": "C",
+        "length": length,
     }
+
+
+def _triangle_figure(points, angle_notes, side_notes):
+    """Equal-aspect triangle. points is A, B, C in order."""
+    fig, ax = plt.subplots(figsize=(3.4, 3.4), dpi=200)
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    span = max(max(xs) - min(xs), max(ys) - min(ys), 1.0)
+    pad = 0.42 * span
+    left, right = min(xs) - pad, max(xs) + pad
+    bottom, top = min(ys) - pad, max(ys) + pad
+    side = max(right - left, top - bottom)
+    cx, cy = (left + right) / 2, (bottom + top) / 2
+    ax.set_xlim(cx - side / 2, cx + side / 2)
+    ax.set_ylim(cy - side / 2, cy + side / 2)
+    ax.set_aspect("equal", adjustable="box")
+    ax.axis("off")
+    ax.set_title("Diagram not to scale", fontsize=8, color="#64748b", style="italic", pad=8)
+    fig.subplots_adjust(left=0.02, right=0.98, bottom=0.02, top=0.88)
+    closed = points + (points[0],)
+    ax.plot([point[0] for point in closed], [point[1] for point in closed], color="#0284c7", lw=1.6)
+    ax.fill([point[0] for point in points], [point[1] for point in points], color="#bae6fd", alpha=0.55)
+    centre = (sum(xs) / 3, sum(ys) / 3)
+    shift = 0.14 * span
+    for (x, y), name in zip(points, "ABC"):
+        dx, dy = x - centre[0], y - centre[1]
+        norm = max(math.hypot(dx, dy), 1e-6)
+        ax.text(
+            x + dx / norm * shift,
+            y + dy / norm * shift,
+            name,
+            fontsize=12,
+            fontweight="bold",
+            color="#0f172a",
+            ha="left" if dx >= 0 else "right",
+            va="bottom" if dy >= 0 else "top",
+        )
+    for (x, y), note in angle_notes:
+        ax.text(x, y, note, fontsize=9, color="#0369a1", ha="center", va="center")
+    for (x, y), note in side_notes:
+        ax.text(x, y, note, fontsize=9, color="#1e293b", ha="center", va="center")
+    return fig
+
+
+def _law_points(angles, known, length):
+    """Place C at the origin and B on the positive x-axis. known is the vertex opposite the given side."""
+    scale = float(length) / math.sin(math.radians(angles[known]))
+    sides = {name: scale * math.sin(math.radians(angles[name])) for name in angles}
+    angle_c = math.radians(angles["C"])
+    point_c = (0.0, 0.0)
+    point_b = (sides["A"], 0.0)
+    point_a = (sides["B"] * math.cos(angle_c), sides["B"] * math.sin(angle_c))
+    gap = abs(math.hypot(point_a[0] - point_b[0], point_a[1] - point_b[1]) - sides["C"])
+    if gap > 1e-6:
+        raise RuntimeError("Placed triangle does not match the law of sines.")
+    return (point_a, point_b, point_c), sides
+
+
+def _toward(start, end, fraction):
+    return (start[0] + (end[0] - start[0]) * fraction, start[1] + (end[1] - start[1]) * fraction)
+
+
+def _sine_figure(angles, known, length):
+    points, sides = _law_points(angles, known, length)
+    centre = tuple(sum(point[index] for point in points) / 3 for index in (0, 1))
+    names = "ABC"
+    angle_notes = []
+    for index, name in enumerate(names):
+        angle_notes.append((_toward(points[index], centre, 0.28), f"{angles[name]}°"))
+    opposite = {"A": (1, 2), "B": (0, 2), "C": (0, 1)}
+    start, end = opposite[known]
+    midpoint = _toward(points[start], points[end], 0.5)
+    outward = (
+        midpoint[0] + (midpoint[0] - centre[0]) * 0.35,
+        midpoint[1] + (midpoint[1] - centre[1]) * 0.35,
+    )
+    return _triangle_figure(points, angle_notes, ((outward, f"{length} cm"),))
+
+
+def _double_figure(left, right, double):
+    angle = math.acos(float(double))
+    point_a = (0.0, 0.0)
+    point_b = (float(right), 0.0)
+    point_c = (float(left) * math.cos(angle), float(left) * math.sin(angle))
+    points = (point_a, point_b, point_c)
+    centre = tuple(sum(point[index] for point in points) / 3 for index in (0, 1))
+    angle_at_a = _toward(point_a, centre, 0.22)
+    ab = _toward(point_a, point_b, 0.45)
+    ac = _toward(point_a, point_c, 0.45)
+    return _triangle_figure(
+        points,
+        ((angle_at_a, r"$2\theta$"),),
+        ((ab, f"{right} cm"), (ac, f"{left} cm")),
+    )
 
 
 def _sine_task(clean_integers: bool):
@@ -131,6 +236,7 @@ def _sine_task(clean_integers: bool):
         archetype="Sine rule with a reference angle, then the area formula",
         plot_type="essential",
         family="30-60-90 or 30-30-120 triangle with an exact surd area",
+        fig=_sine_figure(item["angles"], item["known"], item["length"]),
     )
     if task.marks != 6:
         raise RuntimeError("Sine-rule question must be worth 6 marks.")
@@ -213,6 +319,7 @@ def _double_task(clean_integers: bool):
         archetype="Double-angle identity, then the cosine rule",
         family="Included angle 2θ with cos θ a reference value and an exact opposite side",
         plot_type="essential",
+        fig=_double_figure(left, right, double),
     )
     if task.marks != 6:
         raise RuntimeError("Double-angle question must be worth 6 marks.")

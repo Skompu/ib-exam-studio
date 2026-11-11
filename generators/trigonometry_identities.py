@@ -74,6 +74,22 @@ _STANDARD = (
         r"\sin 2x = 2\sin x\cos x",
         r"\sin 2x + \cos x = 0",
     ),
+    _equation(
+        sp.cos(2 * x) - sp.cos(x),
+        *_FULL,
+        (0, 2 * sp.pi / 3, 4 * sp.pi / 3, 2 * sp.pi),
+        r"(2\cos x + 1)(\cos x - 1) = 0",
+        r"\cos 2x = 2\cos^2 x - 1",
+        r"\cos 2x - \cos x = 0",
+    ),
+    _equation(
+        sp.sin(2 * x) + sp.sin(x),
+        *_FULL,
+        (0, 2 * sp.pi / 3, sp.pi, 4 * sp.pi / 3, 2 * sp.pi),
+        r"\sin x\,(2\cos x + 1) = 0",
+        r"\sin 2x = 2\sin x\cos x",
+        r"\sin 2x + \sin x = 0",
+    ),
 )
 
 _CHALLENGING = (
@@ -92,6 +108,22 @@ _CHALLENGING = (
         r"(2\cos x - 1)(\cos x + 1) = 0",
         r"\cos 2x = 2\cos^2 x - 1",
         r"\cos 2x + \cos x = 0",
+    ),
+    _equation(
+        sp.cos(2 * x) + sp.sin(x),
+        *_FULL,
+        (sp.pi / 2, 7 * sp.pi / 6, 11 * sp.pi / 6),
+        r"(2\sin x + 1)(\sin x - 1) = 0",
+        r"\cos 2x = 1 - 2\sin^2 x",
+        r"\cos 2x + \sin x = 0",
+    ),
+    _equation(
+        sp.cos(2 * x) - sp.sin(x),
+        *_FULL,
+        (sp.pi / 6, 5 * sp.pi / 6, 3 * sp.pi / 2),
+        r"(2\sin x - 1)(\sin x + 1) = 0",
+        r"\cos 2x = 1 - 2\sin^2 x",
+        r"\cos 2x - \sin x = 0",
     ),
 )
 

@@ -1,14 +1,25 @@
 from core.task_contract import Task
+from generators.algebra_contradiction import gen_proof_contradiction
+from generators.algebra_combinations import gen_combinations
 from generators.algebra_direct_proof import gen_direct_proof
 from generators.algebra_permutations import gen_permutations_restrictions
+from generators.algebra_partial import gen_partial_fractions
+from generators.algebra_polynomials import gen_factor_remainder, gen_vieta
 from generators.algebra_seq import gen_algebra_quadratics, gen_sequences
+from generators.binomial_fractional import gen_binomial_fractional
 from generators.binomial_series import gen_binomial_expansion
 from generators.calculus import gen_calculus_area, gen_calculus_differential
+from generators.calculus_euler import gen_euler_method
+from generators.calculus_parts import gen_integration_parts
+from generators.calculus_substitution import gen_integration_substitution
+from generators.calculus_implicit import gen_implicit_differentiation
+from generators.calculus_lhopital import gen_lhopital
 from generators.calculus_related_rates import gen_related_rates
 from generators.calculus_log_parameter import gen_log_parameter
 from generators.calculus_tangent_normal import gen_tangent_normal
 from generators.calculus_volumes import gen_volume_revolution
 from generators.complex_conjugate_roots import gen_complex_conjugate_roots
+from generators.complex_locus import gen_complex_locus
 from generators.complex_roots_demoivre import gen_complex_demoivre_roots
 from generators.complex_numbers import gen_complex_numbers
 from generators.core_skills import gen_geometric_sequence, gen_logarithms, gen_trigonometric_equation
@@ -16,9 +27,15 @@ from generators.differential_equations import gen_differential_equation
 from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
 from generators.functions_transformations import gen_transformations_modulus
+from generators.gdc_chi_squared import gen_gdc_chi_squared
+from generators.gdc_curve import gen_gdc_curve
+from generators.gdc_linear_system import gen_linear_system
 from generators.gdc_statistics import gen_gdc_distributions
+from generators.gdc_trigonometry import gen_gdc_trigonometry
 from generators.geometry_trig import gen_chord, gen_circular_sector, gen_segment
 from generators.paper2_gdc import gen_gdc_area, gen_gdc_intersection
+from generators.probability_bayes import gen_bayes
+from generators.probability_exponential import gen_exponential_rv
 from generators.probability_conditional import gen_probability_conditional
 from generators.induction import gen_induction
 from generators.kinematics_gdc import gen_kinematics
@@ -27,7 +44,15 @@ from generators.probability_rv import gen_random_variable
 from generators.section_b import gen_extended_calculus, gen_extended_model, gen_extended_vectors
 from generators.statistics import gen_normal_distribution
 from generators.statistics_bivariate import gen_bivariate_regression
+from generators.trigonometry_ambiguous import gen_ambiguous_case
+from generators.trigonometry_compound import gen_compound_angle
 from generators.trigonometry_identities import gen_trig_double_angle_solve
+from generators.trigonometry_identity import gen_trig_identity
+from generators.paper3_investigation import gen_paper3_investigation
+from generators.paper3_maclaurin import gen_paper3_maclaurin
+from generators.trigonometry_inverse import gen_inverse_trig
+from generators.trigonometry_reciprocal import gen_reciprocal_trig
+from generators.trigonometry_rform import gen_r_form
 from generators.trigonometry_triangle import gen_triangle_sine_cosine
 from generators.sequences_infinite_series import gen_infinite_geometric_series
 from generators.vectors_plane_intersection import gen_vector_line_plane
@@ -57,6 +82,22 @@ TASK_REGISTRY = {
         "section": "A",
         "search": "related rates cone sphere chain rule",
     },
+    "calc_implicit": {
+        "name": "Calculus: Implicit Differentiation",
+        "func": gen_implicit_differentiation,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "search": "implicit differentiation tangent gradient",
+    },
+    "calc_lhopital": {
+        "name": "Calculus: L'Hopital's Rule",
+        "func": gen_lhopital,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "search": "lhopital limit indeterminate quotient",
+    },
     "vol_rev": {
         "name": "Calculus: Volumes of Revolution",
         "func": gen_volume_revolution,
@@ -64,6 +105,22 @@ TASK_REGISTRY = {
         "category": "Calculus",
         "section": "A",
         "search": "volume revolution solid rotation washer",
+    },
+    "calc_parts": {
+        "name": "Calculus: Integration by Parts",
+        "func": gen_integration_parts,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "search": "integration by parts exponential trigonometric exact",
+    },
+    "calc_sub": {
+        "name": "Calculus: Integration by Substitution",
+        "func": gen_integration_substitution,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "search": "integration by substitution exact definite",
     },
     "calc_tangent": {
         "name": "Calculus: Tangent and Normal",
@@ -80,6 +137,14 @@ TASK_REGISTRY = {
         "marks": 8,
         "category": "Calculus",
         "section": "A",
+    },
+    "calc_euler": {
+        "name": "Calculus: Euler's Method",
+        "func": gen_euler_method,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "search": "euler method differential equation step table",
     },
     "maclaurin": {
         "name": "Calculus: Maclaurin Series",
@@ -104,12 +169,28 @@ TASK_REGISTRY = {
         "challenge_rank": 2,
         "search": "direct proof contradiction parity divisibility odd square",
     },
+    "proof_contra": {
+        "name": "Proof: Contradiction",
+        "func": gen_proof_contradiction,
+        "marks": 6,
+        "category": "Proof",
+        "section": "A",
+        "search": "contradiction irrational square root lowest terms",
+    },
     "prob_rv": {
         "name": "Probability: Discrete and Continuous Random Variables",
         "func": gen_random_variable,
         "marks": 7,
         "category": "Probability",
         "section": "A",
+    },
+    "prob_exp": {
+        "name": "Probability: Exponential Waiting Time",
+        "func": gen_exponential_rv,
+        "marks": 7,
+        "category": "Probability",
+        "section": "A",
+        "search": "exponential pdf mean survival probability",
     },
     "vectors_3d": {
         "name": "Vectors: Cross Product and Skew Lines",
@@ -141,12 +222,28 @@ TASK_REGISTRY = {
         "section": "A",
         "search": "de moivre roots argand polygon euler form",
     },
+    "complex_locus": {
+        "name": "Complex Numbers: Circle and Half-line",
+        "func": gen_complex_locus,
+        "marks": 6,
+        "category": "Complex Numbers",
+        "section": "A",
+        "search": "locus argand circle argument half-line modulus",
+    },
     "binomial_exp": {
         "name": "Algebra: Binomial Theorem and General Term",
         "func": gen_binomial_expansion,
         "marks": 6,
         "category": "Algebra",
         "section": "A",
+    },
+    "binomial_frac": {
+        "name": "Algebra: General Binomial Expansion",
+        "func": gen_binomial_fractional,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "search": "fractional negative binomial expansion validity",
     },
     "alg_quad": {
         "name": "Algebra: Quadratic Roots and Discriminant",
@@ -162,6 +259,38 @@ TASK_REGISTRY = {
         "category": "Algebra",
         "section": "A",
         "search": "permutations together block complement arrangements",
+    },
+    "alg_comb": {
+        "name": "Algebra: Combinations with a Restriction",
+        "func": gen_combinations,
+        "marks": 5,
+        "category": "Algebra",
+        "section": "A",
+        "search": "combinations committee binomial restriction women",
+    },
+    "alg_partial": {
+        "name": "Algebra: Partial Fractions",
+        "func": gen_partial_fractions,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "search": "partial fractions cover up repeated linear factor",
+    },
+    "alg_factor": {
+        "name": "Algebra: Remainder and Factor Theorems",
+        "func": gen_factor_remainder,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "search": "remainder theorem factor theorem cubic",
+    },
+    "alg_vieta": {
+        "name": "Algebra: Sum and Product of Roots",
+        "func": gen_vieta,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "search": "vieta sum product roots cubic arithmetic progression",
     },
     "seq_arithmetic": {
         "name": "Sequences: Arithmetic Series",
@@ -266,6 +395,42 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "search": "pearson regression correlation extrapolation",
     },
+    "gdc_trig": {
+        "name": "Paper 2: Trigonometric Equation",
+        "func": gen_gdc_trigonometry,
+        "marks": 6,
+        "category": "Paper 2",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "sine equation radians three significant figures calculator",
+    },
+    "gdc_curve": {
+        "name": "Paper 2: A Curve on a GDC",
+        "func": gen_gdc_curve,
+        "marks": 6,
+        "category": "Paper 2",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "stationary point area exponential logarithm calculator",
+    },
+    "gdc_system": {
+        "name": "Paper 2: Three Linear Equations",
+        "func": gen_linear_system,
+        "marks": 6,
+        "category": "Paper 2",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "three linear equations planes unique no solution infinite parameter",
+    },
+    "gdc_chi": {
+        "name": "Paper 2: Chi-squared Test",
+        "func": gen_gdc_chi_squared,
+        "marks": 8,
+        "category": "Paper 2",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "chi squared independence contingency table GDC",
+    },
     "geom_sector": {
         "name": "Geometry: Circular Sector and Radian Measure",
         "func": gen_circular_sector,
@@ -319,6 +484,14 @@ TASK_REGISTRY = {
         "section": "A",
         "search": "conditional independence venn without replacement",
     },
+    "prob_bayes": {
+        "name": "Probability: Reverse Conditional",
+        "func": gen_bayes,
+        "marks": 6,
+        "category": "Probability",
+        "section": "A",
+        "search": "bayes total probability two machines defective",
+    },
     "trig_triangle": {
         "name": "Trigonometry: Sine Rule and Double Angle",
         "func": gen_triangle_sine_cosine,
@@ -334,6 +507,72 @@ TASK_REGISTRY = {
         "category": "Trigonometry",
         "section": "A",
         "search": "double angle equation factor exact radians",
+    },
+    "trig_identity": {
+        "name": "Trigonometry: An Identity to Prove",
+        "func": gen_trig_identity,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "search": "prove identity double angle tangent show that",
+    },
+    "trig_amb": {
+        "name": "Trigonometry: The Ambiguous Case",
+        "func": gen_ambiguous_case,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "search": "ambiguous case sine rule two triangles obtuse",
+    },
+    "trig_compound": {
+        "name": "Trigonometry: Compound Angle",
+        "func": gen_compound_angle,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "search": "compound angle sin 15 cos 75 exact surd",
+    },
+    "trig_rform": {
+        "name": "Trigonometry: R sin(x + alpha)",
+        "func": gen_r_form,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "search": "R sin x plus alpha harmonic form solve",
+    },
+    "trig_recip": {
+        "name": "Trigonometry: Secant, Cosecant and Cotangent",
+        "func": gen_reciprocal_trig,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "search": "sec csc cot identity equation",
+    },
+    "trig_inv": {
+        "name": "Trigonometry: Inverse Trigonometric Functions",
+        "func": gen_inverse_trig,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "search": "arcsin arccos inverse trigonometric equation",
+    },
+    "paper3_geo": {
+        "name": "Paper 3 style: Geometric Series Investigation",
+        "func": gen_paper3_investigation,
+        "marks": 16,
+        "category": "Paper 3",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "paper 3 investigation geometric series limit tolerance",
+    },
+    "paper3_mac": {
+        "name": "Paper 3 style: Maclaurin Error Investigation",
+        "func": gen_paper3_maclaurin,
+        "marks": 16,
+        "category": "Paper 3",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "paper 3 maclaurin error investigation GDC",
     },
     "ext_calculus": {
         "name": "Section B: Extended Cubic Model",
@@ -448,6 +687,32 @@ PRESETS = {
         "calculator": "gdc",
         "keys": ("gdc_intersect", "gdc_area", "gdc_dist", "bivar"),
     },
+    "paper2plus": {
+        "label": "Paper 2, longer extract (GDC, 90 min)",
+        "description": "Nine questions finished on a GDC: an intersection, a numerical area, a distribution, linear regression, kinematics, a trigonometric equation, the stationary point and area of a curve with no elementary antiderivative, a three-equation linear system, and a chi-squared test of independence. Numerical answers are to three significant figures where they apply; the linear system is exact. 57 marks. This is a longer extract, not a full Paper 2.",
+        "time": "95 minutes",
+        "marks": 57,
+        "calculator": "gdc",
+        "keys": (
+            "gdc_intersect",
+            "gdc_area",
+            "gdc_dist",
+            "bivar",
+            "kin_gdc",
+            "gdc_trig",
+            "gdc_curve",
+            "gdc_system",
+            "gdc_chi",
+        ),
+    },
+    "paper3_probe": {
+        "label": "Paper 3 style probe (GDC, 45 min)",
+        "description": "Two investigative questions: partial sums of a geometric sequence, and Maclaurin approximation error. 32 marks. This is a prototype, not a full IB Paper 3 (55 marks).",
+        "time": "45 minutes",
+        "marks": 32,
+        "calculator": "gdc",
+        "keys": ("paper3_geo", "paper3_mac"),
+    },
 }
 
 
@@ -472,21 +737,34 @@ def order_task_keys(keys):
 _CORE_LADDER = {
     "alg_quad",
     "alg_perm",
+    "alg_comb",
+    "alg_partial",
+    "alg_factor",
+    "alg_vieta",
     "calc_tangent",
+    "calc_parts",
+    "calc_sub",
+    "calc_euler",
     "proof_direct",
+    "proof_contra",
     "fn_rational",
     "seq_arithmetic",
     "seq_geometric",
     "log_eq",
     "trig_eq",
+    "trig_identity",
+    "trig_compound",
+    "trig_recip",
     "trig_triangle",
     "geom_sector",
     "geom_chord",
     "binomial_exp",
+    "binomial_frac",
     "vectors_pl",
     "stat_normal",
     "gdc_dist",
     "prob_cond",
+    "prob_bayes",
 }
 for _key, _spec in TASK_REGISTRY.items():
     _spec["ladder"] = "core" if _key in _CORE_LADDER else "exam"

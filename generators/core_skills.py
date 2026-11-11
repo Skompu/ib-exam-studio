@@ -295,6 +295,61 @@ def _solution_tex(solutions):
     return ", \\ ".join(sp.latex(item) for item in solutions)
 
 
+def _quadratic_bank():
+    specs = (
+        (
+            2 * sp.sin(x) ** 2 - 3 * sp.sin(x) + 1,
+            r"2\sin^2 x - 3\sin x + 1 = 0",
+            r"(2\sin x - 1)(\sin x - 1) = 0",
+            r"\sin x = \dfrac{1}{2} \quad \text{or} \quad \sin x = 1",
+            "Quadratic in sine with roots 1/2 and 1",
+        ),
+        (
+            2 * sp.cos(x) ** 2 - sp.cos(x),
+            r"2\cos^2 x - \cos x = 0",
+            r"\cos x\,(2\cos x - 1) = 0",
+            r"\cos x = 0 \quad \text{or} \quad \cos x = \dfrac{1}{2}",
+            "Quadratic in cosine with a zero root",
+        ),
+        (
+            2 * sp.cos(x) ** 2 + sp.cos(x) - 1,
+            r"2\cos^2 x + \cos x - 1 = 0",
+            r"(2\cos x - 1)(\cos x + 1) = 0",
+            r"\cos x = \dfrac{1}{2} \quad \text{or} \quad \cos x = -1",
+            "Quadratic in cosine with roots 1/2 and -1",
+        ),
+        (
+            2 * sp.sin(x) ** 2 - sp.sin(x),
+            r"2\sin^2 x - \sin x = 0",
+            r"\sin x\,(2\sin x - 1) = 0",
+            r"\sin x = 0 \quad \text{or} \quad \sin x = \dfrac{1}{2}",
+            "Quadratic in sine with a zero root",
+        ),
+        (
+            2 * sp.cos(x) ** 2 + 3 * sp.cos(x) + 1,
+            r"2\cos^2 x + 3\cos x + 1 = 0",
+            r"(2\cos x + 1)(\cos x + 1) = 0",
+            r"\cos x = -\dfrac{1}{2} \quad \text{or} \quad \cos x = -1",
+            "Quadratic in cosine with two negative roots",
+        ),
+    )
+    bank = []
+    for expression, shown, factor, values, family in specs:
+        bank.append({
+            "shown": shown,
+            "factor": factor,
+            "values": values,
+            "family": family,
+            "solutions": _sorted_solutions(sp.Eq(expression, 0)),
+        })
+    if len(bank) < 4:
+        raise RuntimeError("The quadratic trigonometric bank is too small.")
+    return tuple(bank)
+
+
+_TRIG_QUADRATIC = _quadratic_bank()
+
+
 _TRIG_DIRECT = (
     (sp.sin(x), "\\sin x", sp.Rational(1, 2), "\\dfrac{\\pi}{6}", "x = n\\pi + (-1)^n \\dfrac{\\pi}{6}"),
     (sp.sin(x), "\\sin x", sp.sqrt(3) / 2, "\\dfrac{\\pi}{3}", "x = n\\pi + (-1)^n \\dfrac{\\pi}{3}"),
@@ -346,36 +401,23 @@ def _trig_direct():
 
 
 def _trig_quadratic():
-    sine_form = random.choice((True, False))
-    if sine_form:
-        equation = sp.Eq(2 * sp.sin(x) ** 2 - 3 * sp.sin(x) + 1, 0)
-        shown = "2\\sin^2 x - 3\\sin x + 1 = 0"
-        factor = "(2\\sin x - 1)(\\sin x - 1) = 0"
-        values = "\\sin x = \\dfrac{1}{2} \\quad \\text{or} \\quad \\sin x = 1"
-        family = "Quadratic in sine with rational roots"
-    else:
-        equation = sp.Eq(2 * sp.cos(x) ** 2 - sp.cos(x), 0)
-        shown = "2\\cos^2 x - \\cos x = 0"
-        factor = "\\cos x\\,(2\\cos x - 1) = 0"
-        values = "\\cos x = 0 \\quad \\text{or} \\quad \\cos x = \\dfrac{1}{2}"
-        family = "Quadratic in cosine with a zero root"
-    solutions = _sorted_solutions(equation)
+    item = random.choice(_TRIG_QUADRATIC)
     return pack_task(
         title="Trigonometry: Exact Equation",
         intro="Solve the equation for $0 \\le x \\le 2\\pi$. Give exact values.",
-        latex_main=shown,
+        latex_main=item["shown"],
         parts=[
             part(
                 "a",
                 "Factorise the left-hand side.",
                 2,
-                step("Factor the quadratic in the trigonometric ratio:", factor, "M1 A1"),
+                step("Factor the quadratic in the trigonometric ratio:", item["factor"], "M1 A1"),
             ),
             part(
                 "b",
                 "Solve for the trigonometric ratio.",
                 2,
-                step("Set each factor equal to zero:", values, "A1 A1"),
+                step("Set each factor equal to zero:", item["values"], "A1 A1"),
             ),
             part(
                 "c",
@@ -383,13 +425,13 @@ def _trig_quadratic():
                 2,
                 step(
                     "Read each exact value off the unit circle and keep the results inside the interval:",
-                    f"x = {_solution_tex(solutions)}",
+                    f"x = {_solution_tex(item['solutions'])}",
                     "A1 A1",
                 ),
             ),
         ],
-        archetype="Quadratic trigonometric equation",
-        family=family,
+        archetype=item["shown"],
+        family=item["family"],
     )
 
 

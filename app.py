@@ -613,7 +613,10 @@ with tab_solutions:
 
                             def _capture():
                                 for piece in stream_tutor_hints(
-                                    task["title"], task["latex_main"], task["subquestions"]
+                                    task["title"],
+                                    task["latex_main"],
+                                    task["subquestions"],
+                                    task.get("markscheme", []),
                                 ):
                                     chunks.append(piece)
                                     yield piece

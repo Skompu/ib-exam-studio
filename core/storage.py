@@ -62,6 +62,11 @@ def init_db(path: Path | None = None) -> None:
                 completed_topics TEXT,
                 FOREIGN KEY(membership_id) REFERENCES memberships(membership_id)
             );
+            CREATE TABLE IF NOT EXISTS tutor_usage (
+                membership_id TEXT PRIMARY KEY,
+                uses INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY(membership_id) REFERENCES memberships(membership_id)
+            );
             """
         )
 
