@@ -50,6 +50,8 @@ def _exam_latex(expr) -> str:
 def _exp_factor(coefficient: int) -> str:
     if coefficient == 1:
         return r"e^{x}"
+    if coefficient == -1:
+        return r"e^{-x}"
     return rf"e^{{{coefficient} x}}"
 
 
@@ -104,6 +106,7 @@ _ONCE = (
     _exponential(1, 1, 1),
     _exponential(1, 2, 1),
     _exponential(1, 3, 1),
+    _exponential(1, 4, 1),
     _trigonometric(
         x * sp.sin(x),
         0,
@@ -120,11 +123,60 @@ _ONCE = (
         1,
         "Parts x cos x on [0, pi/2]",
     ),
+    _trigonometric(
+        (x + 1) * sp.sin(x),
+        0,
+        sp.pi,
+        r"Take $u = x + 1$ and $\mathrm{d}v = \sin x\,\mathrm{d}x$, so $v = -\cos x$.",
+        1,
+        "Parts (x+1) sin x on [0, pi]",
+    ),
+    _trigonometric(
+        (2 * x + 1) * sp.sin(x),
+        0,
+        sp.pi,
+        r"Take $u = 2x + 1$ and $\mathrm{d}v = \sin x\,\mathrm{d}x$, so $v = -\cos x$.",
+        1,
+        "Parts (2x+1) sin x on [0, pi]",
+    ),
+    _trigonometric(
+        (x + 2) * sp.sin(x),
+        0,
+        sp.pi,
+        r"Take $u = x + 2$ and $\mathrm{d}v = \sin x\,\mathrm{d}x$, so $v = -\cos x$.",
+        1,
+        "Parts (x+2) sin x on [0, pi]",
+    ),
+    _trigonometric(
+        3 * x * sp.sin(x),
+        0,
+        sp.pi,
+        r"Take $u = 3x$ and $\mathrm{d}v = \sin x\,\mathrm{d}x$, so $v = -\cos x$.",
+        1,
+        "Parts 3x sin x on [0, pi]",
+    ),
+    _trigonometric(
+        (x + 1) * sp.cos(x),
+        0,
+        sp.pi / 2,
+        r"Take $u = x + 1$ and $\mathrm{d}v = \cos x\,\mathrm{d}x$, so $v = \sin x$.",
+        1,
+        "Parts (x+1) cos x on [0, pi/2]",
+    ),
+    _trigonometric(
+        2 * x * sp.cos(x),
+        0,
+        sp.pi / 2,
+        r"Take $u = 2x$ and $\mathrm{d}v = \cos x\,\mathrm{d}x$, so $v = \sin x$.",
+        1,
+        "Parts 2x cos x on [0, pi/2]",
+    ),
 )
 
 _TWICE = (
     _exponential(2, 1, 2),
     _exponential(2, 2, 2),
+    _exponential(2, 3, 2),
     _trigonometric(
         x**2 * sp.sin(x),
         0,
@@ -132,6 +184,22 @@ _TWICE = (
         r"Apply integration by parts twice, starting with $u = x^{2}$ and $\mathrm{d}v = \sin x\,\mathrm{d}x$.",
         2,
         "Parts x^2 sin x on [0, pi]",
+    ),
+    _trigonometric(
+        x**2 * sp.cos(x),
+        0,
+        sp.pi / 2,
+        r"Apply integration by parts twice, starting with $u = x^{2}$ and $\mathrm{d}v = \cos x\,\mathrm{d}x$.",
+        2,
+        "Parts x^2 cos x on [0, pi/2]",
+    ),
+    _trigonometric(
+        x**2 * sp.sin(2 * x),
+        0,
+        sp.pi / 2,
+        r"Apply integration by parts twice, starting with $u = x^{2}$ and $\mathrm{d}v = \sin 2x\,\mathrm{d}x$.",
+        2,
+        "Parts x^2 sin 2x on [0, pi/2]",
     ),
 )
 
@@ -145,6 +213,7 @@ def gen_integration_parts(clean_integers: bool, difficulty: str = "standard"):
     item = choice(_TWICE if difficulty == "challenging" else _ONCE)
     antiderivative = _exam_latex(item["antiderivative"])
     exact = _exam_latex(item["exact"])
+    graph = "calc_parts_twice" if item["applications"] == 2 else "calc_parts_once"
     task = pack_task(
         title="Calculus: Integration by Parts",
         intro="Give exact answers. Part (a) asks for the indefinite integral of the integrand below.",
@@ -173,6 +242,9 @@ def gen_integration_parts(clean_integers: bool, difficulty: str = "standard"):
         ],
         archetype=item["archetype"],
         family=item["family"],
+        part_graph_id=graph,
+        cover_id="plain",
+        numeric_id=f"f={sp.sstr(item['expr'])}|a={sp.sstr(item['lower'])}|b={sp.sstr(item['upper'])}",
     )
     if task.marks != 6:
         raise RuntimeError("Integration by parts must be worth 6 marks.")

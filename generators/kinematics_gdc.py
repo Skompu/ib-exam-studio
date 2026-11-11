@@ -12,8 +12,42 @@ import sympy as sp
 from core.randomizer import pack_task, part, step
 from core.rng import choice
 from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
 t = sp.symbols("t", real=True)
+
+# (a, c, T) for s = a t^2 cos t + c t sin t. b = 1 keeps one GDC path.
+_SINGLE_SPECS = (
+    (1, 2, 4),
+    (1, 3, 4),
+    (1, 4, 4),
+    (1, 6, 4),
+    (1, 7, 4),
+    (1, 8, 4),
+    (2, 3, 4),
+    (2, 4, 4),
+    (2, 6, 4),
+    (2, 7, 4),
+    (2, 8, 4),
+    (3, 5, 4),
+    (3, 7, 4),
+    (4, 6, 4),
+    (4, 7, 4),
+)
+_DOUBLE_SPECS = (
+    (1, 1, 6),
+    (1, 2, 5),
+    (1, 2, 6),
+    (1, 3, 5),
+    (1, 4, 5),
+    (1, 4, 6),
+    (1, 4, 7),
+    (2, 1, 4),
+    (2, 1, 5),
+    (2, 2, 4),
+    (2, 2, 5),
+    (2, 3, 5),
+)
 
 
 def _fourth_digit_is_five(value) -> bool:
@@ -87,27 +121,37 @@ def _consider(expression, upper, changes):
     }
 
 
+def _displacement(scale, mix):
+    return scale * t**2 * sp.cos(t) + mix * t * sp.sin(t)
+
+
 def _bank():
     kept = []
-    for coefficient in (1, 2, 3, 4):
-        expression = t**2 * sp.cos(t) + coefficient * t * sp.sin(t)
-        if sp.simplify(expression.subs(t, 0)) != 0:
-            continue
-        for upper in (4, 5, 6, 7):
-            for changes in (1, 2):
-                item = _consider(expression, upper, changes)
-                if item is not None:
-                    kept.append(item)
+    for changes, specs in ((1, _SINGLE_SPECS), (2, _DOUBLE_SPECS)):
+        for scale, mix, upper in specs:
+            expression = _displacement(scale, mix)
+            if sp.simplify(expression.subs(t, 0)) != 0:
+                raise RuntimeError("Kinematics displacement must start at the origin.")
+            item = _consider(expression, upper, changes)
+            if item is None:
+                raise RuntimeError(
+                    f"Kinematics spec a={scale}, c={mix}, T={upper} failed for {changes} turn(s)."
+                )
+            item["scale"] = scale
+            item["mix"] = mix
+            kept.append(item)
     singles = [item for item in kept if item["changes"] == 1]
     doubles = [item for item in kept if item["changes"] == 2]
-    if not singles or not doubles:
+    if len(singles) < 8 or len(doubles) < 8:
         raise RuntimeError(
-            f"Kinematics bank is missing a difficulty: {len(singles)} single turns, {len(doubles)} double turns."
+            f"Kinematics bank is too small: {len(singles)} single turns, {len(doubles)} double turns."
         )
     return tuple(kept)
 
 
 _BANK = _bank()
+_SINGLES = tuple(item for item in _BANK if item["changes"] == 1)
+_DOUBLES = tuple(item for item in _BANK if item["changes"] == 2)
 
 
 def _figure(expression, upper, roots):
@@ -125,10 +169,9 @@ def _figure(expression, upper, roots):
 
 def gen_kinematics(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    changes = 2 if difficulty == "challenging" else 1
-    pool = [item for item in _BANK if item["changes"] == changes]
-    item = choice(pool)
+    item = choice(_DOUBLES if difficulty == "challenging" else _SINGLES)
     upper = item["upper"]
+    graph = "kin_gdc_two_turns" if item["changes"] == 2 else "kin_gdc_one_turn"
     return pack_task(
         title="Paper 2: Kinematics",
         intro=(
@@ -147,6 +190,7 @@ def gen_kinematics(clean_integers: bool, difficulty: str = "standard"):
                     "Compare $|s(t)|$ at the endpoints and where $v(t) = 0$:",
                     rf"{item['maximum']}\ \mathrm{{cm}}",
                     "M1 A1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -157,6 +201,7 @@ def gen_kinematics(clean_integers: bool, difficulty: str = "standard"):
                     "The first positive root of $v(t) = s'(t)$ is read from the GDC, then $a(t) = v'(t)$ is evaluated there:",
                     rf"{item['acceleration']}\ \mathrm{{cm\,s^{{-2}}}}",
                     "M1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -167,6 +212,7 @@ def gen_kinematics(clean_integers: bool, difficulty: str = "standard"):
                     r"Add the absolute changes in displacement. This is $\int_{0}^{T}|v(t)|\,\mathrm{d}t$:",
                     rf"{item['distance']}\ \mathrm{{cm}}",
                     "M1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
         ],
@@ -176,4 +222,7 @@ def gen_kinematics(clean_integers: bool, difficulty: str = "standard"):
             f"{item['changes']} turns, distance {item['distance']}"
         ),
         family="Displacement whose turning points are found on a GDC",
+        part_graph_id=graph,
+        cover_id="plain",
+        numeric_id=f"a={item['scale']}|c={item['mix']}|T={upper}",
     )

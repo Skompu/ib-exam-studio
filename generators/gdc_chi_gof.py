@@ -50,19 +50,11 @@ def _build_bank():
             "model_line": "P(X = k) = 1/6 for k = 1, 2, ..., 6",
         },
         {
-            "kind": "genetics",
-            "title": "Mendelian phenotype model",
-            "probs": (sp.Rational(9, 16), sp.Rational(3, 16), sp.Rational(3, 16), sp.Rational(1, 16)),
-            "labels": ("Round yellow", "Round green", "Wrinkled yellow", "Wrinkled green"),
-            "totals": (160, 240, 128),
-            "model_line": "P(RY) = 9/16, P(RG) = 3/16, P(WY) = 3/16, P(WG) = 1/16",
-        },
-        {
             "kind": "survey",
             "title": "Customer preference survey",
             "probs": (sp.Rational(1, 2), sp.Rational(1, 4), sp.Rational(1, 8), sp.Rational(1, 8)),
             "labels": ("Product A", "Product B", "Product C", "Product D"),
-            "totals": (200, 160, 88),
+            "totals": (200, 160, 88, 240, 120),
             "model_line": "P(A) = 1/2, P(B) = 1/4, P(C) = 1/8, P(D) = 1/8",
         },
     )
@@ -116,7 +108,11 @@ def _build_bank():
 
 _BANK = _build_bank()
 _DIE = tuple(item for item in _BANK if item["kind"] == "die")
-_OTHER = tuple(item for item in _BANK if item["kind"] != "die")
+_FOUR = tuple(item for item in _BANK if item["kind"] == "survey")
+if len(_DIE) < 6 or len(_FOUR) < 8:
+    raise RuntimeError(
+        f"Chi-squared GOF banks are too small (six-category {len(_DIE)}, four-category {len(_FOUR)})."
+    )
 
 COVERS_SIX = (
     {
@@ -139,6 +135,27 @@ COVERS_SIX = (
     },
 )
 
+COVERS_FOUR = (
+    {
+        "id": "product_preference",
+        "title": "customer product survey",
+        "labels": ("A", "B", "C", "D"),
+        "model_line": "P(A) = 1/2, P(B) = 1/4, P(C) = 1/8, P(D) = 1/8",
+    },
+    {
+        "id": "travel_to_school",
+        "title": "travel-to-school survey",
+        "labels": ("Car", "Bus", "Cycle", "Walk"),
+        "model_line": "P(Car) = 1/2, P(Bus) = 1/4, P(Cycle) = 1/8, P(Walk) = 1/8",
+    },
+    {
+        "id": "lunch_choice",
+        "title": "cafeteria lunch survey",
+        "labels": ("Hot meal", "Sandwich", "Salad", "None"),
+        "model_line": "P(hot meal) = 1/2, P(sandwich) = 1/4, P(salad) = 1/8, P(none) = 1/8",
+    },
+)
+
 
 def _expected_scheme(expected) -> str:
     return r",\quad ".join(rf"E={three_sf(value)}" for value in expected)
@@ -147,12 +164,13 @@ def _expected_scheme(expected) -> str:
 def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
     if difficulty == "challenging":
-        item = choice(_OTHER)
-        cover_id = item["kind"]
-        story = item["story"]
-        labels = item["labels"]
-        model_line = item["model_line"]
-        graph = "chi2_gof_specified_model"
+        item = choice(_FOUR)
+        cover = choice(COVERS_FOUR)
+        cover_id = cover["id"]
+        story = cover["title"]
+        labels = cover["labels"]
+        model_line = cover["model_line"]
+        graph = "chi2_gof_four_specified"
     else:
         item = choice(_DIE)
         cover = choice(COVERS_SIX)

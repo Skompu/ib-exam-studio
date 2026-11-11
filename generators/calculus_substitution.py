@@ -138,6 +138,66 @@ _DIRECT = (
         "Substitution u = x^2 + x into (2x+1) exp(x^2+x)",
         "Direct substitution, exponential of a quadratic",
     ),
+    _item(
+        x * sp.sqrt(3 * x**2 + 1),
+        0,
+        1,
+        sp.sqrt(u) / 6,
+        1,
+        4,
+        "3x^{2} + 1",
+        r"Then $\mathrm{d}u = 6x\,\mathrm{d}x$. The limits $x=0$ and $x=1$ become $u=1$ and $u=4$.",
+        "Substitution u = 3x^2+1 into x sqrt(3x^2+1)",
+        "Direct substitution, square root of a quadratic",
+    ),
+    _item(
+        x / (x**2 + 4),
+        0,
+        2,
+        1 / (2 * u),
+        4,
+        8,
+        "x^{2} + 4",
+        r"Then $\mathrm{d}u = 2x\,\mathrm{d}x$. The limits $x=0$ and $x=2$ become $u=4$ and $u=8$.",
+        "Substitution u = x^2+4 into x/(x^2+4)",
+        "Direct substitution, logarithmic derivative",
+    ),
+    _item(
+        (2 * x + 2) * sp.exp(x**2 + 2 * x),
+        0,
+        1,
+        sp.exp(u),
+        0,
+        3,
+        "x^{2} + 2x",
+        r"Then $\mathrm{d}u = (2x+2)\,\mathrm{d}x$. The limits $x=0$ and $x=1$ become $u=0$ and $u=3$.",
+        "Substitution u = x^2+2x into (2x+2) exp(x^2+2x)",
+        "Direct substitution, exponential of a quadratic",
+    ),
+    _item(
+        x * (2 * x**2 + 1)**2,
+        0,
+        1,
+        u**2 / 4,
+        1,
+        3,
+        "2x^{2} + 1",
+        "Then $\\mathrm{d}u = 4x\\,\\mathrm{d}x$. The limits $x=0$ and $x=1$ become $u=1$ and $u=3$.",
+        "Substitution u = 2x^2+1 into x (2x^2+1)^2",
+        "Direct substitution, power of a quadratic",
+    ),
+    _item(
+        6 * x * sp.exp(3 * x**2),
+        0,
+        1,
+        sp.exp(u),
+        0,
+        3,
+        "3x^{2}",
+        r"Then $\mathrm{d}u = 6x\,\mathrm{d}x$. The limits $x=0$ and $x=1$ become $u=0$ and $u=3$.",
+        "Substitution u = 3x^2 into 6x exp(3x^2)",
+        "Direct substitution, exponential of a square",
+    ),
 )
 
 _REARRANGE = (
@@ -177,6 +237,42 @@ _REARRANGE = (
         "Substitution u = sqrt(x-1) into x/sqrt(x-1)",
         "Square-root substitution that replaces x",
     ),
+    _item(
+        x * sp.sqrt(x + 4),
+        0,
+        5,
+        (u - 4) * sp.sqrt(u),
+        4,
+        9,
+        "x + 4",
+        r"Then $x = u - 4$ and $\mathrm{d}x = \mathrm{d}u$. The limits $x=0$ and $x=5$ become $u=4$ and $u=9$.",
+        "Substitution u = x + 4 into x sqrt(x+4)",
+        "Rearrangement after a linear substitution",
+    ),
+    _item(
+        x * sp.sqrt(x + 9),
+        0,
+        7,
+        (u - 9) * sp.sqrt(u),
+        9,
+        16,
+        "x + 9",
+        r"Then $x = u - 9$ and $\mathrm{d}x = \mathrm{d}u$. The limits $x=0$ and $x=7$ become $u=9$ and $u=16$.",
+        "Substitution u = x + 9 into x sqrt(x+9)",
+        "Rearrangement after a linear substitution",
+    ),
+    _item(
+        x * sp.exp(x + 2),
+        0,
+        1,
+        (u - 2) * sp.exp(u),
+        2,
+        3,
+        "x + 2",
+        r"Then $x = u - 2$ and $\mathrm{d}x = \mathrm{d}u$. The limits $x=0$ and $x=1$ become $u=2$ and $u=3$.",
+        "Substitution u = x + 2 into x exp(x+2)",
+        "Rearrangement after a linear substitution",
+    ),
 )
 
 
@@ -187,6 +283,7 @@ def _definite(item) -> str:
 def gen_integration_substitution(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
     item = choice(_REARRANGE if difficulty == "challenging" else _DIRECT)
+    graph = "calc_sub_rearrange" if item in _REARRANGE else "calc_sub_direct"
     task = pack_task(
         title="Calculus: Integration by Substitution",
         intro="Give an exact answer.",
@@ -207,6 +304,9 @@ def gen_integration_substitution(clean_integers: bool, difficulty: str = "standa
         ],
         archetype=item["archetype"],
         family=item["family"],
+        part_graph_id=graph,
+        cover_id="plain",
+        numeric_id=f"f={sp.sstr(item['expr'])}|u={item['substitution']}|a={sp.sstr(item['lower'])}|b={sp.sstr(item['upper'])}",
     )
     if task.marks != 6:
         raise RuntimeError("Integration by substitution must be worth 6 marks.")

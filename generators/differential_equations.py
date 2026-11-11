@@ -1,17 +1,16 @@
-import random
-
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step, x
+from core.rng import choice
 from generators.modelling import newton_short, sample_newton
 
 y = sp.symbols("y", real=True)
 
 
 def _explicit_separation(clean_integers, difficulty):
-    rate = random.choice((1, 2) if clean_integers else (1, 2, 3))
-    shift = random.choice((1, 2))
-    initial = random.choice((1, 3) if clean_integers else (1, 2, 3, 5))
+    rate = choice((1, 2) if clean_integers else (1, 2, 3))
+    shift = choice((1, 2))
+    initial = choice((1, 2, 3, 4) if clean_integers else (1, 2, 3, 4, 5))
     amplitude = initial + shift
     # dy/dx = 2*rate*x*(y+shift), particular solution amplitude*exp(rate*x^2) - shift.
     rhs = sp.expand(2 * rate * x * (y + shift))
@@ -63,14 +62,17 @@ def _explicit_separation(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="Separable equation constructed from $y=Ae^{kx^{2}}-b$",
+        part_graph_id="diff_eq_separable_exp_quad",
+        cover_id="plain",
+        numeric_id=f"k={rate}|b={shift}|y0={initial}",
     )
 
 
 def _power_integrating_factor(clean_integers, difficulty):
-    order = random.choice((1, 2))
-    power = random.choice((0, 1, 2) if clean_integers else (0, 1, 2, 3))
+    order = choice((1, 2))
+    power = choice((0, 1, 2) if clean_integers else (0, 1, 2, 3))
     forcing = order + power + 1
-    initial = random.choice((1, 2, 3, 4))
+    initial = choice((1, 2, 3, 4))
     constant = initial - 1
     solution = x ** (power + 1) + constant * x ** (-order)
     residual = sp.diff(solution, x) + (order / x) * solution - forcing * x**power
@@ -124,6 +126,9 @@ def _power_integrating_factor(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="First-order linear equation with integrating factor $x^{n}$",
+        part_graph_id="diff_eq_if_power",
+        cover_id="plain",
+        numeric_id=f"n={order}|p={power}|y1={initial}",
     )
 
 
@@ -145,10 +150,10 @@ def _exponent(coefficient: int) -> str:
 
 
 def _constant_integrating_factor(clean_integers, difficulty):
-    rate = random.choice((1, 2) if clean_integers else (1, 2, 3))
-    equilibrium = random.choice((2, 3, 4))
+    rate = choice((1, 2) if clean_integers else (1, 2, 3))
+    equilibrium = choice((2, 3, 4))
     forcing = equilibrium * rate
-    initial = random.choice([value for value in (0, 1, 5) if value != equilibrium])
+    initial = choice([value for value in (0, 1, 5) if value != equilibrium])
     amplitude = initial - equilibrium
     solution = equilibrium + amplitude * sp.exp(-rate * x)
     residual = sp.diff(solution, x) + rate * solution - forcing
@@ -201,11 +206,14 @@ def _constant_integrating_factor(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="Constant-coefficient linear equation",
+        part_graph_id="diff_eq_if_constant",
+        cover_id="plain",
+        numeric_id=f"k={rate}|eq={equilibrium}|y0={initial}",
     )
 
 
 def gen_differential_equation(clean_integers: bool, difficulty: str = "standard"):
     if difficulty == "challenging":
         return newton_short(sample_newton(clean_integers))
-    builder = random.choice((_explicit_separation, _power_integrating_factor, _constant_integrating_factor))
+    builder = choice((_explicit_separation, _power_integrating_factor, _constant_integrating_factor))
     return builder(clean_integers, difficulty)

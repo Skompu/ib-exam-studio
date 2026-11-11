@@ -115,11 +115,16 @@ def test_new_diagrams_are_square_and_labelled():
 
 
 def test_integration_techniques_stay_off_the_fixed_papers():
+    graphs = {
+        "calc_parts": {"standard": "calc_parts_once", "challenging": "calc_parts_twice"},
+        "calc_sub": {"standard": "calc_sub_direct", "challenging": "calc_sub_rearrange"},
+    }
     for key in ("calc_parts", "calc_sub"):
         assert key not in {item for preset in PRESETS.values() for item in preset["keys"]}
-        for difficulty, minimum in (("standard", 3), ("challenging", 2)):
+        for difficulty, minimum in (("standard", 5), ("challenging", 3)):
             seen = set()
-            for index in range(12):
+            numerics = set()
+            for index in range(16):
                 random.seed(f"{key}-{difficulty}-{index}")
                 token = bind(f"{key}-{difficulty}-{index}")
                 try:
@@ -127,9 +132,14 @@ def test_integration_techniques_stay_off_the_fixed_papers():
                 finally:
                     release(token)
                 seen.add(task.archetype)
+                numerics.add(task.numeric_id)
                 assert task.marks == 6
                 assert task.fig is None
+                assert task.part_graph_id == graphs[key][difficulty]
+                assert task.cover_id == "plain"
+                assert task.numeric_id
             assert len(seen) >= minimum, (key, difficulty, seen)
+            assert len(numerics) >= minimum, (key, difficulty, numerics)
     assert PRESETS["mid"]["marks"] == 50
     assert PRESETS["mock"]["marks"] == 100
     assert PRESETS["paper2"]["marks"] == 24

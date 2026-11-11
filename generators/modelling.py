@@ -215,6 +215,11 @@ def newton_short(reading: Reading):
         ],
         archetype="Newton cooling: form the equation, find k, interpret the limit",
         family="Exponential approach to a fixed bath temperature, with k a clean logarithm",
+        part_graph_id="diff_eq_newton_short",
+        cover_id="forging",
+        numeric_id=(
+            f"lim={reading.limit}|T0={reading.initial}|t={reading.elapsed}|f={reading.factor}"
+        ),
     )
     if task.marks != 8:
         raise RuntimeError("Newton short question must be worth 8 marks.")
