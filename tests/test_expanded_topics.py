@@ -229,11 +229,12 @@ def test_trig_paper3_and_probe_presets():
     assert task.marks == 16
 
 
-def test_prob_rv_includes_binomial_exact_variants():
+def test_prob_rv_includes_binomial_and_poisson_variants():
     for difficulty in ("standard", "challenging"):
         seen = set()
         binomial_hits = 0
-        for index in range(24):
+        poisson_hits = 0
+        for index in range(32):
             random.seed(f"prob_rv-{difficulty}-{index}")
             token = bind(f"prob_rv-{difficulty}-{index}")
             try:
@@ -244,11 +245,15 @@ def test_prob_rv_includes_binomial_exact_variants():
             assert task.marks == 7
             if "Binomial" in task.archetype:
                 binomial_hits += 1
+            if "Poisson" in task.archetype:
+                poisson_hits += 1
+            if "Binomial" in task.archetype or "Poisson" in task.archetype:
                 for step in task.to_paper_dict()["markscheme"]:
                     assert step.get("tex")
                     assert step.get("code")
-        assert binomial_hits >= 4, (difficulty, binomial_hits, seen)
-        assert len(seen) >= 3, (difficulty, seen)
+        assert binomial_hits >= 3, (difficulty, binomial_hits, seen)
+        assert poisson_hits >= 3, (difficulty, poisson_hits, seen)
+        assert len(seen) >= 4, (difficulty, seen)
 
 
 def test_gdc_chi_gof_off_fixed_presets_and_variants():

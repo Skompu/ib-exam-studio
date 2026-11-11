@@ -330,7 +330,114 @@ def _binomial_rational(clean_integers, difficulty):
     )
 
 
+def _poisson_pmf(rate, count):
+    return sp.exp(-rate) * rate**count / sp.factorial(count)
+
+
+def _build_poisson_bank():
+    found = []
+    for rate in (1, 2, 3, 4, sp.Rational(1, 2), sp.Rational(3, 2)):
+        for count in (0, 1, 2, 3):
+            point = sp.simplify(_poisson_pmf(rate, count))
+            at_most = sum(
+                sp.simplify(_poisson_pmf(rate, tally)) for tally in range(0, count + 1)
+            )
+            at_least_two = sp.simplify(
+                1 - _poisson_pmf(rate, 0) - _poisson_pmf(rate, 1)
+            )
+            found.append(
+                {
+                    "rate": rate,
+                    "k": count,
+                    "point": point,
+                    "at_most": sp.simplify(at_most),
+                    "at_least_two": at_least_two,
+                }
+            )
+    if len(found) < 12:
+        raise RuntimeError("The Poisson exact bank is too small.")
+    return tuple(found)
+
+
+_POISSON_BANK = _build_poisson_bank()
+
+
+def _poisson_exact(clean_integers, difficulty):
+    pool = _POISSON_BANK
+    if clean_integers:
+        pool = tuple(item for item in _POISSON_BANK if item["rate"] in (1, 2, 3, 4))
+    if not pool:
+        pool = _POISSON_BANK
+    item = random.choice(pool)
+    rate = item["rate"]
+    count = item["k"]
+    shown_rate = sp.latex(rate)
+    if difficulty == "challenging":
+        tail_prompt = r"Find $P(X \ge 2)$."
+        tail_work = rf"P(X \ge 2) = {sp.latex(item['at_least_two'])}"
+        scheme_tail = step(
+            "Use the complement $1-P(0)-P(1)$:",
+            tail_work,
+            "M1 A1",
+        )
+        prompt_c = (
+            "Find $\\mathrm{Var}(X)$. State the relationship between the mean and variance "
+            "for a Poisson distribution."
+        )
+        scheme_c = step(
+            r"For $X \sim \mathrm{Po}(\lambda)$, $E(X)=\mathrm{Var}(X)=\lambda$:",
+            rf"E(X) = {shown_rate}, \quad \mathrm{{Var}}(X) = {shown_rate}",
+            "M1 A1 R1",
+        )
+        archetype = f"Poisson Po({shown_rate}) tail and variance"
+    else:
+        tail_prompt = f"Find $P(X \\le {count})$."
+        tail_work = f"P(X \\le {count}) = {sp.latex(item['at_most'])}"
+        scheme_tail = step(
+            "Add the point masses from $0$ up to this value:",
+            tail_work,
+            "M1 A1",
+        )
+        prompt_c = "Find $E(X)$."
+        scheme_c = step(
+            r"Use $E(X)=\lambda$:",
+            rf"E(X) = {shown_rate}",
+            "M1 A1 A1",
+        )
+        archetype = f"Poisson Po({shown_rate}) exact pmf"
+    return pack_task(
+        title="Poisson Random Variable",
+        intro=(
+            "The discrete random variable $X$ models the number of events in a fixed interval. "
+            rf"Suppose $X \sim \mathrm{{Po}}(\lambda)$ with $\lambda = {shown_rate}$."
+        ),
+        latex_main=rf"X \sim \mathrm{{Po}}({shown_rate})",
+        parts=[
+            part(
+                "a",
+                f"Find $P(X = {count})$.",
+                2,
+                step(
+                    r"Use $P(X=k)=\dfrac{e^{-\lambda}\lambda^k}{k!}$:",
+                    rf"P(X = {count}) = {sp.latex(item['point'])}",
+                    "M1 A1",
+                ),
+            ),
+            part("b", tail_prompt, 2, scheme_tail),
+            part("c", prompt_c, 3, scheme_c),
+        ],
+        archetype=archetype,
+        family="Poisson with rational rate and exact exponentials",
+    )
+
+
 def gen_random_variable(clean_integers: bool, difficulty: str = "standard"):
     return random.choice(
-        (_continuous, _discrete, _expectation_recovery, _binomial_rational)
+        (
+            _continuous,
+            _discrete,
+            _expectation_recovery,
+            _binomial_rational,
+            _poisson_exact,
+        )
     )(clean_integers, difficulty)
