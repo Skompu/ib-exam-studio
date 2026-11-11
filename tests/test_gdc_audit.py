@@ -1,10 +1,8 @@
-"""Audit of GDC-tagged tasks and the gap to a full Paper 2 mock."""
+"""Audit of GDC-tagged tasks and the Paper 2 mock composition."""
 
 from registry import PRESETS, TASK_REGISTRY
 
-# Honest product targets (IB HL Paper 2 is 110 marks; studio mock would be 100).
 PAPER2_MOCK_TARGET_MARKS = 100
-PAPER2_SECTION_B_GAP_MARKS = 35
 
 # Paper 2 style Section A questions (GDC). Excludes Paper 3 investigations.
 GDC_PAPER2_POOL = frozenset(
@@ -24,9 +22,9 @@ GDC_PAPER2_POOL = frozenset(
 
 GDC_PAPER3_ONLY = frozenset({"paper3_geo", "paper3_mac"})
 
-GDC_SECTION_B = frozenset({"ext_gdc_model"})
+GDC_SECTION_B = frozenset({"ext_gdc_model", "ext_gdc_stat"})
 
-# Section B extended items exist but are non-GDC; cannot fill a calculator-only preset yet.
+# Section B extended items that remain non-GDC (Paper 1 mock only).
 SECTION_B_NON_GDC = frozenset({"ext_calculus", "ext_vectors", "ext_model", "ext_ln"})
 
 
@@ -46,7 +44,7 @@ def test_gdc_paper2_pool_marks_and_coverage():
     for key in GDC_PAPER2_POOL:
         section = TASK_REGISTRY[key].get("section", "A")
         by_section.setdefault(section, []).append(key)
-    assert set(by_section) == {"A"}, "Paper 2 GDC pool has no Section B yet."
+    assert set(by_section) == {"A"}, "Paper 2 GDC Section A pool has no Section B keys."
     categories = {TASK_REGISTRY[key]["category"] for key in GDC_PAPER2_POOL}
     assert categories >= {"Paper 2", "Statistics", "Calculus"}
 
@@ -60,31 +58,43 @@ def test_paper2plus_matches_extended_extract():
 
 
 def test_paper2_presets_do_not_include_paper3_gdc():
-    for name in ("paper2", "paper2plus"):
+    for name in ("paper2", "paper2plus", "mock_p2"):
         keys = set(PRESETS[name]["keys"])
         assert not keys & GDC_PAPER3_ONLY
 
 
-def test_gap_to_full_paper2_mock_documented():
-    """paper2plus is 65 marks; ~35 marks of GDC Section B needed for a honest 100-mark mock."""
-    paper2plus = PRESETS["paper2plus"]["marks"]
-    assert PAPER2_MOCK_TARGET_MARKS - paper2plus == PAPER2_SECTION_B_GAP_MARKS
-    section_b_marks = sum(TASK_REGISTRY[key]["marks"] for key in SECTION_B_NON_GDC)
-    assert section_b_marks == 54
+def test_mock_p2_is_full_hundred():
+    preset = PRESETS["mock_p2"]
+    assert preset["calculator"] == "gdc"
+    assert preset["marks"] == PAPER2_MOCK_TARGET_MARKS
+    assert preset["time"] == "120 minutes"
+    assert set(preset["keys"]) == GDC_PAPER2_POOL | GDC_SECTION_B
+    assert sum(TASK_REGISTRY[key]["marks"] for key in preset["keys"]) == 100
+    section_a = sum(
+        TASK_REGISTRY[key]["marks"]
+        for key in preset["keys"]
+        if TASK_REGISTRY[key].get("section", "A") == "A"
+    )
+    section_b = sum(
+        TASK_REGISTRY[key]["marks"]
+        for key in preset["keys"]
+        if TASK_REGISTRY[key].get("section") == "B"
+    )
+    assert section_a == 65
+    assert section_b == 35
+
+
+def test_section_b_gdc_marks():
+    assert TASK_REGISTRY["ext_gdc_model"]["marks"] == 16
+    assert TASK_REGISTRY["ext_gdc_stat"]["marks"] == 19
+    assert all(TASK_REGISTRY[key]["section"] == "B" for key in GDC_SECTION_B)
+    assert all(TASK_REGISTRY[key]["calculator"] == "gdc" for key in GDC_SECTION_B)
     assert all(TASK_REGISTRY[key].get("calculator", "none") != "gdc" for key in SECTION_B_NON_GDC)
 
 
 def test_gdc_paper2_pool_preset_membership():
-    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
-    in_presets = GDC_PAPER2_POOL & locked
-    assert in_presets == GDC_PAPER2_POOL
     assert "gdc_chi_gof" in PRESETS["paper2plus"]["keys"]
-
-
-def test_extended_gdc_model_is_section_b_and_off_extracts():
-    spec = TASK_REGISTRY["ext_gdc_model"]
-    assert spec["section"] == "B"
-    assert spec["calculator"] == "gdc"
-    assert spec["marks"] == 16
-    for preset in PRESETS.values():
-        assert "ext_gdc_model" not in preset["keys"]
+    assert "ext_gdc_model" in PRESETS["mock_p2"]["keys"]
+    assert "ext_gdc_stat" in PRESETS["mock_p2"]["keys"]
+    assert "ext_gdc_model" not in PRESETS["paper2plus"]["keys"]
+    assert "ext_gdc_stat" not in PRESETS["paper2plus"]["keys"]

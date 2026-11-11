@@ -31,6 +31,7 @@ from generators.gdc_chi_squared import gen_gdc_chi_squared
 from generators.gdc_chi_gof import gen_gdc_chi_gof
 from generators.gdc_curve import gen_gdc_curve
 from generators.gdc_extended_model import gen_extended_gdc_model
+from generators.gdc_extended_stat import gen_extended_gdc_stat
 from generators.gdc_linear_system import gen_linear_system
 from generators.gdc_statistics import gen_gdc_distributions
 from generators.gdc_trigonometry import gen_gdc_trigonometry
@@ -624,6 +625,15 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "search": "GDC exponential logarithm model stationary point area average value",
     },
+    "ext_gdc_stat": {
+        "name": "Section B: GDC normal and binomial quality control",
+        "func": gen_extended_gdc_stat,
+        "marks": 19,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "search": "normal invNorm binomial expected profit quality control GDC",
+    },
 }
 
 PRESETS = {
@@ -740,6 +750,33 @@ PRESETS = {
         "marks": 32,
         "calculator": "gdc",
         "keys": ("paper3_geo", "paper3_mac"),
+    },
+    "mock_p2": {
+        "label": "Mock Paper 2 (GDC, 120 min)",
+        "description": (
+            "A full studio Mock Paper 2: ten short Section A questions (65 marks) and two extended "
+            "Section B questions (35 marks). Section A matches the extended GDC extract; Section B "
+            "is a functional model finished on a GDC and a normal–binomial quality-control item. "
+            "Give numerical answers to three significant figures where appropriate. 100 marks. "
+            "A published IB HL Paper 2 is 110 marks and this studio paper does not copy it."
+        ),
+        "time": "120 minutes",
+        "marks": 100,
+        "calculator": "gdc",
+        "keys": (
+            "gdc_intersect",
+            "gdc_area",
+            "gdc_dist",
+            "bivar",
+            "kin_gdc",
+            "gdc_trig",
+            "gdc_curve",
+            "gdc_system",
+            "gdc_chi",
+            "gdc_chi_gof",
+            "ext_gdc_model",
+            "ext_gdc_stat",
+        ),
     },
 }
 

@@ -277,6 +277,30 @@ def test_extended_gdc_model_variants():
         assert len(seen) >= 2, (difficulty, seen)
 
 
+def test_extended_gdc_stat_and_mock_p2():
+    assert PRESETS["mock_p2"]["marks"] == 100
+    assert PRESETS["mock"]["marks"] == 100
+    assert PRESETS["mock_p2"]["calculator"] == "gdc"
+    assert PRESETS["mock"].get("calculator", "none") == "none"
+    for difficulty in ("standard", "challenging"):
+        seen = set()
+        for index in range(8):
+            random.seed(f"ext_gdc_stat-{difficulty}-{index}")
+            token = bind(f"ext_gdc_stat-{difficulty}-{index}")
+            try:
+                task = call_generator("ext_gdc_stat", True, difficulty)
+            finally:
+                release(token)
+            seen.add(task.archetype)
+            assert task.marks == 19
+            scheme = task.to_paper_dict()["markscheme"]
+            assert len(scheme) == 5
+            for item in scheme:
+                assert item.get("tex")
+                assert item.get("code")
+        assert len(seen) >= 2, (difficulty, seen)
+
+
 def test_gdc_chi_gof_off_fixed_presets_and_variants():
     locked = {item for preset in PRESETS.values() for item in preset["keys"]}
     assert "gdc_chi_gof" not in PRESETS["mock"]["keys"]
