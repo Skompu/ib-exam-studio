@@ -28,6 +28,7 @@ from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
 from generators.functions_transformations import gen_transformations_modulus
 from generators.gdc_chi_squared import gen_gdc_chi_squared
+from generators.gdc_chi_gof import gen_gdc_chi_gof
 from generators.gdc_curve import gen_gdc_curve
 from generators.gdc_linear_system import gen_linear_system
 from generators.gdc_statistics import gen_gdc_distributions
@@ -430,6 +431,15 @@ TASK_REGISTRY = {
         "section": "A",
         "calculator": "gdc",
         "search": "chi squared independence contingency table GDC",
+    },
+    "gdc_chi_gof": {
+        "name": "Paper 2: Chi-squared Goodness of Fit",
+        "func": gen_gdc_chi_gof,
+        "marks": 8,
+        "category": "Paper 2",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "chi squared goodness of fit observed expected frequencies GDC",
     },
     "geom_sector": {
         "name": "Geometry: Circular Sector and Radian Measure",

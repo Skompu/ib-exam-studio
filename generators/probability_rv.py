@@ -198,5 +198,139 @@ def _expectation_recovery(clean_integers, difficulty):
     )
 
 
+def _binom_pmf(n, successes, proportion):
+    return sp.binomial(n, successes) * proportion**successes * (1 - proportion) ** (n - successes)
+
+
+def _build_binomial_bank():
+    found = []
+    for trials in (3, 4, 5, 6):
+        for proportion in (
+            sp.Rational(1, 5),
+            sp.Rational(1, 4),
+            sp.Rational(1, 3),
+            sp.Rational(2, 5),
+            sp.Rational(1, 2),
+            sp.Rational(3, 5),
+            sp.Rational(2, 3),
+        ):
+            for successes in range(trials + 1):
+                point = sp.simplify(_binom_pmf(trials, successes, proportion))
+                if not point or point.q > 180:
+                    continue
+                at_least = sum(
+                    sp.simplify(_binom_pmf(trials, count, proportion))
+                    for count in range(successes, trials + 1)
+                )
+                at_most = sum(
+                    sp.simplify(_binom_pmf(trials, count, proportion))
+                    for count in range(0, successes + 1)
+                )
+                if at_least.q > 180 or at_most.q > 180:
+                    continue
+                mean = sp.simplify(trials * proportion)
+                variance = sp.simplify(trials * proportion * (1 - proportion))
+                found.append(
+                    {
+                        "n": trials,
+                        "p": proportion,
+                        "k": successes,
+                        "point": point,
+                        "at_least": sp.simplify(at_least),
+                        "at_most": sp.simplify(at_most),
+                        "mean": mean,
+                        "variance": variance,
+                    }
+                )
+    if len(found) < 12:
+        raise RuntimeError("The binomial rational bank is too small.")
+    return tuple(found)
+
+
+_BINOMIAL_BANK = _build_binomial_bank()
+
+
+def _binomial_rational(clean_integers, difficulty):
+    pool = _BINOMIAL_BANK
+    if clean_integers:
+        pool = tuple(
+            item
+            for item in _BINOMIAL_BANK
+            if item["n"] <= 5 and item["p"].q <= 4 and item["p"].p <= 4
+        )
+    if not pool:
+        pool = _BINOMIAL_BANK
+    item = random.choice(pool)
+    trials = item["n"]
+    proportion = item["p"]
+    successes = item["k"]
+    shown_p = sp.latex(proportion)
+    if difficulty == "challenging":
+        tail_prompt = (
+            f"Find $P(X \\ge {successes})$."
+            if successes > 0
+            else f"Find $P(X \\le {successes})$."
+        )
+        tail_value = item["at_least"] if successes > 0 else item["at_most"]
+        tail_work = (
+            f"P(X \\ge {successes}) = {sp.latex(tail_value)}"
+            if successes > 0
+            else f"P(X \\le {successes}) = {sp.latex(tail_value)}"
+        )
+        prompt_c = "Find $\\mathrm{Var}(X)$. Verify that $E(X)=np$."
+        scheme_c = step(
+            rf"Use $\mathrm{{Var}}(X)=np(1-p)$ with $n={trials}$ and $p={shown_p}$:",
+            rf"E(X) = {sp.latex(item['mean'])}, \quad \mathrm{{Var}}(X) = {sp.latex(item['variance'])}",
+            "M1 A1 A1",
+        )
+        archetype = f"Binomial B({trials}, {shown_p}) tail and variance"
+    else:
+        tail_prompt = f"Find $P(X \\le {successes})$."
+        tail_value = item["at_most"]
+        tail_work = f"P(X \\le {successes}) = {sp.latex(tail_value)}"
+        prompt_c = "Find $E(X)$ and $\\mathrm{Var}(X)$."
+        scheme_c = step(
+            "Use $E(X)=np$ and $\\mathrm{Var}(X)=np(1-p)$:",
+            rf"E(X) = {sp.latex(item['mean'])}, \quad \mathrm{{Var}}(X) = {sp.latex(item['variance'])}",
+            "M1 A1 A1",
+        )
+        archetype = f"Binomial B({trials}, {shown_p}) exact pmf"
+    return pack_task(
+        title="Binomial Random Variable",
+        intro=(
+            f"The discrete random variable $X$ counts the number of successes in ${trials}$ independent trials. "
+            f"Each trial succeeds with probability $p={shown_p}$."
+        ),
+        latex_main=rf"X \sim B({trials},\,{shown_p})",
+        parts=[
+            part(
+                "a",
+                f"Find $P(X = {successes})$.",
+                2,
+                step(
+                    "Use $P(X=k)=\\binom{%d}{k} p^k (1-p)^{%d-k}$:" % (trials, trials),
+                    rf"P(X = {successes}) = {sp.latex(item['point'])}",
+                    "M1 A1",
+                ),
+            ),
+            part(
+                "b",
+                tail_prompt,
+                2,
+                step(
+                    "Sum the relevant binomial probabilities (complements are allowed):",
+                    tail_work,
+                    "M1 A1",
+                ),
+            ),
+            part("c", prompt_c, 3, scheme_c),
+        ],
+        archetype=archetype,
+        family="B(n, p) with small n and rational p for exact fractions",
+    )
+
+
 def gen_random_variable(clean_integers: bool, difficulty: str = "standard"):
-    return random.choice((_continuous, _discrete, _expectation_recovery))(clean_integers, difficulty)
+    return random.choice(
+        (_continuous, _discrete, _expectation_recovery, _binomial_rational)
+    )(clean_integers, difficulty)

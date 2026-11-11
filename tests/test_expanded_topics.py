@@ -229,6 +229,46 @@ def test_trig_paper3_and_probe_presets():
     assert task.marks == 16
 
 
+def test_prob_rv_includes_binomial_exact_variants():
+    for difficulty in ("standard", "challenging"):
+        seen = set()
+        binomial_hits = 0
+        for index in range(24):
+            random.seed(f"prob_rv-{difficulty}-{index}")
+            token = bind(f"prob_rv-{difficulty}-{index}")
+            try:
+                task = call_generator("prob_rv", True, difficulty)
+            finally:
+                release(token)
+            seen.add(task.archetype)
+            assert task.marks == 7
+            if "Binomial" in task.archetype:
+                binomial_hits += 1
+                for step in task.to_paper_dict()["markscheme"]:
+                    assert step.get("tex")
+                    assert step.get("code")
+        assert binomial_hits >= 4, (difficulty, binomial_hits, seen)
+        assert len(seen) >= 3, (difficulty, seen)
+
+
+def test_gdc_chi_gof_off_fixed_presets_and_variants():
+    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
+    assert "gdc_chi_gof" not in locked
+    for difficulty in ("standard", "challenging"):
+        seen = set()
+        for index in range(8):
+            random.seed(f"gdc_chi_gof-{difficulty}-{index}")
+            token = bind(f"gdc_chi_gof-{difficulty}-{index}")
+            try:
+                task = call_generator("gdc_chi_gof", True, difficulty)
+            finally:
+                release(token)
+            seen.add(task.archetype)
+            assert task.marks == 8
+            assert task.to_paper_dict()["markscheme"]
+        assert len(seen) >= 2, (difficulty, seen)
+
+
 def test_chi_exponential_and_gdc_chi_preset():
     locked = {item for preset in PRESETS.values() for item in preset["keys"]}
     for key in ("prob_exp",):
