@@ -366,20 +366,18 @@ def _frequency_table(rows: list, usable: float, cell_style=None) -> Table:
     if not rows:
         raise ValueError("display_table is empty.")
     columns = len(rows[0])
-    # Wide goodness-of-fit tables must stay on one line without blowing the margins.
-    col_width = min(0.95 * inch, (usable - 12) / max(columns, 1))
+    col_width = min(0.55 * inch, (usable - 12) / max(columns, 1))
     table = Table(
         [[str(cell) for cell in row] for row in rows],
         colWidths=[col_width] * columns,
         hAlign="CENTER",
     )
-    # ReportLab Tables split by row by default — that orphans the header on the previous page.
     table.splitByRow = 0
     table.setStyle(
         TableStyle(
             [
-                ("GRID", (0, 0), (-1, -1), 0.75, colors.HexColor("#4A5568")),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EDF2F7")),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#718096")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#F7FAFC")),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
@@ -392,6 +390,64 @@ def _frequency_table(rows: list, usable: float, cell_style=None) -> Table:
         )
     )
     return table
+
+
+def _candidate_details_table(total_marks: int, label_style, meta_style) -> Table:
+    """Candidate name, number, date, and total-score box — no pipe characters."""
+    dotted = ParagraphStyle(
+        "CandidateWrite",
+        parent=meta_style,
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#718096"),
+        alignment=0,
+    )
+    score_style = ParagraphStyle(
+        "CandidateScore",
+        parent=meta_style,
+        fontSize=10,
+        leading=12,
+        alignment=1,
+    )
+    name_line = Paragraph("." * 58, dotted)
+    number_line = Paragraph("." * 58, dotted)
+    date_line = Paragraph("." * 22, dotted)
+    score_box = Paragraph(f"/&nbsp;{total_marks}", score_style)
+    cand_table = Table(
+        [
+            [
+                Paragraph("<b>Candidate Name</b>", label_style),
+                name_line,
+                Paragraph("<b>Date</b>", label_style),
+                date_line,
+            ],
+            [
+                Paragraph("<b>Candidate Number</b>", label_style),
+                number_line,
+                Paragraph("<b>Total Score</b>", label_style),
+                score_box,
+            ],
+        ],
+        colWidths=[1.45 * inch, 2.65 * inch, 1.1 * inch, 1.6 * inch],
+        rowHeights=[26, 28],
+    )
+    cand_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7FAFC")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#4A5568")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E0")),
+                ("LINEBELOW", (1, 0), (1, 0), 0.9, colors.HexColor("#718096")),
+                ("LINEBELOW", (3, 0), (3, 0), 0.9, colors.HexColor("#718096")),
+                ("LINEBELOW", (1, 1), (1, 1), 0.9, colors.HexColor("#718096")),
+                ("BOX", (3, 1), (3, 1), 0.9, colors.HexColor("#718096")),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    return cand_table
 
 
 def _placed_image(data: bytes, max_width: float, max_height: float):
@@ -503,11 +559,17 @@ def build_multi_question_pdf(
         header_data = []
         header_left = [
             Paragraph(institution_name.upper(), ParagraphStyle('Inst', fontName='Helvetica-Bold', fontSize=12, textColor=colors.HexColor("#1A365D"))),
-            Paragraph(f"{contact_info} &nbsp;|&nbsp; {syllabus}", meta_style),
+            Paragraph(f"{contact_info} · {syllabus}", meta_style),
             Spacer(1, 4),
             Paragraph(f"<b>{doc_type_label}</b>", title_style),
-            Paragraph(f"<b>Session / Policy:</b> {paper_type} &nbsp;|&nbsp; <b>Time Allowed:</b> {time_allowed}", meta_style),
-            Paragraph(f"<b>Cohort / Variant:</b> <b>{variant}</b> &nbsp;|&nbsp; <b>Total Available Marks:</b> {total_marks}", meta_style)
+            Paragraph(
+                f"<b>Session / Policy:</b> {paper_type} · <b>Time Allowed:</b> {time_allowed}",
+                meta_style,
+            ),
+            Paragraph(
+                f"<b>Cohort / Variant:</b> <b>{variant}</b> · <b>Total Available Marks:</b> {total_marks}",
+                meta_style,
+            )
         ]
         if is_markscheme and paper.get("difficulty"):
             difficulty_label = "Challenging (IB exam-trap)" if paper["difficulty"] == "challenging" else "Standard procedures"
@@ -534,43 +596,7 @@ def build_multi_question_pdf(
 
         # Candidate Details Block (Only for student paper)
         if not is_markscheme:
-            blank = Paragraph("&nbsp;", meta_style)
-            score = Paragraph(f"<b>/ {total_marks}</b>", meta_style)
-            cand_table = Table(
-                [
-                    [
-                        Paragraph("<b>Candidate Name</b>", meta_style),
-                        blank,
-                        Paragraph("<b>Date</b>", meta_style),
-                        blank,
-                    ],
-                    [
-                        Paragraph("<b>Candidate Number</b>", meta_style),
-                        blank,
-                        Paragraph("<b>Total Score</b>", meta_style),
-                        score,
-                    ],
-                ],
-                colWidths=[1.55 * inch, 2.55 * inch, 1.15 * inch, 1.55 * inch],
-                rowHeights=[22, 22],
-            )
-            cand_table.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F7FAFC")),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#4A5568")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#CBD5E0")),
-                ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-                # Signature / score writing lines inside the blank cells.
-                ("LINEBELOW", (1, 0), (1, 0), 0.8, colors.HexColor("#718096")),
-                ("LINEBELOW", (3, 0), (3, 0), 0.8, colors.HexColor("#718096")),
-                ("LINEBELOW", (1, 1), (1, 1), 0.8, colors.HexColor("#718096")),
-                ("LINEBELOW", (3, 1), (3, 1), 0.8, colors.HexColor("#718096")),
-                ("ALIGN", (3, 1), (3, 1), "RIGHT"),
-            ]))
-            story.append(cand_table)
+            story.append(_candidate_details_table(total_marks, meta_style, meta_style))
             story.append(Spacer(1, 10))
 
         story.append(Table([[""]], colWidths=[6.8 * inch], rowHeights=[1], style=[('LINEBELOW', (0,0), (-1,-1), 1, colors.HexColor("#2B6CB0"))]))

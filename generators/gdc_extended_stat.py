@@ -216,8 +216,8 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                 "c",
                 (
                     "It is also known that "
-                    f"$P(X < {shown['a']}) = 0.2$ and $P(X > {shown['b']}) = 0.1$. "
-                    r"Using these two conditions only, find $\mu$ and $\sigma$."
+                    f"P(X < {shown['a']}) = 0.2 and P(X > {shown['b']}) = 0.1. "
+                    "Using these two conditions only, find μ and σ."
                 ),
                 4,
                 step(
