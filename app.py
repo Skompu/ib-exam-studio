@@ -5,10 +5,18 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from registry import PRESETS, TASK_REGISTRY, call_generator, order_task_keys
 from core.license import membership_id_for, validate_whop_license
-from core.storage import get_paper_snapshot, list_classes, list_saved_papers, save_class_topics, save_paper_snapshot
+from core.storage import (
+    get_paper_snapshot,
+    increment_tutor_uses,
+    list_classes,
+    list_saved_papers,
+    save_class_topics,
+    save_paper_snapshot,
+    tutor_uses_remaining,
+)
 from core.pdf_engine import build_multi_question_pdf, figure_visible
 from core.export_editable import build_editable_docx, build_editable_tex
-from core.ai_tutor import stream_tutor_hints
+from core.ai_tutor import TUTOR_NOTE_LIMIT, stream_tutor_hints
 from core.rng import bind as bind_rng
 from core.rng import release as release_rng
 
@@ -33,8 +41,6 @@ st.markdown(
 )
 
 _PAPER_LOCK = threading.Lock()
-_TUTOR_LIMIT = 12
-
 # --- HELPER: SERIALIZE FIGURE TO BYTES & FREE MEMORY ---
 def fig_to_png_bytes(fig) -> bytes:
     if fig is None:
@@ -593,8 +599,8 @@ with tab_solutions:
                 # AI TUTOR STREAMING INTEGRATION
                 ai_key = f"ai_tutor_{p['variant']}_{task['q_number']}"
                 stored_key = f"{ai_key}_text"
-                if "tutor_uses" not in st.session_state:
-                    st.session_state.tutor_uses = 0
+                membership_id = st.session_state.get("membership_id")
+                tutor_left = tutor_uses_remaining(membership_id, TUTOR_NOTE_LIMIT)
                 stored = st.session_state.get(stored_key)
                 with st.expander(
                     f"Tutor notes — Q{task['q_number']}, cohort {p['variant']}",
@@ -602,12 +608,20 @@ with tab_solutions:
                 ):
                     if stored:
                         st.markdown(stored)
-                    elif st.button(
+                    else:
+                        st.caption(
+                            f"Tutor notes remaining for your license: "
+                            f"{tutor_left} of {TUTOR_NOTE_LIMIT}."
+                        )
+                    if not stored and st.button(
                         f"Generate tutor notes (Q{task['q_number']}, cohort {p['variant']})",
                         key=ai_key,
                     ):
-                        if st.session_state.tutor_uses >= _TUTOR_LIMIT:
-                            st.warning(f"This session has used all {_TUTOR_LIMIT} tutor notes.")
+                        if tutor_left <= 0:
+                            st.warning(
+                                f"Your license has used all {TUTOR_NOTE_LIMIT} tutor notes. "
+                                "Contact support if you need a reset."
+                            )
                         else:
                             chunks = []
 
@@ -625,7 +639,7 @@ with tab_solutions:
                             text = "".join(chunks)
                             st.session_state[stored_key] = text
                             if text and not text.startswith(("⚠️", "❌")):
-                                st.session_state.tutor_uses += 1
+                                increment_tutor_uses(membership_id)
 
                 st.divider()
 

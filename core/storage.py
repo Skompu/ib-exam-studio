@@ -231,3 +231,49 @@ def list_classes(membership_id: str, path: Path | None = None) -> list[dict]:
             }
         )
     return found
+
+
+def get_tutor_uses(membership_id: str, path: Path | None = None) -> int:
+    """How many successful tutor generations this membership has consumed."""
+    if not membership_id:
+        return 0
+    init_db(path)
+    with _connection(path) as connection:
+        row = connection.execute(
+            "SELECT uses FROM tutor_usage WHERE membership_id = ?",
+            (membership_id,),
+        ).fetchone()
+    if row is None:
+        return 0
+    return int(row["uses"])
+
+
+def increment_tutor_uses(membership_id: str, path: Path | None = None) -> int:
+    """Record one successful tutor generation; returns the new total."""
+    if not membership_id:
+        raise ValueError("membership_id is required to record tutor usage.")
+    init_db(path)
+    with _connection(path) as connection:
+        _touch_membership(connection, membership_id)
+        row = connection.execute(
+            "SELECT uses FROM tutor_usage WHERE membership_id = ?",
+            (membership_id,),
+        ).fetchone()
+        uses = int(row["uses"]) if row else 0
+        uses += 1
+        connection.execute(
+            """
+            INSERT INTO tutor_usage (membership_id, uses) VALUES (?, ?)
+            ON CONFLICT(membership_id) DO UPDATE SET uses = excluded.uses
+            """,
+            (membership_id, uses),
+        )
+    return uses
+
+
+def tutor_uses_remaining(
+    membership_id: str,
+    limit: int,
+    path: Path | None = None,
+) -> int:
+    return max(0, limit - get_tutor_uses(membership_id, path))
