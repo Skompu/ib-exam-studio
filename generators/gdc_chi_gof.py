@@ -47,7 +47,7 @@ def _build_bank():
             "probs": (sp.Rational(1, 6),) * 6,
             "labels": tuple(str(face) for face in range(1, 7)),
             "totals": (120, 180, 90),
-            "model_line": r"$P(X = k) = 1/6$ for $k = 1, 2, \ldots, 6$",
+            "model_line": "P(X = k) = 1/6 for k = 1, 2, ..., 6",
         },
         {
             "kind": "genetics",
@@ -55,10 +55,7 @@ def _build_bank():
             "probs": (sp.Rational(9, 16), sp.Rational(3, 16), sp.Rational(3, 16), sp.Rational(1, 16)),
             "labels": ("Round yellow", "Round green", "Wrinkled yellow", "Wrinkled green"),
             "totals": (160, 240, 128),
-            "model_line": (
-                r"$P(\mathrm{RY})=9/16$, $P(\mathrm{RG})=3/16$, "
-                r"$P(\mathrm{WY})=3/16$, $P(\mathrm{WG})=1/16$"
-            ),
+            "model_line": "P(RY) = 9/16, P(RG) = 3/16, P(WY) = 3/16, P(WG) = 1/16",
         },
         {
             "kind": "survey",
@@ -66,9 +63,7 @@ def _build_bank():
             "probs": (sp.Rational(1, 2), sp.Rational(1, 4), sp.Rational(1, 8), sp.Rational(1, 8)),
             "labels": ("Product A", "Product B", "Product C", "Product D"),
             "totals": (200, 160, 88),
-            "model_line": (
-                r"$P(A)=1/2$, $P(B)=1/4$, $P(C)=1/8$, $P(D)=1/8$"
-            ),
+            "model_line": "P(A) = 1/2, P(B) = 1/4, P(C) = 1/8, P(D) = 1/8",
         },
     )
     perturbations = (
@@ -150,7 +145,7 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
             f"({item['story']}). "
             "Under the model below, test whether the sample fits the stated distribution at the 5% level."
         ),
-        latex_main=f"Model: {item['model_line']}",
+        latex_main=item["model_line"],
         display_table=_observed_table(item["labels"], item["observed"]),
         parts=[
             part(

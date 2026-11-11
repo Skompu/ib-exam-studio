@@ -158,9 +158,33 @@ def group_by_category(tasks: list[dict], difficulty: str) -> list[tuple[str, lis
     return grouped
 
 
+def _render_stem_math(task: dict) -> None:
+    """Show a frequency table and/or the main equation without leaking raw LaTeX."""
+    table = task.get("display_table")
+    if table:
+        header, *body = table
+        if body:
+            st.table({str(header[index]): [row[index] for row in body] for index in range(len(header))})
+        else:
+            st.table({" ": list(header)})
+        caption = (task.get("latex_main") or "").strip()
+        if caption and caption.lower() not in {"observed frequencies", "contingency table"}:
+            st.markdown(f"**Model:** {caption}")
+        return
+    latex_main = (task.get("latex_main") or "").strip()
+    if not latex_main:
+        return
+    if latex_main.lower() in {"observed frequencies", "contingency table"}:
+        return
+    if "\\" in latex_main or (latex_main.startswith("$") and latex_main.endswith("$")):
+        st.latex(latex_main.strip("$"))
+    else:
+        st.write(latex_main)
+
+
 def render_question_body(task: dict, center_figure: bool) -> None:
     st.write(task["intro"])
-    st.latex(task["latex_main"])
+    _render_stem_math(task)
     for part in task["subquestions"]:
         st.write(part)
     if task.get("png_bytes"):
@@ -577,7 +601,7 @@ with tab_exam:
                     text_col, figure_col = st.columns([3, 2])
                     with text_col:
                         st.write(task["intro"])
-                        st.latex(task["latex_main"])
+                        _render_stem_math(task)
                         for part in task["subquestions"]:
                             st.write(part)
                     with figure_col:
@@ -589,7 +613,7 @@ with tab_solutions:
         with st.expander(f"Mark scheme — cohort {p['variant']} ({p['total_marks']} marks)", expanded=True):
             for task in p["tasks"]:
                 st.markdown(f"#### Question {task['q_number']}: {task['title']}")
-                st.latex(task["latex_main"])
+                _render_stem_math(task)
                 for step in task["markscheme"]:
                     c_s, c_c = st.columns([5, 1])
                     c_s.write(f"• {step['desc']}")

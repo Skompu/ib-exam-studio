@@ -576,8 +576,12 @@ def build_multi_question_pdf(
                 block.append(_frequency_table(task["display_table"], usable, table_cell_style))
                 block.append(Spacer(1, 4))
 
-            latex_main = task.get("latex_main") or ""
-            if latex_main and not task.get("display_table"):
+            latex_main = (task.get("latex_main") or "").strip()
+            if task.get("display_table"):
+                # Plain model caption under the table; skip placeholder titles.
+                if latex_main and latex_main.lower() not in {"observed frequencies", "contingency table"}:
+                    block.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
+            elif latex_main:
                 formula = render_math_to_image(latex_main, fontsize=13, max_width=usable)
                 if formula is None:
                     block.append(Paragraph(escape(latex_main), body_style))
@@ -585,9 +589,6 @@ def build_multi_question_pdf(
                     block.append(Spacer(1, 4))
                     block.append(formula)
                     block.append(Spacer(1, 4))
-            elif latex_main and task.get("display_table"):
-                # Short model line under a native table (no array environments).
-                _append_rich(block, latex_main, body_style, usable)
 
             has_figure = figure_visible(task, is_markscheme=is_markscheme, exam_mode=exam_mode)
             if has_figure:
