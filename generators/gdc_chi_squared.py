@@ -131,12 +131,12 @@ def _table_2x3(observed):
 
 def _expected_lines(expected, shape):
     if shape == "2x2":
-        return r"\\ ".join(
+        return r",\ ".join(
             rf"E={three_sf(expected[i][j])}"
             for i in range(2)
             for j in range(2)
         )
-    return r"\\ ".join(
+    return r",\ ".join(
         rf"E={three_sf(expected[i][j])}"
         for i in range(2)
         for j in range(3)

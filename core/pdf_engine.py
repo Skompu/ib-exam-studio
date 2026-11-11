@@ -180,6 +180,12 @@ def _prepare_math(code: str) -> str:
     text = text.replace(r"\displaystyle", "")
     text = re.sub(r"\\text\{([^{}]*)\}", r"\\mathrm{\1}", text)
     text = text.replace(r"\left", "").replace(r"\right", "")
+    # matplotlib mathtext accepts \leq/\geq, not the shorter aliases.
+    text = text.replace(r"\leqslant", r"\leq").replace(r"\geqslant", r"\geq")
+    text = re.sub(r"\\le(?![a-zA-Z])", r"\\leq", text)
+    text = re.sub(r"\\ge(?![a-zA-Z])", r"\\geq", text)
+    # Line breaks inside a one-line formula become commas.
+    text = text.replace(r"\\", r",\;")
     return " ".join(text.split())
 
 
@@ -197,10 +203,10 @@ def _simple_math(code: str):
     text = code.strip()
     symbols = {
         r"\pi": "π", r"\theta": "θ", r"\lambda": "λ", r"\mu": "μ", r"\sigma": "σ",
-        r"\nu": "ν", r"\chi": "χ", r"\Pi": "Π",
+        r"\nu": "ν", r"\chi": "χ", r"\Pi": "Π", r"\sim": "∼",
         r"\cdot": "·", r"\times": "×",
         r"\le": "≤", r"\leq": "≤", r"\ge": "≥", r"\geq": "≥",
-        r"\ne": "≠", r"\neq": "≠", r"\infty": "∞",
+        r"\ne": "≠", r"\neq": "≠", r"\infty": "∞", r"\ldots": "…",
         r"\,": "", r"\;": "", r"\:": "", r"\ ": " ",
     }
     for source, target in symbols.items():
@@ -215,7 +221,7 @@ def _simple_math(code: str):
         if script.group(3):
             body += f"<sup>{escape(script.group(3).strip('{}'))}</sup>"
         return body
-    if re.fullmatch(r"[A-Za-z0-9πθλμσνχΠ≤≥≠·×∞ ,;:.()+\-/'=]+", text):
+    if re.fullmatch(r"[A-Za-z0-9πθλμσνχΠ≤≥≠·×∞<> ,;:.()+\-/'=]+", text):
         return f"<i>{escape(text)}</i>"
     return None
 
@@ -266,8 +272,18 @@ def _append_rich(story, text: str, style, max_width: float):
             else:
                 flowable = render_math_to_image(value, fontsize=11, max_width=max_width)
                 if flowable is None:
-                    flowable = Paragraph(escape(value), style)
-                    width = min(max_width, _plain_width(value, style) + 2)
+                    # Prefer a cleaned mathtext retry / readable plain text over raw TeX.
+                    cleaned = _prepare_math(value)
+                    retry = render_math_to_image(cleaned, fontsize=11, max_width=max_width)
+                    if retry is not None:
+                        flowable = retry
+                        width = flowable.drawWidth + 2
+                    else:
+                        readable = cleaned.replace(r"\leq", "≤").replace(r"\geq", "≥")
+                        readable = readable.replace(r"\frac", "").replace("{", "").replace("}", "/")
+                        readable = re.sub(r"/+", "/", readable).strip(" /")
+                        flowable = Paragraph(escape(readable or value), style)
+                        width = min(max_width, _plain_width(readable or value, style) + 2)
                 else:
                     width = flowable.drawWidth + 2
         if row and used + width > max_width:
@@ -349,7 +365,8 @@ def _frequency_table(rows: list, usable: float, cell_style) -> Table:
     if not rows:
         raise ValueError("display_table is empty.")
     columns = len(rows[0])
-    col_width = min(1.35 * inch, usable / max(columns, 1))
+    # Wide goodness-of-fit tables must stay on one line without blowing the margins.
+    col_width = min(1.15 * inch, (usable - 12) / max(columns, 1))
     table = Table(
         [[Paragraph(escape(str(cell)), cell_style) for cell in row] for row in rows],
         colWidths=[col_width] * columns,
@@ -512,17 +529,32 @@ def build_multi_question_pdf(
 
         # Candidate Details Block (Only for student paper)
         if not is_markscheme:
+            line = ParagraphStyle(
+                "WriteLine",
+                parent=meta_style,
+                textColor=colors.HexColor("#A0AEC0"),
+            )
             cand_data = [
-                [Paragraph("<b>Candidate Name:</b>", meta_style), Paragraph("____________________________________", meta_style),
-                 Paragraph("<b>Date:</b>", meta_style), Paragraph("____________________", meta_style)],
-                [Paragraph("<b>Candidate Number:</b>", meta_style), Paragraph("____________________________________", meta_style),
-                 Paragraph("<b>Total Score:</b>", meta_style), Paragraph("_______ / " + str(total_marks), meta_style)]
+                [
+                    Paragraph("<b>Candidate Name</b>", meta_style),
+                    Paragraph("." * 42, line),
+                    Paragraph("<b>Date</b>", meta_style),
+                    Paragraph("." * 18, line),
+                ],
+                [
+                    Paragraph("<b>Candidate Number</b>", meta_style),
+                    Paragraph("." * 42, line),
+                    Paragraph("<b>Total Score</b>", meta_style),
+                    Paragraph(f"....... / {total_marks}", line),
+                ],
             ]
-            cand_table = Table(cand_data, colWidths=[2.0 * inch, 2.5 * inch, 1.0 * inch, 1.3 * inch])
+            cand_table = Table(cand_data, colWidths=[1.55 * inch, 2.55 * inch, 1.05 * inch, 1.65 * inch])
             cand_table.setStyle(TableStyle([
                 ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+                ('TOPPADDING', (0,0), (-1,-1), 5),
+                ('LEFTPADDING', (0,0), (-1,-1), 6),
+                ('RIGHTPADDING', (0,0), (-1,-1), 6),
                 ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F7FAFC")),
                 ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#CBD5E0")),
                 ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#E2E8F0"))
@@ -551,7 +583,7 @@ def build_multi_question_pdf(
         for task in tasks:
             section = task.get("section", "A")
             if section == "B" and paper_format == "exam_booklet":
-                story.append(CondPageBreak(3.2 * inch))
+                story.append(CondPageBreak(2.4 * inch))
             if section != current_section:
                 current_section = section
                 banner = "SECTION A — Short-response questions" if section == "A" else "SECTION B — Extended-response questions"
@@ -561,8 +593,10 @@ def build_multi_question_pdf(
             q_title = task["title"]
             q_marks = task["marks"]
             block = []
+            short_title = re.sub(r"^Paper 2:\s*", "", q_title).strip()
             block.append(Paragraph(
-                f"<b>Question {q_num}. [{escape(q_title)}]</b> &nbsp;&mdash;&nbsp; <i>[Total: {q_marks} marks]</i>",
+                f"<b>Question {q_num}.</b> {escape(short_title)} "
+                f"<font color='#718096'>({q_marks} marks)</font>",
                 q_title_style,
             ))
             if is_markscheme and task.get("archetype"):
@@ -571,16 +605,13 @@ def build_multi_question_pdf(
             if task.get("intro"):
                 _append_rich(block, task["intro"], body_style, usable)
 
-            if task.get("display_table"):
-                block.append(Spacer(1, 4))
-                block.append(_frequency_table(task["display_table"], usable, table_cell_style))
-                block.append(Spacer(1, 4))
-
             latex_main = (task.get("latex_main") or "").strip()
             if task.get("display_table"):
-                # Plain model caption under the table; skip placeholder titles.
+                table_block = [Spacer(1, 4), _frequency_table(task["display_table"], usable, table_cell_style)]
                 if latex_main and latex_main.lower() not in {"observed frequencies", "contingency table"}:
-                    block.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
+                    table_block.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
+                table_block.append(Spacer(1, 4))
+                block.append(KeepTogether(table_block))
             elif latex_main:
                 formula = render_math_to_image(latex_main, fontsize=13, max_width=usable)
                 if formula is None:
