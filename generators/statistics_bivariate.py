@@ -12,6 +12,7 @@ import sympy as sp
 from core.randomizer import assert_zero, pack_task, part, step
 from core.rng import choice
 from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
 _LOW = sp.Rational(9, 10) ** 2
 _HIGH = sp.Rational(98, 100) ** 2
@@ -128,6 +129,24 @@ def _verified_tables():
 
 _TABLES = _verified_tables()
 
+COVERS = (
+    {
+        "id": "temperature_gas",
+        "lead": "On six days a household records the outside temperature $x$, in degrees Celsius, "
+        "and the gas used $y$, in cubic metres.",
+    },
+    {
+        "id": "revision_score",
+        "lead": "A teacher records the revision time $x$, in hours, and the test score $y$, in marks, "
+        "for six students.",
+    },
+    {
+        "id": "fertiliser_yield",
+        "lead": "For six plots a grower records the mass of fertiliser $x$, in grams, "
+        "and the yield $y$, in kilograms.",
+    },
+)
+
 
 def _pairs(points) -> str:
     return ", ".join(f"({x},\\ {y})" for x, y in points)
@@ -139,25 +158,12 @@ def _plain_pairs(points) -> str:
     return f"{body} and ({last_x}, {last_y})"
 
 
-def _story(slope, points):
+def _story(cover, points):
     pairs = _plain_pairs(points)
-    if slope < 0:
-        return (
-            "On six days a household records the outside temperature $x$, in degrees Celsius, "
-            f"and the gas used $y$, in cubic metres. The data are {pairs}. "
-            "A graphic display calculator is required. Give numerical answers to three significant figures."
-        )
-    revision = (
-        "A teacher records the revision time $x$, in hours, and the test score $y$, in marks, "
-        f"for six students. The data are {pairs}. "
+    return (
+        f"{cover['lead']} The data are {pairs}. "
         "A graphic display calculator is required. Give numerical answers to three significant figures."
     )
-    harvest = (
-        "Six plots receive a mass of fertiliser $x$, in grams, and produce a yield $y$, in kilograms. "
-        f"The data are {pairs}. "
-        "A graphic display calculator is required. Give numerical answers to three significant figures."
-    )
-    return choice((revision, harvest))
 
 
 def _comment(kind, x_value, low, high):
@@ -173,18 +179,26 @@ def _comment(kind, x_value, low, high):
 
 
 def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard"):
-    del clean_integers, difficulty
+    del clean_integers
     item = choice(_TABLES)
     points = item["points"]
     correlation, slope = item["correlation"], item["slope"]
-    kind, x_value, equation, predicted = choice(item["queries"])
+    wanted = "outside" if difficulty == "challenging" else "inside"
+    query = next((entry for entry in item["queries"] if entry[0] == wanted), None)
+    if query is None:
+        raise RuntimeError(f"Regression table has no {wanted} estimate.")
+    kind, x_value, equation, predicted = query
     if equation != _line(slope, item["intercept"])[0]:
         raise RuntimeError("Displayed regression equation drifted.")
     direction = "positive" if correlation > 0 else "negative"
     strength = f"strong {direction} linear correlation"
     low, high = points[0][0], points[-1][0]
     reason = _comment(kind, x_value, low, high)
-    intro = _story(slope, points)
+    cover = choice(COVERS)
+    intro = _story(cover, points)
+    graph = (
+        "bivar_r_line_extrapolate" if kind == "outside" else "bivar_r_line_interpolate"
+    )
     task = pack_task(
         title="Paper 2: Linear Regression",
         intro=intro,
@@ -197,7 +211,8 @@ def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard")
                 step(
                     f"Read $r$ from the calculator. The value shows a {strength}:",
                     f"r = {three_sf(correlation)}",
-                    "G2",
+                    "A1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -207,7 +222,8 @@ def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard")
                 step(
                     "Read the calculator coefficients to three significant figures:",
                     equation,
-                    "G2",
+                    "A1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -228,6 +244,9 @@ def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard")
             else "Pearson r and linear regression, with an extrapolation"
         ),
         family="Integer table with a strong correlation and stable three-significant-figure rounding",
+        part_graph_id=graph,
+        cover_id=cover["id"],
+        numeric_id=f"{points}|x={x_value}",
     )
     if task.marks != 6:
         raise RuntimeError("Regression question must be worth 6 marks.")

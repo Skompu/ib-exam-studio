@@ -5,6 +5,7 @@ import mpmath as mp
 from core.randomizer import pack_task, part, step
 from core.rng import choice
 from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
 mp.mp.dps = 30
 
@@ -41,18 +42,21 @@ def _binom_tail(trials, proportion, at_least):
 def _contexts():
     return (
         {
+            "id": "apples",
             "unit": "grams",
             "item": "apples",
             "measure": "mass",
             "accept": "accepted as premium",
         },
         {
+            "id": "components",
             "unit": "hours",
             "item": "components",
             "measure": "operating lifetime",
             "accept": "passing the lifetime check",
         },
         {
+            "id": "machined rods",
             "unit": "millimetres",
             "item": "machined rods",
             "measure": "length",
@@ -189,13 +193,14 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                 "a",
                 (
                     f"Find the probability that a randomly chosen item has {story['measure']} "
-                    f"less than ${cutoff}\\,\\mathrm{{{story['unit']}}}$."
+                    f"less than {cutoff} {story['unit']}."
                 ),
                 3,
                 step(
                     r"Use the GDC normal cumulative distribution:",
                     rf"P(X < {cutoff}) = {shown['p']}",
                     "M1 A1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -210,6 +215,7 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                     rf"$P(X > k) = 0.08$, so $k = \operatorname{{invNorm}}(0.92,\, {mean},\, {spread})$:",
                     rf"k = {shown['k']}",
                     "M1 A1 A1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -232,13 +238,15 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                 (
                     f"A batch of ${trials}$ items is inspected independently. "
                     f"An item is {story['accept']} with probability equal to the value found in part (a). "
-                    rf"Let $Y$ be the number of such items. Find $P(Y \ge {at_least})$."
+                    rf"Let $Y$ be the number of such items. Hence find $P(Y \ge {at_least})$."
                 ),
                 4,
                 step(
                     rf"$Y \sim B({trials},\, {shown['p']})$. Use the GDC binomial cumulative function:",
                     rf"P(Y \ge {at_least}) = {shown['tail']}",
                     "M1 A1 A1 A1",
+                    ft=True,
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -246,7 +254,7 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                 (
                     f"Each item that is {story['accept']} yields a profit of ${gain:g}$ currency units; "
                     f"each other item yields a loss of ${loss:g}$ currency units. "
-                    f"Find the expected total profit from a batch of ${trials}$ items."
+                    f"Hence find the expected total profit from a batch of ${trials}$ items."
                 ),
                 4,
                 step(
@@ -255,6 +263,8 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                     rf" - ({trials}-{shown['expected']})\times {loss:g}$:",
                     rf"{shown['profit']}",
                     "M1 A1 A1 A1",
+                    ft=True,
+                    rounding=ROUNDING_3SF,
                 ),
             ),
         ],
@@ -263,6 +273,11 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
             f"B({trials},{shown['p']}) r>={at_least}"
         ),
         family="Normal cdf and invNorm, then binomial batch with expected profit",
+        part_graph_id="ext_gdc_stat_normal_binom_profit",
+        cover_id=story["id"],
+        numeric_id=(
+            f"N({mean},{spread}^2)|cut{cutoff}|B({trials},{shown['p']})|r>={at_least}"
+        ),
     )
     if task.marks != 19:
         raise RuntimeError("The extended GDC statistics question must be worth 19 marks.")

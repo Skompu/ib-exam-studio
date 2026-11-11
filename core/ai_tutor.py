@@ -24,8 +24,27 @@ def get_gemini_client(api_key: str | None = None):
 def _format_markscheme(markscheme: list[dict]) -> str:
     if not markscheme:
         return "(No mark-scheme steps were supplied.)"
+    from core.task_contract import iter_markscheme_steps
+
     lines = []
-    for index, item in enumerate(markscheme, start=1):
+    grouped = bool(markscheme and "steps" in markscheme[0])
+    if grouped:
+        index = 1
+        for group in markscheme:
+            letter = group.get("letter") or ""
+            marks = group.get("marks")
+            if letter:
+                unit = "mark" if marks == 1 else "marks"
+                lines.append(f"({letter}) [{marks} {unit}]")
+            for item in group.get("steps") or []:
+                code = item.get("code", "")
+                extra = " [FT]" if item.get("ft") else ""
+                desc = item.get("desc", "").strip()
+                tex = item.get("tex", "").strip()
+                lines.append(f"{index}. [{code}]{extra} {desc} :: {tex}")
+                index += 1
+        return "\n".join(lines)
+    for index, item in enumerate(iter_markscheme_steps(markscheme), start=1):
         code = item.get("code", "")
         desc = item.get("desc", "").strip()
         tex = item.get("tex", "").strip()

@@ -7,14 +7,12 @@ import sympy as sp
 from core.randomizer import pack_task, part, step
 from core.rng import choice
 from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
-_LEVELS = (
-    sp.Rational(1, 5),
-    sp.Rational(1, 4),
-    sp.Rational(3, 10),
-    sp.Rational(2, 5),
-    sp.Rational(3, 5),
-    sp.Rational(7, 10),
+# Hundredths that survive 3 s.f. rounding and are not a memorised exact sine.
+_LEVELS = tuple(
+    sp.Rational(n, 100)
+    for n in (16, 20, 22, 28, 30, 38, 42, 47, 54, 62, 70, 79)
 )
 
 
@@ -48,7 +46,7 @@ def _bank():
         if len(set(shown)) < 3:
             continue
         valid.append((level, shown))
-    if len(valid) < 3:
+    if len(valid) < 8:
         raise RuntimeError("Too few sine equations survive three-significant-figure rounding.")
     return tuple(valid)
 
@@ -76,6 +74,7 @@ def gen_gdc_trigonometry(clean_integers: bool, difficulty: str = "standard"):
                     "Read the acute solution from a GDC:",
                     rf"x = {smaller}",
                     "M1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -86,21 +85,26 @@ def gen_gdc_trigonometry(clean_integers: bool, difficulty: str = "standard"):
                     r"Use $\pi$ minus the acute solution:",
                     rf"x = {second}",
                     "M1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
                 "c",
-                r"Find the solution in the interval $2\pi \le x \le 4\pi$ that has the same sine as the solution in part (a).",
+                r"Hence find the solution in the interval $2\pi \le x \le 4\pi$ that has the same sine as the solution in part (a).",
                 2,
                 step(
                     r"Add one full turn to the acute solution:",
                     rf"x = {later}",
                     "M1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
         ],
         archetype="Sine equation on a GDC, three solutions to 3 s.f.",
         family=f"sin x = {decimal} across two full turns",
+        part_graph_id="gdc_trig_sin_three_roots",
+        cover_id="plain",
+        numeric_id=f"sin={decimal}",
     )
     if task.marks != 6:
         raise RuntimeError("GDC trigonometry question must be worth 6 marks.")

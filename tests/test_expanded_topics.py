@@ -10,6 +10,7 @@ from core.rng import bind, release
 from matplotlib.mathtext import MathTextParser
 
 from core.pdf_engine import _prepare_math
+from core.task_contract import iter_markscheme_steps
 from registry import PRESETS, TASK_REGISTRY, call_generator
 
 
@@ -230,12 +231,16 @@ def test_trig_paper3_and_probe_presets():
     assert task.marks == 16
 
 
-def test_prob_rv_includes_binomial_and_poisson_variants():
+def test_prob_rv_pins_unnamed_families():
+    graphs = {
+        "prob_rv_continuous_quadratic",
+        "prob_rv_discrete_kx",
+        "prob_rv_twopoint_mean",
+    }
     for difficulty in ("standard", "challenging"):
         seen = set()
-        binomial_hits = 0
-        poisson_hits = 0
-        for index in range(32):
+        found_graphs = set()
+        for index in range(24):
             random.seed(f"prob_rv-{difficulty}-{index}")
             token = bind(f"prob_rv-{difficulty}-{index}")
             try:
@@ -243,18 +248,27 @@ def test_prob_rv_includes_binomial_and_poisson_variants():
             finally:
                 release(token)
             seen.add(task.archetype)
+            found_graphs.add(task.part_graph_id)
             assert task.marks == 7
-            if "Binomial" in task.archetype:
-                binomial_hits += 1
-            if "Poisson" in task.archetype:
-                poisson_hits += 1
-            if "Binomial" in task.archetype or "Poisson" in task.archetype:
-                for step in task.to_paper_dict()["markscheme"]:
-                    assert step.get("tex")
-                    assert step.get("code")
-        assert binomial_hits >= 3, (difficulty, binomial_hits, seen)
-        assert poisson_hits >= 3, (difficulty, poisson_hits, seen)
-        assert len(seen) >= 4, (difficulty, seen)
+            assert task.part_graph_id in graphs
+            assert "Binomial" not in task.archetype
+            assert "Poisson" not in task.archetype
+        assert found_graphs == graphs, (difficulty, found_graphs)
+        assert len(seen) >= 3, (difficulty, seen)
+
+
+def test_split_binomial_and_poisson_keys():
+    for key, graph in (
+        ("prob_binom", "prob_binom_exact_pmf_tail"),
+        ("prob_poisson", "prob_poisson_exact_pmf_tail"),
+    ):
+        for difficulty in ("standard", "challenging"):
+            task = _one(key, difficulty)
+            assert task.marks == 7
+            assert task.part_graph_id == graph
+            for step in iter_markscheme_steps(task.to_paper_dict()["markscheme"]):
+                assert step.get("tex")
+                assert step.get("code")
 
 
 def test_extended_gdc_model_variants():
@@ -270,10 +284,14 @@ def test_extended_gdc_model_variants():
             seen.add(task.archetype)
             assert task.marks == 16
             scheme = task.to_paper_dict()["markscheme"]
+            assert [group["letter"] for group in scheme] == list("abcde")
             assert len(scheme) == 5
-            for item in scheme:
-                assert item.get("tex")
-                assert item.get("code")
+            assert scheme[3]["steps"][0]["ft"] is True
+            for group in scheme:
+                assert group["steps"]
+                for item in group["steps"]:
+                    assert item.get("tex")
+                    assert item.get("code")
         assert len(seen) >= 2, (difficulty, seen)
 
 
@@ -294,10 +312,15 @@ def test_extended_gdc_stat_and_mock_p2():
             seen.add(task.archetype)
             assert task.marks == 19
             scheme = task.to_paper_dict()["markscheme"]
+            assert [group["letter"] for group in scheme] == list("abcde")
             assert len(scheme) == 5
-            for item in scheme:
-                assert item.get("tex")
-                assert item.get("code")
+            assert scheme[3]["steps"][0]["ft"] is True
+            assert scheme[4]["steps"][0]["ft"] is True
+            for group in scheme:
+                assert group["steps"]
+                for item in group["steps"]:
+                    assert item.get("tex")
+                    assert item.get("code")
         assert len(seen) >= 2, (difficulty, seen)
 
 
@@ -320,7 +343,10 @@ def test_gdc_chi_gof_off_fixed_presets_and_variants():
             assert paper["markscheme"]
             assert paper["table_data"]
             assert "begin{array}" not in paper["latex_main"]
-            assert "nu" in " ".join(part.prompt for part in task.parts).replace("\\nu", "nu")
+            assert "|" not in paper["intro"]
+            prompt = " ".join(part.prompt for part in task.parts)
+            assert "degrees of freedom" in prompt
+            assert "\\nu" not in prompt
         assert len(seen) >= 2, (difficulty, seen)
 
 
@@ -332,6 +358,7 @@ def test_gdc_chi_uses_native_display_table():
         assert "begin{array}" not in paper["latex_main"]
         assert "|" not in paper["intro"]
         assert len(paper["table_data"]) >= 2
+        assert len(paper["table_data"][0]) == 3
 
 
 def test_chi_exponential_and_gdc_chi_preset():
@@ -377,6 +404,27 @@ def test_euler_and_fractional_binomial_stay_off_fixed_papers():
                 assert task.marks == 6
                 assert task.fig is None
             assert len(seen) >= 2, (key, difficulty, seen)
+
+
+def test_section_b_dependent_prompts_use_hence():
+    expected = {
+        "ext_gdc_stat": ("d", "e"),
+        "ext_gdc_model": ("b", "d", "e"),
+        "ext_calculus": ("b", "c", "d"),
+        "ext_vectors": ("b", "c", "d", "e"),
+        "ext_model": ("b", "c", "d"),
+        "ext_ln": ("b", "d"),
+    }
+    for key, letters in expected.items():
+        task = _one(key, "standard")
+        assert task.marks == TASK_REGISTRY[key]["marks"], key
+        by_letter = {item.letter: item.prompt for item in task.parts}
+        for letter in letters:
+            assert by_letter[letter].startswith("Hence") or " Hence " in by_letter[letter], (
+                key,
+                letter,
+                by_letter[letter],
+            )
 
 
 def test_triangle_diagram_is_square_and_labelled():

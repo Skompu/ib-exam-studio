@@ -81,15 +81,27 @@ def build_editable_tex(papers: list, meta: dict) -> str:
             if task.get("archetype"):
                 lines.append(_tex_mixed(f"Archetype: {task['archetype']}"))
             lines.append(r"\[ " + task["latex_main"] + r" \]")
-            for step in task["markscheme"]:
-                lines.append(
-                    _tex_mixed(step["desc"])
-                    + r" \[ "
-                    + step["tex"]
-                    + r" \] \texttt{["
-                    + _tex_escape_plain(step["code"])
-                    + r"]}\\"
-                )
+            for group in task["markscheme"]:
+                letter = group.get("letter")
+                if letter:
+                    unit = "mark" if group.get("marks") == 1 else "marks"
+                    lines.append(rf"\noindent\textbf{{({letter}) [{group.get('marks')} {unit}]}}\par")
+                for step in group.get("steps") or []:
+                    ft = r" [FT]" if step.get("ft") else ""
+                    lines.append(
+                        _tex_mixed(step["desc"])
+                        + r" \[ "
+                        + step["tex"]
+                        + r" \] \texttt{["
+                        + _tex_escape_plain(step["code"])
+                        + r"]"
+                        + ft
+                        + r"}\\"
+                    )
+                    if step.get("rounding"):
+                        lines.append(r"\textit{" + _tex_escape_plain(step["rounding"]) + r"}\par")
+                    if step.get("alternative"):
+                        lines.append(r"\textit{" + _tex_escape_plain(step["alternative"]) + r"}\par")
             lines.append("")
         lines.append(r"\newpage")
     lines.append(r"\end{document}")
@@ -137,8 +149,20 @@ def build_editable_docx(papers: list, meta: dict) -> bytes:
             if task.get("archetype"):
                 body.append(_docx_paragraph(f"Archetype: {task['archetype']}"))
             body.append(_docx_paragraph(task["latex_main"]))
-            for step in task["markscheme"]:
-                body.append(_docx_paragraph(f"{step['desc']}    {step['tex']}    [{step['code']}]"))
+            for group in task["markscheme"]:
+                letter = group.get("letter")
+                if letter:
+                    unit = "mark" if group.get("marks") == 1 else "marks"
+                    body.append(_docx_paragraph(f"({letter}) [{group.get('marks')} {unit}]", bold=True))
+                for step in group.get("steps") or []:
+                    ft = " [FT]" if step.get("ft") else ""
+                    body.append(
+                        _docx_paragraph(f"{step['desc']}    {step['tex']}    [{step['code']}]{ft}")
+                    )
+                    if step.get("rounding"):
+                        body.append(_docx_paragraph(step["rounding"]))
+                    if step.get("alternative"):
+                        body.append(_docx_paragraph(step["alternative"]))
             body.append(_docx_paragraph(""))
     document_xml = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

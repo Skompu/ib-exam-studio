@@ -24,6 +24,9 @@ GDC_PAPER3_ONLY = frozenset({"paper3_geo", "paper3_mac"})
 
 GDC_SECTION_B = frozenset({"ext_gdc_model", "ext_gdc_stat"})
 
+# Split off the inverse-normal family so a preset can pin binomial.
+GDC_OPTIONAL = frozenset({"gdc_invnorm"})
+
 # Section B extended items that remain non-GDC (Paper 1 mock only).
 SECTION_B_NON_GDC = frozenset({"ext_calculus", "ext_vectors", "ext_model", "ext_ln"})
 
@@ -34,7 +37,7 @@ def _gdc_keys():
 
 def test_every_gdc_key_is_classified():
     gdc = _gdc_keys()
-    assert gdc == GDC_PAPER2_POOL | GDC_PAPER3_ONLY | GDC_SECTION_B
+    assert gdc == GDC_PAPER2_POOL | GDC_PAPER3_ONLY | GDC_SECTION_B | GDC_OPTIONAL
 
 
 def test_gdc_paper2_pool_marks_and_coverage():

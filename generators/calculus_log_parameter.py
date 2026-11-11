@@ -83,7 +83,7 @@ def gen_log_parameter(clean_integers: bool, difficulty: str = "standard"):
         )
         maximum = part(
             "b",
-            "Find the $x$-coordinate of the stationary point $P$.",
+            "Hence find the $x$-coordinate of the stationary point $P$.",
             2,
             step(
                 "Set $f'(x) = 0$:",
@@ -105,7 +105,7 @@ def gen_log_parameter(clean_integers: bool, difficulty: str = "standard"):
         )
         maximum = part(
             "b",
-            "The graph has exactly one stationary point $P$. Find its $x$-coordinate and justify that $P$ is a maximum.",
+            "The graph has exactly one stationary point $P$. Hence find its $x$-coordinate and justify that $P$ is a maximum.",
             3,
             step(
                 r"Set $f'(x) = 0$, then note that $f''\left(\dfrac{e}{k}\right) = -\dfrac{k^{3}}{e^{3}} < 0$:",
@@ -137,7 +137,7 @@ def gen_log_parameter(clean_integers: bool, difficulty: str = "standard"):
             inflection,
             part(
                 "d",
-                "Show that the area of the region bounded by the curve, the $x$-axis and the "
+                "Hence show that the area of the region bounded by the curve, the $x$-axis and the "
                 "vertical lines through $P$ and the point of inflection is $\\dfrac{5}{8}$.",
                 3,
                 step(

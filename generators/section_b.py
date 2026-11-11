@@ -125,13 +125,13 @@ def gen_extended_calculus(clean_integers: bool, difficulty: str = "standard"):
                 part("a", "Find $f'(x)$.", 2, step("Differentiate:", f"f'(x) = {sp.latex(derivative)}", "M1 A1")),
                 part(
                     "b",
-                    "Find the coordinates of the stationary points of $C$.",
+                    "Hence find the coordinates of the stationary points of $C$.",
                     3,
                     step("Solve $f'(x)=0$ and evaluate $f$:", f"({r1},\\, {y1}),\\quad ({r2},\\, {y2})", "M1 A1 A1"),
                 ),
                 part(
                     "c",
-                    "Determine the nature of each stationary point.",
+                    "Hence determine the nature of each stationary point.",
                     2,
                     step(
                         "Second derivative test:",
@@ -141,7 +141,7 @@ def gen_extended_calculus(clean_integers: bool, difficulty: str = "standard"):
                 ),
                 part(
                     "d",
-                    f"Find the equation of the tangent to $C$ at the point where $x={x0}$.",
+                    f"Hence find the equation of the tangent to $C$ at the point where $x={x0}$.",
                     3,
                     step(
                         f"Gradient $f'({x0})={gradient}$ and point $({x0},\\, {y0})$:",
@@ -184,7 +184,7 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
             part("a", "Find $\\mathbf{d_1} \\times \\mathbf{d_2}$.", 2, step("Cross product:", cross_tex, "M1 A1")),
             part(
                 "b",
-                "Show that $L_1$ is not parallel to $L_2$.",
+                "Hence show that $L_1$ is not parallel to $L_2$.",
                 2,
                 step(
                     "The cross product is not the zero vector, so the directions are not scalar multiples:",
@@ -194,7 +194,7 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
             ),
             part(
                 "c",
-                "Show that $L_1$ and $L_2$ do not intersect.",
+                "Hence show that $L_1$ and $L_2$ do not intersect.",
                 3,
                 step(
                     "If the lines met, $(\\mathbf{a_2}-\\mathbf{a_1})\\cdot(\\mathbf{d_1}\\times\\mathbf{d_2})$ would be zero:",
@@ -204,7 +204,7 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
             ),
             part(
                 "d",
-                "Find the shortest distance between $L_1$ and $L_2$.",
+                "Hence find the shortest distance between $L_1$ and $L_2$.",
                 3,
                 step(
                     "Shortest distance:",
@@ -214,7 +214,7 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
             ),
             part(
                 "e",
-                "Find the Cartesian equation of the plane which contains $L_1$ and is parallel to $L_2$.",
+                "Hence find the Cartesian equation of the plane which contains $L_1$ and is parallel to $L_2$.",
                 3,
                 step(
                     "The normal from (a) is perpendicular to both directions. The plane passes through the point on $L_1$:",

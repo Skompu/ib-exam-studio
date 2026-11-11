@@ -52,6 +52,9 @@ def pack_task(
     plot_type="none",
     table_data=None,
     display_table=None,
+    part_graph_id="",
+    cover_id="",
+    numeric_id="",
 ):
     """Build a Task. Mark totals come from the parts, not from question text."""
     grid = table_data if table_data is not None else display_table
@@ -65,6 +68,9 @@ def pack_task(
         family=family,
         plot_type=plot_type,
         table_data=grid,
+        part_graph_id=part_graph_id,
+        cover_id=cover_id,
+        numeric_id=numeric_id,
     )
 
 

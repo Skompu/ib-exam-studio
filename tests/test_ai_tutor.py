@@ -19,6 +19,22 @@ def test_format_markscheme_includes_steps():
     assert r"\frac{dy}{dx}" in text
 
 
+def test_format_markscheme_groups_parts_and_ft():
+    text = _format_markscheme(
+        [
+            {"letter": "a", "marks": 2, "steps": [{"code": "M1 A1", "desc": "Work", "tex": "1"}]},
+            {
+                "letter": "b",
+                "marks": 1,
+                "steps": [{"code": "A1", "desc": "Follow", "tex": "2", "ft": True}],
+            },
+        ]
+    )
+    assert "(a) [2 marks]" in text
+    assert "(b) [1 mark]" in text
+    assert "[FT]" in text
+
+
 def test_build_prompt_includes_task_and_rules():
     prompt = build_prompt(
         "Integration by parts",

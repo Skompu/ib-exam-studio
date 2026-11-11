@@ -11,17 +11,38 @@ import sympy as sp
 from core.randomizer import pack_task, part, step
 from core.rng import choice
 from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
 x = sp.symbols("x")
 mp.mp.dps = 25
 
 # (slope, intercept) for ln(x) = slope*x - intercept, each with two positive roots.
-_LOG_LINES = (
+_LOG_LINE_CANDIDATES = (
     (sp.Integer(1), 2),
     (sp.Integer(1), 3),
+    (sp.Integer(1), sp.Rational(3, 2)),
+    (sp.Integer(1), sp.Rational(5, 2)),
+    (sp.Rational(5, 4), 2),
+    (sp.Rational(5, 4), 3),
+    (sp.Rational(4, 3), 2),
+    (sp.Rational(6, 5), 2),
+    (sp.Rational(3, 2), 2),
+    (sp.Rational(3, 2), 3),
+    (sp.Integer(2), 2),
+    (sp.Integer(2), 3),
     (sp.Rational(1, 2), 1),
     (sp.Rational(1, 2), 2),
     (sp.Rational(1, 2), 3),
+    (sp.Rational(1, 2), sp.Rational(3, 2)),
+    (sp.Rational(1, 3), 1),
+    (sp.Rational(1, 3), 2),
+    (sp.Rational(2, 3), 1),
+    (sp.Rational(2, 3), 2),
+    (sp.Rational(3, 4), 1),
+    (sp.Rational(3, 4), 2),
+    (sp.Rational(2, 5), 1),
+    (sp.Rational(3, 5), 1),
+    (sp.Rational(4, 5), 1),
 )
 
 
@@ -66,12 +87,48 @@ def _roots(expr, low, high):
     return tuple(sorted(found, key=float))
 
 
+def _verified_log_lines():
+    found = []
+    seen = set()
+    for slope, intercept in _LOG_LINE_CANDIDATES:
+        key = (sp.together(slope), sp.together(intercept))
+        if key in seen:
+            continue
+        seen.add(key)
+        equation = sp.log(x) - (slope * x - intercept)
+        roots = _roots(equation, 1e-3, 40)
+        if len(roots) != 2:
+            continue
+        try:
+            tuple(three_sf(root) for root in roots)
+            tuple(three_sf(sp.log(root)) for root in roots)
+        except RuntimeError:
+            continue
+        found.append((slope, intercept))
+    if len(found) < 8:
+        raise RuntimeError(f"The intersection bank is too small ({len(found)}).")
+    standard = [item for item in found if item[0] >= 1]
+    challenging = [item for item in found if item[0] < 1]
+    if len(standard) < 8 or len(challenging) < 8:
+        raise RuntimeError(
+            f"An intersection difficulty branch is too small "
+            f"(standard {len(standard)}, challenging {len(challenging)})."
+        )
+    return tuple(found)
+
+
+_LOG_LINES = _verified_log_lines()
+_STANDARD_LINES = tuple(item for item in _LOG_LINES if item[0] >= 1)
+_CHALLENGING_LINES = tuple(item for item in _LOG_LINES if item[0] < 1)
+
+
 def _log_intersection(difficulty: str):
-    slope_family = sp.Integer(1) if difficulty != "challenging" else sp.Rational(1, 2)
-    candidates = [item for item in _LOG_LINES if item[0] == slope_family]
-    slope, intercept = choice(candidates)
+    pool = _CHALLENGING_LINES if difficulty == "challenging" else _STANDARD_LINES
+    if not pool:
+        raise RuntimeError(f"No two-root log intersections for difficulty {difficulty!r}.")
+    slope, intercept = choice(pool)
     equation = sp.log(x) - (slope * x - intercept)
-    roots = _roots(equation, 1e-3, 24)
+    roots = _roots(equation, 1e-3, 40)
     if len(roots) != 2:
         raise RuntimeError("The logarithm and the line did not meet twice.")
     ordinates = [sp.log(root) for root in roots]
@@ -120,6 +177,9 @@ def _log_intersection(difficulty: str):
         ],
         archetype="Transcendental intersection, answered to 3 s.f.",
         family="Logarithm meeting a straight line at two points",
+        part_graph_id="gdc_intersect_ln_line_two_roots",
+        cover_id="plain",
+        numeric_id=f"m={sp.sstr(slope)}|c={sp.sstr(intercept)}",
     )
 
 
@@ -179,6 +239,7 @@ def _numerical_area(difficulty: str):
                     "Evaluate it numerically on a GDC:",
                     f"A = {area_tex}",
                     "A1 A1",
+                    rounding=ROUNDING_3SF,
                 ),
             ),
             part(
@@ -192,8 +253,15 @@ def _numerical_area(difficulty: str):
                     "Solve the integral equation numerically:",
                     f"\\int_{{{lower}}}^{{t}} {radical}\\, dx = \\frac{{1}}{{2}}\\times {area_tex}",
                     "M1",
+                    ft=True,
                 ),
-                step("Read the upper limit from the GDC:", f"t = {limit_tex}", "A1 A1"),
+                step(
+                    "Read the upper limit from the GDC:",
+                    f"t = {limit_tex}",
+                    "A1 A1",
+                    ft=True,
+                    rounding=ROUNDING_3SF,
+                ),
             ),
         ],
         archetype="Non-elementary area, then a half-area limit, both to 3 s.f.",

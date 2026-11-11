@@ -1,9 +1,10 @@
 import io
 import random
 import threading
+from typing import Literal
 import matplotlib.pyplot as plt
 import streamlit as st
-from registry import PRESETS, TASK_REGISTRY, call_generator, order_task_keys
+from registry import PRESETS, TASK_REGISTRY, order_task_keys
 from core.license import membership_id_for, validate_whop_license
 from core.storage import (
     get_paper_snapshot,
@@ -14,11 +15,10 @@ from core.storage import (
     save_paper_snapshot,
     tutor_uses_remaining,
 )
+from core.cohorts import COHORT_MODES, compose_papers
 from core.pdf_engine import build_multi_question_pdf, figure_visible
 from core.export_editable import build_editable_docx, build_editable_tex
 from core.ai_tutor import TUTOR_NOTE_LIMIT, stream_tutor_hints
-from core.rng import bind as bind_rng
-from core.rng import release as release_rng
 
 # --- PAGE CONFIGURATION ---
 st.set_page_config(
@@ -54,71 +54,50 @@ def fig_to_png_bytes(fig) -> bytes:
 # --- CACHED DATA GENERATION ENGINE ---
 # Używamy tuple zamiast list, aby Streamlit idealnie haszował parametry wejściowe
 @st.cache_data(show_spinner="Composing the paper…")
-def generate_all_papers(task_keys_tuple: tuple, num_variants: int, clean_integers: bool, seed_value: int, difficulty: str):
+def generate_all_papers(
+    task_keys_tuple: tuple,
+    num_variants: int,
+    clean_integers: bool,
+    seed_value: int,
+    difficulty: str,
+    cohort_mode: Literal["strict_parallel", "cognitive_twin"] = "strict_parallel",
+):
     # Generators share the process-wide random module. One paper at a time
-    # keeps two teachers from mixing each other's draws.
+    # keeps two teachers from mixing each other's draws. Difficulty is frozen
+    # for every cohort in the run.
+    if cohort_mode not in COHORT_MODES:
+        raise ValueError(f"Unknown cohort_mode {cohort_mode!r}.")
     with _PAPER_LOCK:
-        return _compose_papers(task_keys_tuple, num_variants, clean_integers, seed_value, difficulty)
+        return _compose_papers(
+            task_keys_tuple,
+            num_variants,
+            clean_integers,
+            seed_value,
+            difficulty,
+            cohort_mode,
+        )
 
 
-def _compose_papers(task_keys_tuple: tuple, num_variants: int, clean_integers: bool, seed_value: int, difficulty: str):
-    variant_chars = ["A", "B", "C"][:num_variants]
-    papers = []
-    used_equations_per_task = {key: set() for key in task_keys_tuple}
-
-    for v_char in variant_chars:
-        paper_tasks = []
-        total_marks = 0
-
-        for q_num, key in enumerate(task_keys_tuple, start=1):
-            generated_data = None
-            last_error = None
-
-            for attempt in range(12):
-                variant_seed = f"{seed_value}-{difficulty}-{v_char}-{key}-try{attempt}"
-                random.seed(variant_seed)
-                rng_token = bind_rng(variant_seed)
-
-                try:
-                    candidate = call_generator(key, clean_integers, difficulty)
-                    eq_repr = candidate.latex_main + "|" + candidate.archetype
-
-                    if eq_repr not in used_equations_per_task[key] or attempt == 11:
-                        used_equations_per_task[key].add(eq_repr)
-                        generated_data = candidate.to_paper_dict()
-                        break
-                except Exception as exc:
-                    last_error = exc
-                    continue
-                finally:
-                    release_rng(rng_token)
-
-            if not generated_data:
-                detail = f"{type(last_error).__name__}: {last_error}" if last_error else "no attempt succeeded"
-                raise RuntimeError(
-                    f"Could not produce '{TASK_REGISTRY[key]['name']}' for cohort {v_char}. {detail}"
-                )
-
-            fig_obj = generated_data.get("fig")
-            generated_data["png_bytes"] = fig_to_png_bytes(fig_obj)
-            generated_data.pop("fig", None)
-
-            generated_data["q_number"] = q_num
-            generated_data["section"] = TASK_REGISTRY[key].get("section", "A")
-            generated_data["category"] = TASK_REGISTRY[key].get("category", "Other")
-            generated_data["ladder"] = TASK_REGISTRY[key].get("ladder", "exam")
-            if TASK_REGISTRY[key].get("challenge_rank") is not None:
-                generated_data["challenge_rank"] = TASK_REGISTRY[key]["challenge_rank"]
-            paper_tasks.append(generated_data)
-            total_marks += generated_data["marks"]
-
-        papers.append({
-            "variant": v_char,
-            "tasks": paper_tasks,
-            "total_marks": total_marks,
-            "difficulty": difficulty,
-        })
-
+def _compose_papers(
+    task_keys_tuple: tuple,
+    num_variants: int,
+    clean_integers: bool,
+    seed_value: int,
+    difficulty: str,
+    cohort_mode: Literal["strict_parallel", "cognitive_twin"] = "strict_parallel",
+):
+    papers = compose_papers(
+        task_keys_tuple,
+        num_variants,
+        clean_integers,
+        seed_value,
+        difficulty,
+        cohort_mode,
+    )
+    for paper in papers:
+        for task in paper["tasks"]:
+            task["png_bytes"] = fig_to_png_bytes(task.get("fig"))
+            task.pop("fig", None)
     return papers
 
 
@@ -303,6 +282,23 @@ with st.sidebar:
         key=f"preset-{calculator_mode}",
         format_func=lambda key: "Custom selection" if key == "custom" else PRESETS[key]["label"],
     )
+    cohort_mode = st.radio(
+        "Cohort uniqueness",
+        options=list(COHORT_MODES),
+        index=0,
+        key=f"cohort-mode-{calculator_mode}",
+        format_func=lambda key: (
+            "Strict Parallel — official mock (same story, different numbers)"
+            if key == "strict_parallel"
+            else "Cognitive Twin — class test (same structure, different story)"
+        ),
+    )
+    st.caption(
+        "Every cohort uses the same difficulty. "
+        "Strict Parallel pins the question graph and cover from variant A and requires distinct numbers. "
+        "Cognitive Twin keeps that graph and requires a distinct cover story for each cohort. "
+        "A one-item bank cannot fill two Strict Parallel cohorts — generation stops instead of copying."
+    )
     topic_pool = [
         key for key, spec in TASK_REGISTRY.items()
         if spec.get("calculator", "none") == calculator_mode
@@ -429,6 +425,7 @@ try:
         clean_integers_only,
         int(random_seed),
         difficulty,
+        cohort_mode,
     )
 except RuntimeError as err:
     st.error(f"❌ {err}")
@@ -526,6 +523,7 @@ with tab_ladder:
             clean_integers_only,
             int(random_seed) + ladder_nonce,
             difficulty,
+            cohort_mode,
         )[0]
     except RuntimeError as err:
         st.error(f"❌ {err}")
@@ -614,11 +612,23 @@ with tab_solutions:
             for task in p["tasks"]:
                 st.markdown(f"#### Question {task['q_number']}: {task['title']}")
                 _render_stem_math(task)
-                for step in task["markscheme"]:
-                    c_s, c_c = st.columns([5, 1])
-                    c_s.write(f"• {step['desc']}")
-                    c_s.latex(step["tex"])
-                    c_c.markdown(f"`{step['code']}`")
+                for group in task["markscheme"]:
+                    letter = group.get("letter")
+                    if letter:
+                        unit = "mark" if group.get("marks") == 1 else "marks"
+                        st.markdown(f"**({letter}) [{group.get('marks')} {unit}]**")
+                    for step in group.get("steps") or []:
+                        c_s, c_c = st.columns([5, 1])
+                        c_s.write(f"• {step['desc']}")
+                        c_s.latex(step["tex"])
+                        code = step["code"]
+                        if step.get("ft"):
+                            code = f"{code} [FT]"
+                        c_c.markdown(f"`[{code}]`")
+                        if step.get("rounding"):
+                            c_s.caption(step["rounding"])
+                        if step.get("alternative"):
+                            c_s.caption(step["alternative"])
 
                 # AI TUTOR STREAMING INTEGRATION
                 ai_key = f"ai_tutor_{p['variant']}_{task['q_number']}"

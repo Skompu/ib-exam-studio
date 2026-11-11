@@ -33,7 +33,7 @@ from generators.gdc_curve import gen_gdc_curve
 from generators.gdc_extended_model import gen_extended_gdc_model
 from generators.gdc_extended_stat import gen_extended_gdc_stat
 from generators.gdc_linear_system import gen_linear_system
-from generators.gdc_statistics import gen_gdc_distributions
+from generators.gdc_statistics import gen_gdc_distributions, gen_gdc_invnorm
 from generators.gdc_trigonometry import gen_gdc_trigonometry
 from generators.geometry_trig import gen_chord, gen_circular_sector, gen_segment
 from generators.paper2_gdc import gen_gdc_area, gen_gdc_intersection
@@ -43,7 +43,7 @@ from generators.probability_conditional import gen_probability_conditional
 from generators.induction import gen_induction
 from generators.kinematics_gdc import gen_kinematics
 from generators.maclaurin import gen_maclaurin
-from generators.probability_rv import gen_random_variable
+from generators.probability_rv import gen_binomial_rv, gen_poisson_rv, gen_random_variable
 from generators.section_b import gen_extended_calculus, gen_extended_model, gen_extended_vectors
 from generators.statistics import gen_normal_distribution
 from generators.statistics_bivariate import gen_bivariate_regression
@@ -186,6 +186,23 @@ TASK_REGISTRY = {
         "marks": 7,
         "category": "Probability",
         "section": "A",
+        "search": "continuous density discrete kx two-point mean",
+    },
+    "prob_binom": {
+        "name": "Probability: Binomial, exact",
+        "func": gen_binomial_rv,
+        "marks": 7,
+        "category": "Probability",
+        "section": "A",
+        "search": "binomial exact pmf tail mean variance Paper 1",
+    },
+    "prob_poisson": {
+        "name": "Probability: Poisson, exact",
+        "func": gen_poisson_rv,
+        "marks": 7,
+        "category": "Probability",
+        "section": "A",
+        "search": "poisson exact pmf tail mean variance Paper 1",
     },
     "prob_exp": {
         "name": "Probability: Exponential Waiting Time",
@@ -381,13 +398,22 @@ TASK_REGISTRY = {
         "calculator": "gdc",
     },
     "gdc_dist": {
-        "name": "Paper 2: Binomial and Inverse Normal",
+        "name": "Paper 2: Binomial Distribution",
         "func": gen_gdc_distributions,
         "marks": 6,
         "category": "Statistics",
         "section": "A",
         "calculator": "gdc",
-        "search": "binomial binomPdf invNorm normal distribution",
+        "search": "binomial binomPdf binomCdf expected value",
+    },
+    "gdc_invnorm": {
+        "name": "Paper 2: Inverse Normal",
+        "func": gen_gdc_invnorm,
+        "marks": 6,
+        "category": "Statistics",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "inverse normal invNorm percentage tail",
     },
     "bivar": {
         "name": "Paper 2: Linear Regression",
@@ -711,7 +737,7 @@ PRESETS = {
     },
     "paper2": {
         "label": "Paper 2 extract (GDC, 50 min)",
-        "description": "Four questions finished on a GDC, to three significant figures: an intersection, a numerical area, either a binomial distribution or an inverse normal, and linear regression. 24 marks. This is an extract, not a full Paper 2.",
+        "description": "Four questions finished on a GDC, to three significant figures: an intersection, a numerical area, a binomial distribution, and linear regression. 24 marks. This is an extract, not a full Paper 2.",
         "time": "50 minutes",
         "marks": 24,
         "calculator": "gdc",
@@ -828,6 +854,9 @@ _CORE_LADDER = {
     "vectors_pl",
     "stat_normal",
     "gdc_dist",
+    "gdc_invnorm",
+    "prob_binom",
+    "prob_poisson",
     "prob_cond",
     "prob_bayes",
 }

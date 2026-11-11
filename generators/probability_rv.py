@@ -76,6 +76,9 @@ def _continuous(clean_integers, difficulty):
         fig=_plot_pdf(density, 0, width), plot_type="illustrative",
         archetype=archetype,
         family="Quadratic density on a chosen integer interval",
+        part_graph_id="prob_rv_continuous_quadratic",
+        cover_id="plain",
+        numeric_id=f"width={width}",
     )
 
 
@@ -126,6 +129,9 @@ def _discrete(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="Discrete law $P(X=x)=kx$ on $1..n$",
+        part_graph_id="prob_rv_discrete_kx",
+        cover_id="plain",
+        numeric_id=f"n={length}",
     )
 
 
@@ -195,6 +201,9 @@ def _expectation_recovery(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="Two-point law with a prescribed integer or half-integer mean",
+        part_graph_id="prob_rv_twopoint_mean",
+        cover_id="plain",
+        numeric_id=f"left={left}|right={right}|mean={sp.sstr(mean)}",
     )
 
 
@@ -327,6 +336,9 @@ def _binomial_rational(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="B(n, p) with small n and rational p for exact fractions",
+        part_graph_id="prob_binom_exact_pmf_tail",
+        cover_id="plain",
+        numeric_id=f"n={trials}|p={shown_p}|k={successes}",
     )
 
 
@@ -428,16 +440,21 @@ def _poisson_exact(clean_integers, difficulty):
         ],
         archetype=archetype,
         family="Poisson with rational rate and exact exponentials",
+        part_graph_id="prob_poisson_exact_pmf_tail",
+        cover_id="plain",
+        numeric_id=f"lambda={shown_rate}|k={count}",
     )
 
 
 def gen_random_variable(clean_integers: bool, difficulty: str = "standard"):
-    return random.choice(
-        (
-            _continuous,
-            _discrete,
-            _expectation_recovery,
-            _binomial_rational,
-            _poisson_exact,
-        )
-    )(clean_integers, difficulty)
+    return random.choice((_continuous, _discrete, _expectation_recovery))(
+        clean_integers, difficulty
+    )
+
+
+def gen_binomial_rv(clean_integers: bool, difficulty: str = "standard"):
+    return _binomial_rational(clean_integers, difficulty)
+
+
+def gen_poisson_rv(clean_integers: bool, difficulty: str = "standard"):
+    return _poisson_exact(clean_integers, difficulty)

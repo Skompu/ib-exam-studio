@@ -2,14 +2,14 @@
 
 import mpmath as mp
 
-import sympy as sp
-
 from core.randomizer import pack_task, part, step
 from core.rng import choice
 from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
 mp.mp.dps = 25
-_CRITICAL = {1: 3.841459, 2: 5.991465}
+_CRITICAL_DF1 = 3.841459
+_CRIT_TEX = three_sf(_CRITICAL_DF1)
 
 
 def _chi2(observed):
@@ -44,17 +44,11 @@ def _bank():
         ((12, 18), (16, 14)),
         ((35, 15), (20, 30)),
     )
-    wide = (
-        ((10, 15, 5), (12, 8, 10)),
-        ((8, 12, 10), (14, 10, 6)),
-        ((6, 9, 15), (9, 12, 9)),
-    )
     for observed in tables:
         built = _chi2(observed)
         if built is None:
             continue
         total, row, col, expected, statistic = built
-        reject = statistic > _CRITICAL[1]
         found.append(
             {
                 "shape": "2x2",
@@ -64,39 +58,7 @@ def _bank():
                 "col": col,
                 "expected": expected,
                 "statistic": statistic,
-                "reject": reject,
-            }
-        )
-    for observed in wide:
-        r0 = sum(observed[0])
-        r1 = sum(observed[1])
-        c0 = observed[0][0] + observed[1][0]
-        c1 = observed[0][1] + observed[1][1]
-        c2 = observed[0][2] + observed[1][2]
-        total = r0 + r1
-        expected = (
-            tuple(r0 * value / total for value in (c0, c1, c2)),
-            tuple(r1 * value / total for value in (c0, c1, c2)),
-        )
-        if min(cell for row in expected for cell in row) < 5:
-            continue
-        statistic = 0.0
-        for i in range(2):
-            for j in range(3):
-                exp = expected[i][j]
-                obs = observed[i][j]
-                statistic += (obs - exp) ** 2 / exp
-        reject = statistic > _CRITICAL[2]
-        found.append(
-            {
-                "shape": "2x3",
-                "df": 2,
-                "observed": observed,
-                "row": (r0, r1),
-                "col": (c0, c1, c2),
-                "expected": expected,
-                "statistic": statistic,
-                "reject": reject,
+                "reject": statistic > _CRITICAL_DF1,
             }
         )
     if len(found) < 4:
@@ -105,60 +67,105 @@ def _bank():
 
 
 _BANK = _bank()
-_NARROW = tuple(item for item in _BANK if item["shape"] == "2x2")
-_WIDE = tuple(item for item in _BANK if item["shape"] == "2x3")
+_NARROW = _BANK
+
+COVERS_2X2 = (
+    {
+        "id": "treatment",
+        "cols": ("Drug", "Placebo"),
+        "rows": ("Improved", "Not improved"),
+        "context": (
+            "A clinical trial recorded whether patients improved after receiving a drug or a placebo."
+        ),
+    },
+    {
+        "id": "education",
+        "cols": ("Language A", "Language B"),
+        "rows": ("Passed", "Failed"),
+        "context": (
+            "A school recorded whether students passed an examination, classified by the language of instruction."
+        ),
+    },
+    {
+        "id": "manufacturing",
+        "cols": ("Day shift", "Night shift"),
+        "rows": ("Defective", "Within spec"),
+        "context": (
+            "A factory recorded whether items were defective, classified by production shift."
+        ),
+    },
+)
 
 
-def _table_2x2(observed):
-    a, b = observed[0]
-    c, d = observed[1]
-    return (
-        ("", "Group 1", "Group 2"),
-        ("Type A", str(a), str(b)),
-        ("Type B", str(c), str(d)),
-    )
-
-
-def _table_2x3(observed):
-    a, b, c = observed[0]
-    d, e, f = observed[1]
-    return (
-        ("", "C1", "C2", "C3"),
-        ("R1", str(a), str(b), str(c)),
-        ("R2", str(d), str(e), str(f)),
-    )
-
-
-def _expected_lines(expected, shape):
-    if shape == "2x2":
-        return r",\ ".join(
-            rf"E={three_sf(expected[i][j])}"
-            for i in range(2)
-            for j in range(2)
-        )
+def _expected_lines(expected):
     return r",\ ".join(
         rf"E={three_sf(expected[i][j])}"
         for i in range(2)
-        for j in range(3)
+        for j in range(2)
     )
 
 
 def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    item = choice(_WIDE if difficulty == "challenging" else _NARROW)
-    critical = _CRITICAL[item["df"]]
+    item = choice(_NARROW)
+    cover = choice(COVERS_2X2)
+    (a1, a2), (b1, b2) = item["observed"]
+    table = [
+        ["", cover["cols"][0], cover["cols"][1]],
+        [cover["rows"][0], str(a1), str(a2)],
+        [cover["rows"][1], str(b1), str(b2)],
+    ]
+    context = cover["context"] + " The observed frequencies are shown below."
     conclusion = (
         r"\text{Reject } H_0 \text{ at the 5\% level.}"
         if item["reject"]
         else r"\text{Do not reject } H_0 \text{ at the 5\% level.}"
     )
-    table = _table_2x2(item["observed"]) if item["shape"] == "2x2" else _table_2x3(item["observed"])
+    student_finds_crit = difficulty == "challenging"
+    if student_finds_crit:
+        graph = "chi2_indep_2x2_df_crit"
+        part_d = part(
+            "d",
+            (
+                "Find the number of degrees of freedom. Hence find the critical value of "
+                r"$\chi^2$ at the 5% significance level, and state your conclusion."
+            ),
+            2,
+            step(
+                r"Use $\nu=(r-1)(c-1)$:",
+                r"\nu = (2-1)(2-1) = 1",
+                "A1",
+            ),
+            step(
+                r"Read $\chi^2_{\mathrm{crit}}$ from the GDC or a $\chi^2$ table, then compare:",
+                rf"\chi^2_{{\mathrm{{crit}}}} = {_CRIT_TEX},\quad {conclusion}",
+                "A1",
+                rounding=ROUNDING_3SF,
+                alternative="OR compare the GDC $p$-value with $0.05$",
+            ),
+        )
+    else:
+        graph = "chi2_indep_2x2_crit_given"
+        part_d = part(
+            "d",
+            (
+                rf"At the 5% significance level, $\chi^2_{{\mathrm{{crit}}}} = {_CRIT_TEX}$ "
+                "for these degrees of freedom. State your conclusion."
+            ),
+            2,
+            step(
+                rf"Compare $\chi^2_{{\mathrm{{calc}}}} = {three_sf(item['statistic'])}$ with {_CRIT_TEX}:",
+                conclusion,
+                "M1 A1",
+            ),
+        )
+    observed = item["observed"]
     task = pack_task(
         title="Paper 2: Chi-squared Test",
         intro=(
             "A graphic display calculator is required. "
             "Give numerical answers to three significant figures where appropriate. "
-            "The observed frequencies in a contingency table are shown below."
+            f"{context}"
         ),
         latex_main="",
         table_data=table,
@@ -179,7 +186,7 @@ def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
                 2,
                 step(
                     r"Use $E_{ij}=\dfrac{(\text{row total})(\text{column total})}{\text{grand total}}$:",
-                    _expected_lines(item["expected"], item["shape"]),
+                    _expected_lines(item["expected"]),
                     "M1 A1",
                 ),
             ),
@@ -193,19 +200,13 @@ def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
                     "M1 A1",
                 ),
             ),
-            part(
-                "d",
-                rf"At the 5% significance level, $\chi^2_{{\mathrm{{crit}}}} = {three_sf(critical)}$ for these degrees of freedom. State your conclusion.",
-                2,
-                step(
-                    rf"Compare $\chi^2_{{\mathrm{{calc}}}} = {three_sf(item['statistic'])}$ with {three_sf(critical)}:",
-                    conclusion,
-                    "M1 A1",
-                ),
-            ),
+            part_d,
         ],
-        archetype=f"Chi-squared {item['shape']} df={item['df']} stat={three_sf(item['statistic'])}",
-        family="Independence test on a small contingency table",
+        archetype=f"Chi-squared 2x2 df=1 stat={three_sf(item['statistic'])}",
+        family="Independence test on a 2x2 contingency table",
+        part_graph_id=graph,
+        cover_id=cover["id"],
+        numeric_id=f"2x2|{observed}",
     )
     if task.marks != 8:
         raise RuntimeError("The chi-squared question must be worth 8 marks.")

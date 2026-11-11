@@ -290,10 +290,10 @@ def newton_extended(reading: Reading):
         latex_main,
         {
             "a": "Write down a differential equation for $T$, where $k$ is a positive constant.",
-            "b": "Find the exact value of $k$.",
-            "c": f"Find the exact time at which the temperature of the forging is ${reading.later_value}^{{\\circ}}\\mathrm{{C}}$.",
+            "b": "Hence find the exact value of $k$.",
+            "c": f"Hence find the exact time at which the temperature of the forging is ${reading.later_value}^{{\\circ}}\\mathrm{{C}}$.",
             "d": (
-                f"Find the exact rate of change of the temperature when the temperature is "
+                f"Hence find the exact rate of change of the temperature when the temperature is "
                 f"${reading.measured}^{{\\circ}}\\mathrm{{C}}$. Give the units."
             ),
             "e": (
@@ -344,10 +344,10 @@ def clearance_extended(reading: Reading):
         latex_main,
         {
             "a": "Write down a differential equation for $C$, where $k$ is a positive constant.",
-            "b": "Find the exact value of $k$.",
-            "c": f"Find the exact time at which the concentration is ${reading.later_value}\\ \\mathrm{{mg/L}}$.",
+            "b": "Hence find the exact value of $k$.",
+            "c": f"Hence find the exact time at which the concentration is ${reading.later_value}\\ \\mathrm{{mg/L}}$.",
             "d": (
-                f"Find the exact rate of change of the concentration when the concentration is "
+                f"Hence find the exact rate of change of the concentration when the concentration is "
                 f"${reading.measured}\\ \\mathrm{{mg/L}}$. Give the units."
             ),
             "e": (

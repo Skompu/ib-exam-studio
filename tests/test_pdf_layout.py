@@ -12,9 +12,10 @@ import numpy as np
 from matplotlib.patches import Wedge
 from pypdf import PdfReader
 
+from core.cohorts import compose_papers
 from core.pdf_engine import build_multi_question_pdf
 from core.rng import bind, release
-from registry import PRESETS, TASK_REGISTRY, call_generator, order_task_keys
+from registry import PRESETS, call_generator, order_task_keys
 
 RULE_RGB = tuple(round(channel, 5) for channel in (160 / 255, 174 / 255, 192 / 255))
 SEED = 2026
@@ -30,45 +31,12 @@ def _png_of(fig):
     return buffer.getvalue()
 
 
-def _compose(keys, num_variants, seed, difficulty="standard"):
+def _compose(keys, num_variants, seed, difficulty="standard", cohort_mode="strict_parallel"):
     """Same draw loop as the app, without importing the Streamlit script."""
-    papers = []
-    seen = {key: set() for key in keys}
-    for variant in ["A", "B", "C"][:num_variants]:
-        tasks = []
-        total = 0
-        for number, key in enumerate(keys, start=1):
-            generated = None
-            last_error = None
-            for attempt in range(12):
-                variant_seed = f"{seed}-{difficulty}-{variant}-{key}-try{attempt}"
-                random.seed(variant_seed)
-                token = bind(variant_seed)
-                try:
-                    candidate = call_generator(key, True, difficulty)
-                    identity = candidate.latex_main + "|" + candidate.archetype
-                    if identity not in seen[key] or attempt == 11:
-                        seen[key].add(identity)
-                        generated = candidate.to_paper_dict()
-                        break
-                except Exception as exc:
-                    last_error = exc
-                finally:
-                    release(token)
-            if generated is None:
-                detail = f"{type(last_error).__name__}: {last_error}" if last_error else "no attempt succeeded"
-                raise RuntimeError(f"Could not produce {key} for cohort {variant}. {detail}")
-            generated["png_bytes"] = _png_of(generated.pop("fig", None))
-            generated["q_number"] = number
-            generated["section"] = TASK_REGISTRY[key].get("section", "A")
-            tasks.append(generated)
-            total += generated["marks"]
-        papers.append({
-            "variant": variant,
-            "tasks": tasks,
-            "total_marks": total,
-            "difficulty": difficulty,
-        })
+    papers = compose_papers(tuple(keys), num_variants, True, seed, difficulty, cohort_mode)
+    for paper in papers:
+        for task in paper["tasks"]:
+            task["png_bytes"] = _png_of(task.pop("fig", None))
     return papers
 
 
@@ -208,7 +176,9 @@ def _assert_booklet(pdf_bytes, papers):
     blanks = [
         index
         for index, text, rules in pages
-        if rules < 2 and not any(token in text for token in ("Question", "SECTION", "Candidate"))
+        if rules < 2 and not any(
+            token in text for token in ("Question", "SECTION", "Candidate", "Instructions", "formula booklet")
+        )
     ]
     assert not blanks, blanks
     expected = sum(min(max(4, task["marks"] + 2), 14) for paper in papers for task in paper["tasks"])
@@ -258,7 +228,13 @@ def test_geometry_worksheet_keeps_circles_and_fits():
 @pytest.fixture(scope="module")
 def mock_papers():
     keys = order_task_keys(PRESETS["mock"]["keys"])
-    return _compose(keys, 2, SEED)
+    # The mock preset includes singleton stems (complex_num). Strict Parallel
+    # will not silently duplicate them, so the two-booklet layout uses two
+    # independent one-cohort draws.
+    first = _compose(keys, 1, SEED)
+    second = _compose(keys, 1, SEED + 17)
+    second[0]["variant"] = "B"
+    return first + second
 
 
 def test_mock_booklet_rules_and_no_blank_page(mock_papers):
@@ -266,3 +242,36 @@ def test_mock_booklet_rules_and_no_blank_page(mock_papers):
     both = _pdf(mock_papers, "exam_booklet", exam_mode=True)
     _assert_booklet(one, mock_papers[:1])
     _assert_booklet(both, mock_papers)
+
+
+def _plain(text: str) -> str:
+    return " ".join(text.split())
+
+
+def test_exam_booklet_opens_with_ib_instructions():
+    gdc = _compose(("gdc_area",), 1, SEED)
+    assert gdc[0]["calculator"] == "gdc"
+    gdc_pages = _pages(_pdf(gdc, "exam_booklet", True))
+    cover = _plain(gdc_pages[0][1])
+    assert "Instructions to candidates" in cover
+    assert "formula booklet" in cover
+    assert "three significant figures" in cover
+    assert "graphic display calculator is required" in cover
+    assert "Question" not in cover
+    assert any("Question" in text for _, text, _ in gdc_pages[1:])
+
+    paper1 = _compose(("complex_num",), 1, SEED)
+    assert paper1[0]["calculator"] == "none"
+    paper1_cover = _plain(_pages(_pdf(paper1, "exam_booklet", True))[0][1])
+    assert "A calculator is not allowed" in paper1_cover
+    assert "formula booklet" in paper1_cover
+
+    worksheet = _pages(_pdf(gdc, "worksheet", False))[0][1]
+    assert "Instructions to candidates" not in worksheet
+    assert "formula booklet" not in worksheet
+
+    scheme = build_multi_question_pdf(
+        gdc, "Studio", "room", "HL", "Paper 2", "50 min", None, True, False, "exam_booklet"
+    )
+    scheme_cover = PdfReader(io.BytesIO(scheme)).pages[0].extract_text() or ""
+    assert "Instructions to candidates" not in scheme_cover

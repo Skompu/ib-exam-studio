@@ -225,6 +225,8 @@ def render_math_to_image(latex_code: str, fontsize: int = 12, dpi: int = 200, ma
 def _simple_math(code: str):
     """Turn `$x$` and `$x^2$` into ReportLab markup. Anything richer stays an image."""
     text = code.strip()
+    text = re.sub(r"\\mathrm\{([^{}]*)\}", r"\1", text)
+    text = re.sub(r"\\operatorname\{([^{}]*)\}", r"\1", text)
     symbols = {
         r"\pi": "π", r"\theta": "θ", r"\lambda": "λ", r"\mu": "μ", r"\sigma": "σ",
         r"\nu": "ν", r"\chi": "χ", r"\Pi": "Π", r"\sim": "∼",
@@ -237,17 +239,28 @@ def _simple_math(code: str):
         text = text.replace(source, target)
     if "\\" in text:
         return None
-    script = re.fullmatch(r"([A-Za-zπθλμσνχ]+)(?:_(\{?[A-Za-z0-9]+\}?)|\^(\{?[0-9]+\}?))?", text)
-    if script:
-        body = escape(script.group(1))
-        if script.group(2):
-            body += f"<sub>{escape(script.group(2).strip('{}'))}</sub>"
-        if script.group(3):
-            body += f"<sup>{escape(script.group(3).strip('{}'))}</sup>"
-        return _math_span(body)
-    if re.fullmatch(r"[A-Za-z0-9πθλμσνχΠ≤≥≠·×∞<> ,;:.()+\-/'=]+", text):
-        return _math_span(escape(text))
-    return None
+    text = re.sub(r"_\{([^{}]+)\}", lambda match: f"<sub>{escape(match.group(1))}</sub>", text)
+    text = re.sub(r"\^\{([^{}]+)\}", lambda match: f"<sup>{escape(match.group(1))}</sup>", text)
+    text = re.sub(r"_([A-Za-z0-9])", lambda match: f"<sub>{escape(match.group(1))}</sub>", text)
+    text = re.sub(r"\^([A-Za-z0-9]+)", lambda match: f"<sup>{escape(match.group(1))}</sup>", text)
+    if re.search(r"[_^\\]", text):
+        return None
+    parts = re.split(r"(</?(?:sub|sup)>)", text)
+    html = []
+    index = 0
+    while index < len(parts):
+        chunk = parts[index]
+        if chunk in {"<sub>", "<sup>"} and index + 2 < len(parts) and parts[index + 2].startswith("</"):
+            html.append(chunk + escape(parts[index + 1]) + parts[index + 2])
+            index += 3
+            continue
+        html.append(escape(chunk) if chunk not in {"</sub>", "</sup>"} else chunk)
+        index += 1
+    markup = "".join(html)
+    plain = re.sub(r"<[^>]+>", "", markup)
+    if not plain or not re.fullmatch(r"[A-Za-z0-9πθλμσνχΠ≤≥≠∼·×∞<> ,;:.()+\-/'=]+", plain):
+        return None
+    return _math_span(markup)
 
 
 def _math_span(inner: str) -> str:
@@ -288,14 +301,7 @@ def _append_rich(story, text: str, style, max_width: float):
     row = []
     used = 0
     rows = []
-    expanded = []
     for kind, value in pieces:
-        if kind == "text":
-            for chunk in re.findall(r"\S+\s*|\s+", value):
-                expanded.append(("text", chunk))
-        else:
-            expanded.append((kind, value))
-    for kind, value in expanded:
         if kind == "text":
             if not value or (not row and not value.strip()):
                 continue
@@ -343,6 +349,7 @@ def _append_rich(story, text: str, style, max_width: float):
         story.append(Table(
             [[item for item, _width in packed]],
             colWidths=[width for _item, width in packed],
+            hAlign="LEFT",
             style=TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 0),
@@ -365,6 +372,21 @@ def figure_visible(task: dict, *, is_markscheme: bool, exam_mode: bool) -> bool:
     if kind == "illustrative":
         return not exam_mode
     return False
+
+
+def _scheme_groups(task: dict) -> list:
+    scheme = task.get("markscheme") or []
+    if scheme and isinstance(scheme[0], dict) and "steps" in scheme[0]:
+        return scheme
+    return [{"letter": "", "marks": task.get("marks"), "steps": scheme}]
+
+
+def _scheme_code_label(step: dict) -> str:
+    code = (step.get("code") or "").strip()
+    label = f"[{escape(code)}]" if code else ""
+    if step.get("ft"):
+        label = f"{label} [FT]" if label else "[FT]"
+    return label
 
 
 class WorkingSpaceGrid(Flowable):
@@ -406,13 +428,16 @@ class WorkingSpaceGrid(Flowable):
 
 
 def _frequency_widths(rows: list) -> list[float]:
-    """Fixed column widths: 2×2 contingency vs goodness-of-fit."""
+    """Keep frequency tables inside the text block."""
     columns = len(rows[0])
     if len(rows) == 2:
-        return [0.6 * inch] * columns
+        col_w = min(0.7 * inch, 6.0 * inch / columns)
+        return [col_w] * columns
     if columns == 3:
-        return [1.5 * inch, 1.2 * inch, 1.2 * inch]
-    return [1.5 * inch] + [1.2 * inch] * (columns - 1)
+        return [1.6 * inch, 1.3 * inch, 1.3 * inch]
+    if columns == 4:
+        return [1.4 * inch, 1.1 * inch, 1.1 * inch, 1.1 * inch]
+    return [1.4 * inch] + [(5.4 * inch / (columns - 1))] * (columns - 1)
 
 
 def _frequency_table(rows: list, usable: float, cell_style=None) -> Table:
@@ -454,11 +479,11 @@ def _candidate_details_table(total_marks: int, label_style, meta_style) -> Table
     rule = colors.HexColor("#718096")
     cand_table = Table(
         [
-            ["Candidate Name:", "", "Date:", ""],
-            ["Candidate Number:", "", "Total Score:", f"/{total_marks}"],
+            ["Candidate Name:", " ", "Date:", " "],
+            ["Candidate Number:", " ", "Total Score:", f"/{total_marks}"],
         ],
-        colWidths=[1.4 * inch, 2.2 * inch, 1.2 * inch, 1.8 * inch],
-        rowHeights=[20, 22],
+        colWidths=[1.4 * inch, 2.4 * inch, 1.15 * inch, 1.45 * inch],
+        rowHeights=[24, 26],
     )
     cand_table.setStyle(
         TableStyle(
@@ -470,15 +495,15 @@ def _candidate_details_table(total_marks: int, label_style, meta_style) -> Table
                 ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#2D3748")),
                 ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
                 ("ALIGN", (3, 1), (3, 1), "CENTER"),
-                ("LINEBELOW", (1, 0), (1, 0), 0.6, rule),
-                ("LINEBELOW", (3, 0), (3, 0), 0.6, rule),
-                ("LINEBELOW", (1, 1), (1, 1), 0.6, rule),
+                ("LINEBELOW", (1, 0), (1, 0), 0.8, rule),
+                ("LINEBELOW", (3, 0), (3, 0), 0.8, rule),
+                ("LINEBELOW", (1, 1), (1, 1), 0.8, rule),
                 ("BOX", (3, 1), (3, 1), 0.9, rule),
                 ("BACKGROUND", (3, 1), (3, 1), colors.HexColor("#F7FAFC")),
                 ("LEFTPADDING", (0, 0), (-1, -1), 4),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-                ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ("BOTTOMPADDING", (0, 0), (3, 0), 4),
+                ("TOPPADDING", (0, 1), (3, 1), 6),
             ]
         )
     )
@@ -487,7 +512,14 @@ def _candidate_details_table(total_marks: int, label_style, meta_style) -> Table
 
 def _task_table_rows(task: dict) -> list | None:
     rows = task.get("table_data") or task.get("display_table")
-    return rows if rows else None
+    if rows:
+        intro = task.get("intro", "")
+        if "|" in intro:
+            task["intro"] = "\n".join(
+                line for line in intro.splitlines() if "|" not in line
+            ).strip()
+        return rows
+    return None
 
 
 def _append_paper_cover(
@@ -561,6 +593,37 @@ def _append_paper_cover(
         )
     )
     story.append(Spacer(1, 10))
+
+
+def _paper_uses_gdc(paper: dict) -> bool:
+    if paper.get("calculator") == "gdc":
+        return True
+    return any(
+        "graphic display calculator" in (task.get("intro") or "").lower()
+        for task in paper.get("tasks") or []
+    )
+
+
+def _append_exam_instructions(story: list, *, paper: dict, heading_style, body_style) -> None:
+    """IB-style candidate instructions. One page; not generator mathematics."""
+    uses_gdc = _paper_uses_gdc(paper)
+    calculator_line = (
+        "A graphic display calculator is required for this paper."
+        if uses_gdc
+        else "A calculator is not allowed in this examination."
+    )
+    story.append(Paragraph("Instructions to candidates", heading_style))
+    for line in (
+        "Do not open this examination paper until instructed to do so.",
+        calculator_line,
+        "A clean copy of the mathematics HL formula booklet is required for this paper.",
+        "Answer all questions.",
+        "Unless otherwise stated in the question, all numerical answers should be given exactly or correct to three significant figures.",
+        "Show all your working.",
+        f"The maximum mark for this examination paper is [{paper['total_marks']} marks].",
+    ):
+        story.append(Paragraph(f"• {escape(line)}", body_style))
+    story.append(Spacer(1, 8))
 
 
 def _placed_image(data: bytes, max_width: float, max_height: float):
@@ -648,6 +711,28 @@ def build_multi_question_pdf(
         spaceAfter=6
     )
 
+    note_style = ParagraphStyle(
+        "SchemeNote",
+        parent=styles["Normal"],
+        fontName="Helvetica-Oblique",
+        fontSize=8,
+        leading=11,
+        textColor=colors.HexColor("#4A5568"),
+        leftIndent=8,
+        spaceAfter=4,
+    )
+
+    part_head_style = ParagraphStyle(
+        "SchemePartHead",
+        parent=styles["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor("#1A365D"),
+        spaceBefore=6,
+        spaceAfter=3,
+    )
+
     section_style = ParagraphStyle(
         'SectionBanner',
         parent=styles['Heading2'],
@@ -691,9 +776,20 @@ def build_multi_question_pdf(
             story.append(Paragraph(f"<b>Difficulty profile:</b> {difficulty_label}", meta_style))
             story.append(Spacer(1, 6))
 
+        on_fresh_page = False
+        if paper_format == "exam_booklet" and not is_markscheme:
+            _append_exam_instructions(
+                story,
+                paper=paper,
+                heading_style=section_style,
+                body_style=body_style,
+            )
+            story.append(PageBreak())
+            on_fresh_page = True
+
         # Tasks Iteration
         usable = A4[0] - 72
-        mark_col = 0.6 * inch
+        mark_col = 0.95 * inch
         text_width = usable - mark_col
         section_marks = {}
         for task in tasks:
@@ -712,7 +808,8 @@ def build_multi_question_pdf(
 
             if section == "B" and paper_format == "exam_booklet" and not is_markscheme:
                 # Each extended question starts at the top of a fresh page.
-                story.append(PageBreak())
+                if not on_fresh_page:
+                    story.append(PageBreak())
                 if entering_section:
                     current_section = section
                     banner = f"SECTION B — Extended-response questions ({section_marks[section]} marks)"
@@ -725,6 +822,7 @@ def build_multi_question_pdf(
                     else "SECTION B — Extended-response questions"
                 )
                 story.append(Paragraph(f"{banner} ({section_marks[section]} marks)", section_style))
+            on_fresh_page = False
 
             q_num = task["q_number"]
             q_title = task["title"]
@@ -750,7 +848,7 @@ def build_multi_question_pdf(
                 if latex_main and latex_main.lower() not in {"observed frequencies", "contingency table"}:
                     question_flowables.append(Paragraph(f"<b>Model:</b> {escape(latex_main)}", body_style))
                 question_flowables.append(Spacer(1, 4))
-            elif latex_main:
+            elif latex_main and latex_main not in (task.get("intro") or "").replace("$", ""):
                 formula = render_math_to_image(latex_main, fontsize=13, max_width=usable)
                 if formula is None:
                     question_flowables.append(Paragraph(escape(latex_main), body_style))
@@ -791,22 +889,34 @@ def build_multi_question_pdf(
             else:
                 story.append(KeepTogether(question_flowables))
                 story.append(Spacer(1, 4))
-                for step in task["markscheme"]:
-                    _append_rich(story, f"• {step['desc']}", body_style, text_width)
-                    formula = render_math_to_image(step["tex"], fontsize=11, max_width=text_width)
-                    code = Paragraph(f"[{escape(step['code'])}]", meta_style)
-                    if formula is None:
-                        shown = Paragraph(escape(step["tex"]), body_style)
-                    else:
-                        shown = formula
-                    scheme_row = Table([[shown, code]], colWidths=[text_width, mark_col])
-                    scheme_row.setStyle(TableStyle([
-                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                    ]))
-                    story.append(scheme_row)
+                for group in _scheme_groups(task):
+                    letter = group.get("letter") or ""
+                    marks = group.get("marks")
+                    if letter:
+                        unit = "mark" if marks == 1 else "marks"
+                        story.append(
+                            Paragraph(f"({escape(letter)}) [{marks} {unit}]", part_head_style)
+                        )
+                    for step in group.get("steps") or []:
+                        _append_rich(story, f"• {step['desc']}", body_style, text_width)
+                        formula = render_math_to_image(step["tex"], fontsize=11, max_width=text_width)
+                        code = Paragraph(_scheme_code_label(step), meta_style)
+                        if formula is None:
+                            shown = Paragraph(escape(step["tex"]), body_style)
+                        else:
+                            shown = formula
+                        scheme_row = Table([[shown, code]], colWidths=[text_width, mark_col])
+                        scheme_row.setStyle(TableStyle([
+                            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                        ]))
+                        story.append(scheme_row)
+                        if step.get("rounding"):
+                            story.append(Paragraph(escape(step["rounding"]), note_style))
+                        if step.get("alternative"):
+                            story.append(Paragraph(escape(step["alternative"]), note_style))
                 story.append(Spacer(1, 8))
 
     doc.build(story, canvasmaker=NumberedCanvas)

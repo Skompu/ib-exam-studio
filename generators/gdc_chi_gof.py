@@ -118,9 +118,26 @@ _BANK = _build_bank()
 _DIE = tuple(item for item in _BANK if item["kind"] == "die")
 _OTHER = tuple(item for item in _BANK if item["kind"] != "die")
 
-
-def _observed_table(labels, observed):
-    return (tuple(labels), tuple(str(value) for value in observed))
+COVERS_SIX = (
+    {
+        "id": "fair_die",
+        "title": "fair six-sided die",
+        "labels": ("1", "2", "3", "4", "5", "6"),
+        "model_line": "P(X = k) = 1/6 for k = 1, 2, ..., 6",
+    },
+    {
+        "id": "colored_spinner_6",
+        "title": "fair six-colour spinner",
+        "labels": ("Red", "Blue", "Green", "Yellow", "Orange", "Purple"),
+        "model_line": "P(colour) = 1/6 for each of the six colours",
+    },
+    {
+        "id": "weekday_admissions",
+        "title": "weekday hospital admissions",
+        "labels": ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat"),
+        "model_line": "P(day) = 1/6 for each weekday Monday to Saturday",
+    },
+)
 
 
 def _expected_scheme(expected) -> str:
@@ -129,24 +146,42 @@ def _expected_scheme(expected) -> str:
 
 def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    item = choice(_OTHER if difficulty == "challenging" else _DIE)
+    if difficulty == "challenging":
+        item = choice(_OTHER)
+        cover_id = item["kind"]
+        story = item["story"]
+        labels = item["labels"]
+        model_line = item["model_line"]
+        graph = "chi2_gof_specified_model"
+    else:
+        item = choice(_DIE)
+        cover = choice(COVERS_SIX)
+        cover_id = cover["id"]
+        story = cover["title"]
+        labels = cover["labels"]
+        model_line = cover["model_line"]
+        graph = "chi2_gof_six_equiprobable"
     critical = _CRITICAL[item["df"]]
     conclusion = (
         r"\text{Reject } H_0 \text{ at the 5\% level.}"
         if item["reject"]
         else r"\text{Do not reject } H_0 \text{ at the 5\% level.}"
     )
+    numeric_id = f"{item['kind']}|n={item['total']}|{item['observed']}"
     task = pack_task(
         title="Paper 2: Chi-squared Goodness of Fit",
         intro=(
             "A graphic display calculator is required. "
             "Give numerical answers to three significant figures where appropriate. "
             f"A study recorded observed category frequencies from {item['total']} trials "
-            f"({item['story']}). "
+            f"({story}). "
             "Under the model below, test whether the sample fits the stated distribution at the 5% level."
         ),
-        latex_main=item["model_line"],
-        table_data=_observed_table(item["labels"], item["observed"]),
+        latex_main=model_line,
+        table_data=[
+            [str(category) for category in labels],
+            [str(frequency) for frequency in item["observed"]],
+        ],
         parts=[
             part(
                 "a",
@@ -181,8 +216,8 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
             part(
                 "d",
                 (
-                    f"For $\\nu = {item['df']}$, the critical value at the 5% level is "
-                    f"$\\chi^2_{{\\mathrm{{crit}}}} = {three_sf(critical)}$. State your conclusion."
+                    f"For {item['df']} degrees of freedom, the critical value at the 5% level is "
+                    f"$\\chi^2_{{crit}} = {three_sf(critical)}$. State your conclusion."
                 ),
                 2,
                 step(
@@ -196,6 +231,9 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
             f"Chi-squared GOF {item['kind']} df={item['df']} stat={three_sf(item['statistic'])}"
         ),
         family="Goodness of fit with specified category probabilities",
+        part_graph_id=graph,
+        cover_id=cover_id,
+        numeric_id=numeric_id,
     )
     if task.marks != 8:
         raise RuntimeError("The chi-squared goodness-of-fit question must be worth 8 marks.")
