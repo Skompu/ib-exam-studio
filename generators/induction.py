@@ -1,11 +1,22 @@
-import random
+import math
 
 from core.randomizer import pack_task, part, step
+from core.rng import choice
+
+# The upper limit is printed in part (d), so each value is a different question.
+_SQUARE_UPPERS = (6, 8, 9, 10, 12, 15)
+_FACTORIAL_UPPERS = (4, 5, 6, 7, 8)
+_DIVISIBILITY_PAIRS = ((3, 1), (3, 2), (4, 1), (5, 2), (5, 3), (6, 1), (7, 3), (7, 4))
+
+if len(set(_SQUARE_UPPERS)) < 4 or len(set(_FACTORIAL_UPPERS)) < 4 or len(_DIVISIBILITY_PAIRS) < 4:
+    raise RuntimeError("An induction family has fewer than four variants.")
 
 
-def _sum_squares(difficulty):
-    upper = random.choice((8, 9, 10, 12))
+def _sum_squares(difficulty, upper=None):
+    upper = choice(_SQUARE_UPPERS) if upper is None else upper
     total = upper * (upper + 1) * (2 * upper + 1) // 6
+    if total * 6 != upper * (upper + 1) * (2 * upper + 1):
+        raise RuntimeError(f"The sum of squares up to {upper} is not an integer.")
     inductive_code = "M1 A1 A1" if difficulty == "challenging" else "M1 A1 A1 A1"
     if difficulty == "challenging":
         close_prompt = f"Complete the induction, and hence find $\\sum_{{r=1}}^{{{upper}}} r^2$."
@@ -18,15 +29,15 @@ def _sum_squares(difficulty):
         )
         archetype = "Summation formula, then a numerical hence"
     else:
-        close_prompt = "Complete the induction."
+        close_prompt = f"Hence find $\\sum_{{r=1}}^{{{upper}}} r^2$."
         close_marks = 1
         step_marks = 4
         scheme_close = step(
-            "State the conclusion:",
-            r"P(n)\ \text{is true for all integers}\ n \ge 1",
+            f"The statement holds for every positive integer, so substitute $n={upper}$:",
+            rf"\sum_{{r=1}}^{{{upper}}} r^2 = {total}",
             "A1",
         )
-        archetype = "Summation by induction"
+        archetype = "Summation by induction, then a numerical hence"
     return pack_task(
         title="Proof by Induction",
         intro="Prove by mathematical induction that, for every integer $n \\ge 1$,",
@@ -57,12 +68,15 @@ def _sum_squares(difficulty):
         ],
         archetype=archetype,
         family="Closed form for the sum of squares",
+        part_graph_id="induction_sum_squares",
+        cover_id="plain",
+        numeric_id=f"n={upper}",
     )
 
 
-def _factorial_sum(difficulty):
-    upper = random.choice((5, 6))
-    total = __import__("math").factorial(upper + 1) - 1
+def _factorial_sum(difficulty, upper=None):
+    upper = choice(_FACTORIAL_UPPERS) if upper is None else upper
+    total = math.factorial(upper + 1) - 1
     inductive_code = "M1 A1 A1" if difficulty == "challenging" else "M1 A1 A1 A1"
     if difficulty == "challenging":
         close_prompt = f"Complete the induction, and hence find $\\sum_{{r=1}}^{{{upper}}} r \\cdot r!$."
@@ -75,15 +89,15 @@ def _factorial_sum(difficulty):
         )
         archetype = "Factorial sum, then a numerical hence"
     else:
-        close_prompt = "Complete the induction."
+        close_prompt = f"Hence find $\\sum_{{r=1}}^{{{upper}}} r \\cdot r!$."
         close_marks = 1
         step_marks = 4
         scheme_close = step(
-            "State the conclusion:",
-            r"P(n)\ \text{is true for all integers}\ n \ge 1",
+            f"The result is $(n+1)!-1$. Substitute $n={upper}$:",
+            rf"\sum_{{r=1}}^{{{upper}}} r \cdot r! = {total}",
             "A1",
         )
-        archetype = "Summation by induction"
+        archetype = "Summation by induction, then a numerical hence"
     return pack_task(
         title="Proof by Induction",
         intro="Prove by mathematical induction that, for every integer $n \\ge 1$,",
@@ -110,12 +124,14 @@ def _factorial_sum(difficulty):
         ],
         archetype=archetype,
         family="Closed form for $\\sum r \\cdot r!$",
+        part_graph_id="induction_factorial_sum",
+        cover_id="plain",
+        numeric_id=f"n={upper}",
     )
 
 
-def _divisibility(difficulty):
-    pairs = ((3, 1), (3, 2), (4, 1), (5, 2), (5, 3), (6, 1), (7, 3), (7, 4))
-    base, subtract = random.choice(pairs)
+def _divisibility(difficulty, pair=None):
+    base, subtract = choice(_DIVISIBILITY_PAIRS) if pair is None else pair
     divisor = base - subtract
     inductive_code = "M1 A1 A1" if difficulty == "challenging" else "M1 A1 A1 A1"
     if difficulty == "challenging":
@@ -183,9 +199,12 @@ def _divisibility(difficulty):
         ],
         archetype=archetype,
         family="Divisibility of $a^n-b^n$ by $a-b$",
+        part_graph_id="induction_divisibility",
+        cover_id="plain",
+        numeric_id=f"a={base}|b={subtract}",
     )
 
 
 def gen_induction(clean_integers: bool = True, difficulty: str = "standard"):
     del clean_integers
-    return random.choice((_sum_squares, _factorial_sum, _divisibility))(difficulty)
+    return choice((_sum_squares, _factorial_sum, _divisibility))(difficulty)

@@ -15,7 +15,35 @@ _PAIRS = (
     (sp.Rational(5, 6), sp.Rational(1, 3)),
     (sp.Rational(3, 4), sp.Rational(1, 12)),
     (sp.Rational(7, 12), sp.Rational(1, 4)),
+    (sp.Rational(1, 3), sp.Rational(1, 12)),
+    (sp.Rational(5, 12), sp.Rational(1, 12)),
+    (sp.Rational(1, 2), sp.Rational(1, 4)),
+    (sp.Rational(2, 3), sp.Rational(1, 3)),
+    (sp.Rational(3, 4), sp.Rational(1, 2)),
+    (sp.Rational(5, 6), sp.Rational(1, 2)),
+    (sp.Rational(11, 12), sp.Rational(1, 4)),
+    (sp.Rational(11, 12), sp.Rational(2, 3)),
 )
+
+_STANDARD_SINES = (sp.Integer(1), sp.Rational(1, 2), sp.sqrt(2) / 2, sp.sqrt(3) / 2)
+
+
+def _check_pairs():
+    seen = set()
+    for first, second in _PAIRS:
+        ordered = tuple(sorted((first, second), reverse=True))
+        if ordered in seen:
+            raise RuntimeError(f"Duplicate polar pair {ordered}.")
+        seen.add(ordered)
+        diff = sp.simplify(ordered[0] - ordered[1])
+        sine = sp.simplify(sp.sin(diff * sp.pi))
+        if diff <= 0 or diff >= 1 or not any(sp.simplify(sine - allowed) == 0 for allowed in _STANDARD_SINES):
+            raise RuntimeError(f"Polar pair {ordered} does not have a standard sine.")
+    if len(seen) < 8:
+        raise RuntimeError("The polar bank has fewer than eight pairs.")
+
+
+_check_pairs()
 
 
 def _pi_tex(coeff):

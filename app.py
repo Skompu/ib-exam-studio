@@ -379,7 +379,13 @@ with st.sidebar:
         options=["standard", "challenging"],
         format_func=lambda key: "Standard procedures" if key == "standard" else "Challenging (IB exam-trap)",
     )
-    num_variants = st.slider("Number of Variants / Cohorts", min_value=1, max_value=3, value=2)
+    num_variants = st.slider(
+        "Number of Variants / Cohorts",
+        min_value=1,
+        max_value=3,
+        value=1,
+        key="cohort-count",
+    )
     clean_integers_only = st.checkbox("Strictly enforce integer coordinates/roots", value=True)
     if gdc_paper:
         st.caption("Paper 2 rounds the finished GDC value to three significant figures.")

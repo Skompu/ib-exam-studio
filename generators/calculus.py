@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sympy as sp
 
+from core.rng import choice as rng_choice
 from core.randomizer import (
     as_int,
     pack_task,
@@ -494,10 +495,18 @@ def gen_calculus_differential(clean_integers: bool, difficulty: str = "standard"
     return _parameter_recovery(clean_integers, difficulty)
 
 
-def gen_calculus_area(clean_integers: bool, difficulty: str = "standard"):
+_AREA_STARTS = (0, 1)
+_AREA_GAPS = (2, 3, 4)
+
+if len(_AREA_STARTS) * len(_AREA_GAPS) < 4:
+    raise RuntimeError("The parabolic area bank has fewer than four variants.")
+
+
+def gen_calculus_area(clean_integers: bool, difficulty: str = "standard", root1=None, gap=None):
     del clean_integers
-    root1 = random.choice([0, 1])
-    root2 = root1 + random.choice([2, 3])
+    root1 = rng_choice(_AREA_STARTS) if root1 is None else root1
+    gap = rng_choice(_AREA_GAPS) if gap is None else gap
+    root2 = root1 + gap
     function = sp.expand(-(x - root1) * (x - root2))
     antiderivative = sp.integrate(function, x)
     area = sp.integrate(function, (x, root1, root2))
@@ -555,6 +564,9 @@ def gen_calculus_area(clean_integers: bool, difficulty: str = "standard"):
         fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Quadratic with two chosen integer roots",
+        part_graph_id="calc_area_parabola_axis",
+        cover_id="plain",
+        numeric_id=f"r1={root1}|r2={root2}",
     )
 
 

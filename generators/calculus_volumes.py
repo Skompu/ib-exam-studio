@@ -153,13 +153,21 @@ def _about_y(slope: int):
     )
 
 
+# Every factor, limit and slope is an integer, so the clean-integer flag does not shrink the bank.
+_DISK_FACTORS = (1, 2, 3, 4)
+_DISK_LIMITS = (2, 4, 6)
+_WASHER_SLOPES = (1, 2, 3, 4)
+
+if len(_DISK_FACTORS) * len(_DISK_LIMITS) < 4 or len(_WASHER_SLOPES) < 4:
+    raise RuntimeError("A volume-of-revolution graph has fewer than four variants.")
+
+
 def gen_volume_revolution(clean_integers: bool, difficulty: str = "standard"):
+    del clean_integers
     if difficulty == "challenging":
-        task = _about_y(choice((1, 2, 3) if clean_integers else (1, 2, 3, 4)))
+        task = _about_y(choice(_WASHER_SLOPES))
     else:
-        factor = choice((1, 2) if clean_integers else (1, 2, 3, 4))
-        limit = choice((2, 4) if clean_integers else (2, 4, 6))
-        task = _about_x(factor, limit)
+        task = _about_x(choice(_DISK_FACTORS), choice(_DISK_LIMITS))
     if task.marks != 6:
         raise RuntimeError("Volume question must be worth 6 marks.")
     return task

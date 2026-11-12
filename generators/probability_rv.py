@@ -11,6 +11,15 @@ from core.randomizer import assert_zero, pack_task, part, step
 
 t = sp.symbols("t", real=True)
 
+# Integer endpoints. Width 4 and 5, and lengths 5–7, are the same exact-fraction questions.
+_CONTINUOUS_WIDTHS = (1, 2, 3, 4, 5)
+_CONTINUOUS_WIDTHS_OPEN = (1, 2, 3, 4, 5, 6)
+_DISCRETE_LENGTHS = (3, 4, 5, 6, 7)
+_DISCRETE_LENGTHS_OPEN = (3, 4, 5, 6, 7, 8)
+
+if len(_CONTINUOUS_WIDTHS) < 4 or len(_DISCRETE_LENGTHS) < 4:
+    raise RuntimeError("A random-variable family has fewer than four variants.")
+
 
 def _plot_pdf(expression, lo, hi):
     grid = np.linspace(float(lo), float(hi), 200)
@@ -26,8 +35,9 @@ def _plot_pdf(expression, lo, hi):
     return fig
 
 
-def _continuous(clean_integers, difficulty):
-    width = random.choice((1, 2, 3) if clean_integers else (1, 2, 3, 4))
+def _continuous(clean_integers, difficulty, width=None):
+    if width is None:
+        width = random.choice(_CONTINUOUS_WIDTHS if clean_integers else _CONTINUOUS_WIDTHS_OPEN)
     density_constant = sp.Rational(6, width**3)
     density = density_constant * t * (width - t)
     assert_zero(sp.integrate(density, (t, 0, width)) - 1, "Continuous density does not integrate to 1.")
@@ -82,8 +92,9 @@ def _continuous(clean_integers, difficulty):
     )
 
 
-def _discrete(clean_integers, difficulty):
-    length = random.choice((3, 4) if clean_integers else (3, 4, 5))
+def _discrete(clean_integers, difficulty, length=None):
+    if length is None:
+        length = random.choice(_DISCRETE_LENGTHS if clean_integers else _DISCRETE_LENGTHS_OPEN)
     values = list(range(1, length + 1))
     constant = sp.Rational(2, length * (length + 1))
     weights = [constant * value for value in values]

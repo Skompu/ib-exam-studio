@@ -324,6 +324,143 @@ def test_algebra_and_proof_banks_fill_three_cohorts():
     assert square.part_graph_id == "complex_demoivre_n4"
 
 
+def _close_task(task):
+    import matplotlib.pyplot as plt
+
+    if task.fig is not None:
+        plt.close(task.fig)
+
+
+def test_paper1_mock_topics_have_four_variants_per_graph():
+    """Maclaurin, induction and random variables each keep four full variants on one graph."""
+    from generators.induction import (
+        _DIVISIBILITY_PAIRS,
+        _FACTORIAL_UPPERS,
+        _SQUARE_UPPERS,
+        _divisibility,
+        _factorial_sum,
+        _sum_squares,
+    )
+    from generators.maclaurin import (
+        _COSINE_FREQUENCIES,
+        _EXP_SIN_FREQUENCIES,
+        _GAUSSIAN_SCALES,
+        _cosine,
+        _exp_sin,
+        _gaussian,
+    )
+    from generators.probability_rv import (
+        _CONTINUOUS_WIDTHS,
+        _DISCRETE_LENGTHS,
+        _continuous,
+        _discrete,
+    )
+
+    assert len(set(_GAUSSIAN_SCALES)) >= 4
+    assert len(set(_COSINE_FREQUENCIES)) >= 4
+    assert len(set(_EXP_SIN_FREQUENCIES)) >= 4
+    assert len(set(_SQUARE_UPPERS)) >= 4
+    assert len(set(_FACTORIAL_UPPERS)) >= 4
+    assert len(_DIVISIBILITY_PAIRS) >= 4
+    assert len(_CONTINUOUS_WIDTHS) >= 4
+    assert len(_DISCRETE_LENGTHS) >= 4
+
+    def check(task, graph, numeric, vectors):
+        assert task.part_graph_id == graph
+        assert task.numeric_id == numeric
+        assert task.cover_id == "plain"
+        assert task.marks == 7
+        vectors.setdefault(graph, set()).add(tuple(part.marks for part in task.parts))
+        if graph in ("induction_sum_squares", "induction_factorial_sum"):
+            assert numeric.removeprefix("n=") in task.parts[3].prompt
+        _close_task(task)
+
+    for difficulty in ("standard", "challenging"):
+        vectors = {}
+        for scale in _GAUSSIAN_SCALES:
+            check(_gaussian(difficulty, scale), "maclaurin_exp_quadratic", f"a={scale}", vectors)
+        for frequency in _COSINE_FREQUENCIES:
+            check(_cosine(difficulty, frequency), "maclaurin_scaled_cosine", f"b={frequency}", vectors)
+        for frequency in _EXP_SIN_FREQUENCIES:
+            check(_exp_sin(difficulty, frequency), "maclaurin_exp_sin", f"b={frequency}", vectors)
+        for upper in _SQUARE_UPPERS:
+            check(_sum_squares(difficulty, upper), "induction_sum_squares", f"n={upper}", vectors)
+        for upper in _FACTORIAL_UPPERS:
+            check(_factorial_sum(difficulty, upper), "induction_factorial_sum", f"n={upper}", vectors)
+        for pair in _DIVISIBILITY_PAIRS:
+            base, subtract = pair
+            check(_divisibility(difficulty, pair), "induction_divisibility", f"a={base}|b={subtract}", vectors)
+        for width in _CONTINUOUS_WIDTHS:
+            check(_continuous(True, difficulty, width), "prob_rv_continuous_quadratic", f"width={width}", vectors)
+        for length in _DISCRETE_LENGTHS:
+            check(_discrete(True, difficulty, length), "prob_rv_discrete_kx", f"n={length}", vectors)
+        assert all(len(item) == 1 for item in vectors.values()), vectors
+
+    for key in ("maclaurin", "induction", "prob_rv"):
+        for difficulty in ("standard", "challenging"):
+            papers = compose_papers((key,), 3, True, 2026, difficulty, "strict_parallel")
+            numerics = [paper["tasks"][0]["numeric_id"] for paper in papers]
+            graphs = {paper["tasks"][0]["part_graph_id"] for paper in papers}
+            assert len(set(numerics)) == 3, (key, difficulty, numerics)
+            assert len(graphs) == 1, (key, difficulty, graphs)
+            for paper in papers:
+                fig = paper["tasks"][0].get("fig")
+                if fig is not None:
+                    import matplotlib.pyplot as plt
+
+                    plt.close(fig)
+
+
+def test_easy_paper1_lists_grow_inside_one_graph():
+    import matplotlib.pyplot as plt
+
+    from generators.calculus import _AREA_GAPS, _AREA_STARTS, gen_calculus_area
+    from generators.calculus_volumes import _DISK_FACTORS, _DISK_LIMITS, _WASHER_SLOPES, _about_x, _about_y
+    from generators.complex_numbers import _PAIRS
+    from generators.core_skills import _GEOMETRIC_TERMS, _LOG_CHANGE, _TRIG_DIRECT
+
+    assert len(_DISK_FACTORS) * len(_DISK_LIMITS) >= 8
+    assert _WASHER_SLOPES == (1, 2, 3, 4)
+    assert len(_AREA_STARTS) * len(_AREA_GAPS) >= 6
+    assert len(_PAIRS) >= 12
+    assert len(_LOG_CHANGE) >= 8
+    assert (7, 2) in _LOG_CHANGE and (2, 6) in _LOG_CHANGE
+    assert len(_GEOMETRIC_TERMS) >= 8
+    assert len(_TRIG_DIRECT) >= 12
+
+    for factor in _DISK_FACTORS:
+        for limit in _DISK_LIMITS:
+            task = _about_x(factor, limit)
+            assert task.part_graph_id == "vol_rev_disk_ox"
+            assert task.numeric_id == f"factor={factor}|limit={limit}"
+            assert task.marks == 6
+            plt.close(task.fig)
+    for slope in _WASHER_SLOPES:
+        task = _about_y(slope)
+        assert task.part_graph_id == "vol_rev_washer_oy"
+        assert task.numeric_id == f"slope={slope}"
+        assert task.marks == 6
+        plt.close(task.fig)
+
+    for start in _AREA_STARTS:
+        for gap in _AREA_GAPS:
+            for difficulty in ("standard", "challenging"):
+                task = gen_calculus_area(True, difficulty, start, gap)
+                assert task.part_graph_id == "calc_area_parabola_axis"
+                assert task.numeric_id == f"r1={start}|r2={start + gap}"
+                assert task.marks == 7
+                assert tuple(part.marks for part in task.parts) == (2, 2, 3)
+                plt.close(task.fig)
+
+    papers = compose_papers(("calc_area",), 3, True, 2026, "standard", "strict_parallel")
+    assert len({paper["tasks"][0]["numeric_id"] for paper in papers}) == 3
+    assert {paper["tasks"][0]["part_graph_id"] for paper in papers} == {"calc_area_parabola_axis"}
+    for paper in papers:
+        fig = paper["tasks"][0].get("fig")
+        if fig is not None:
+            plt.close(fig)
+
+
 def test_cognitive_twin_three_cohorts_on_story_covers():
     for key in ("gdc_chi", "gdc_chi_gof", "ext_gdc_stat", "gdc_dist", "gdc_invnorm", "bivar"):
         papers = compose_papers((key,), 3, True, 2026, "standard", "cognitive_twin")

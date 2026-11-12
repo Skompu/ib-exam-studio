@@ -99,9 +99,32 @@ def _log_sum():
     )
 
 
+# Even powers keep 3n/2 an integer. The cap keeps the exact power small enough to write down.
+_LOG_CHANGE = tuple(
+    (base, power)
+    for base in (2, 3, 5, 7)
+    for power in (2, 4, 6)
+    if 3 * power % 2 == 0 and base ** power <= 2500
+)
+if len(_LOG_CHANGE) < 8:
+    raise RuntimeError("The change-of-base bank has fewer than eight equations.")
+
+
+def _check_log_change():
+    for base, power in _LOG_CHANGE:
+        total = (3 * power) // 2
+        value = base ** power
+        squared = base ** 2
+        check = sp.log(value, base) + sp.log(value, squared)
+        if sp.simplify(check - total) != 0 or value > 2500:
+            raise RuntimeError(f"Change-of-base pair {(base, power)} failed.")
+
+
+_check_log_change()
+
+
 def _log_change_of_base():
-    base = random.choice((2, 3, 5))
-    power = random.choice((2, 4))
+    base, power = random.choice(_LOG_CHANGE)
     total = (3 * power) // 2
     value = base ** power
     squared = base ** 2
@@ -141,6 +164,9 @@ def _log_change_of_base():
         ],
         archetype="Change of base inside a logarithmic equation",
         family="log_b(x)+log_(b^2)(x)=k with a single exact power",
+        part_graph_id="log_change_base",
+        cover_id="plain",
+        numeric_id=f"b={base}|n={power}",
     )
 
 
@@ -217,15 +243,39 @@ def _positive_cube_root(value):
     return sp.Rational(numerator, denominator)
 
 
+_GEOMETRIC_TERMS = (
+    (16, sp.Rational(1, 2)),
+    (81, sp.Rational(1, 3)),
+    (243, sp.Rational(2, 3)),
+    (32, sp.Rational(1, 2)),
+    (27, sp.Rational(1, 3)),
+    (64, sp.Rational(1, 2)),
+    (16, sp.Rational(1, 4)),
+    (125, sp.Rational(1, 5)),
+)
+
+
+def _check_geometric_terms():
+    seen = set()
+    for first, ratio in _GEOMETRIC_TERMS:
+        if not (0 < ratio < 1):
+            raise RuntimeError(f"Geometric ratio {ratio} is not strictly between 0 and 1.")
+        third = sp.simplify(first * ratio ** 2)
+        sixth = sp.simplify(first * ratio ** 5)
+        if _positive_cube_root(sixth / third) != ratio:
+            raise RuntimeError(f"Geometric pair {(first, ratio)} does not recover its ratio.")
+        if sp.simplify(third / ratio ** 2) != first:
+            raise RuntimeError(f"Geometric pair {(first, ratio)} does not recover its first term.")
+        seen.add((first, sp.sstr(ratio)))
+    if len(seen) < 8:
+        raise RuntimeError("The two-term geometric bank has fewer than eight sequences.")
+
+
+_check_geometric_terms()
+
+
 def _geometric_from_terms():
-    first, ratio = random.choice(
-        (
-            (16, sp.Rational(1, 2)),
-            (81, sp.Rational(1, 3)),
-            (243, sp.Rational(2, 3)),
-            (32, sp.Rational(1, 2)),
-        )
-    )
+    first, ratio = random.choice(_GEOMETRIC_TERMS)
     third = sp.simplify(first * ratio ** 2)
     sixth = sp.simplify(first * ratio ** 5)
     found = _positive_cube_root(sixth / third)
@@ -274,6 +324,9 @@ def _geometric_from_terms():
         ],
         archetype="Recover a geometric sequence, then sum to infinity",
         family="Positive ratio below 1, identified from terms three apart",
+        part_graph_id="seq_geometric_two_terms",
+        cover_id="plain",
+        numeric_id=f"u1={first}|r={sp.sstr(ratio)}",
     )
 
 
@@ -360,13 +413,24 @@ _TRIG_DIRECT = (
     (sp.cos(x), "\\cos x", -sp.Rational(1, 2), "\\dfrac{2\\pi}{3}", "x = 2n\\pi \\pm \\dfrac{2\\pi}{3}"),
     (sp.tan(x), "\\tan x", 1, "\\dfrac{\\pi}{4}", "x = n\\pi + \\dfrac{\\pi}{4}"),
     (sp.tan(x), "\\tan x", sp.sqrt(3), "\\dfrac{\\pi}{3}", "x = n\\pi + \\dfrac{\\pi}{3}"),
+    (sp.sin(x), "\\sin x", -sp.sqrt(3) / 2, "\\dfrac{\\pi}{3}", "x = n\\pi + (-1)^n \\left(-\\dfrac{\\pi}{3}\\right)"),
+    (sp.sin(x), "\\sin x", -sp.sqrt(2) / 2, "\\dfrac{\\pi}{4}", "x = n\\pi + (-1)^n \\left(-\\dfrac{\\pi}{4}\\right)"),
+    (sp.cos(x), "\\cos x", sp.sqrt(3) / 2, "\\dfrac{\\pi}{6}", "x = 2n\\pi \\pm \\dfrac{\\pi}{6}"),
+    (sp.cos(x), "\\cos x", -sp.sqrt(2) / 2, "\\dfrac{3\\pi}{4}", "x = 2n\\pi \\pm \\dfrac{3\\pi}{4}"),
+    (sp.tan(x), "\\tan x", sp.sqrt(3) / 3, "\\dfrac{\\pi}{6}", "x = n\\pi + \\dfrac{\\pi}{6}"),
 )
+
+for _lhs, _lhs_tex, _rhs, _reference, _general in _TRIG_DIRECT:
+    _sorted_solutions(sp.Eq(_lhs, _rhs))
+if len(_TRIG_DIRECT) < 8:
+    raise RuntimeError("The direct trigonometric bank has fewer than eight equations.")
 
 
 def _trig_direct():
     lhs, lhs_tex, rhs, reference, general = random.choice(_TRIG_DIRECT)
     solutions = _sorted_solutions(sp.Eq(lhs, rhs))
     rhs_tex = sp.latex(rhs)
+    ratio_name = "sin" if lhs == sp.sin(x) else "cos" if lhs == sp.cos(x) else "tan"
     return pack_task(
         title="Trigonometry: Exact Equation",
         intro="Solve the equation for $0 \\le x \\le 2\\pi$. Give exact values.",
@@ -397,6 +461,9 @@ def _trig_direct():
         ],
         archetype="Exact trigonometric equation on a closed interval",
         family="Sine, cosine or tangent equal to a standard exact value",
+        part_graph_id="trig_exact_value",
+        cover_id="plain",
+        numeric_id=f"{ratio_name}={sp.sstr(rhs)}",
     )
 
 
