@@ -32,7 +32,8 @@ assert_zero(_fixed - (sp.log(k) + sp.Rational(1, 2)), "The area from 1 to e does
 
 def _figure(exponent):
     numeric_k = float(sp.exp(exponent))
-    grid = np.linspace(0.2, 3.2, 300)
+    # Exponents 3 and 7/2 put the maximum left of 0.2, so the window starts at 0.05.
+    grid = np.linspace(0.05, 3.2, 400)
     curve = np.log(numeric_k * grid) / grid
     fig, ax = plt.subplots(figsize=(4.4, 3.2))
     ax.plot(grid, curve, color="#1e293b", lw=1.8)
@@ -49,10 +50,14 @@ def _figure(exponent):
     return fig
 
 
+# 3/2 puts the inflection on x = 1. 9/2 pushes the maximum off a readable diagram.
+_EXPONENTS = (sp.Integer(2), sp.Rational(5, 2), sp.Integer(3), sp.Rational(7, 2))
+
+
 def gen_log_parameter(clean_integers: bool, difficulty: str = "standard"):
     """Sixteen marks. Challenging withholds the second derivative."""
-    exponents = (sp.Integer(5) / 2,) if clean_integers else (sp.Integer(2), sp.Integer(5) / 2)
-    exponent = choice(exponents)
+    del clean_integers
+    exponent = choice(_EXPONENTS)
     parameter = sp.exp(exponent)
     stated_area = exponent + sp.Rational(1, 2)
     recovered = sp.simplify(sp.log(parameter))
@@ -166,6 +171,11 @@ def gen_log_parameter(clean_integers: bool, difficulty: str = "standard"):
         fig=_figure(exponent), plot_type="essential",
         archetype=f"Logarithmic area determines k=e^({exponent}), mode={difficulty}",
         family="Quotient of a logarithm whose scaled area is independent of k",
+        part_graph_id=(
+            "ext_ln_area_find_second" if difficulty == "challenging" else "ext_ln_area_given_second"
+        ),
+        cover_id="plain",
+        numeric_id=f"exp={sp.sstr(exponent)}",
     )
     if task.marks != 16:
         raise RuntimeError(f"The logarithmic section B question is worth {task.marks}, not 16.")

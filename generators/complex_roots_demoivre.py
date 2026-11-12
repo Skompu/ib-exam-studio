@@ -164,4 +164,7 @@ def gen_complex_demoivre_roots(clean_integers: bool, difficulty: str = "standard
             f"de Moivre n={item['order']} w={item['number']} area={item['area']}"
         ),
         family="nth roots of a complex number and the area of their polygon",
+        part_graph_id=f"complex_demoivre_n{item['order']}",
+        cover_id="plain",
+        numeric_id=f"w={sp.sstr(item['number'])}|n={item['order']}",
     )

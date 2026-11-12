@@ -84,43 +84,82 @@ def _item(a, b, c, x0, y0, step, count, label):
     }
 
 
-def _short_bank():
+def _bank(specs, minimum):
     found = []
-    specs = (
-        (0, 1, 0, 0, 1, sp.Rational(1, 5), 2, "y' = y"),
-        (1, 0, 0, 0, 0, sp.Rational(1, 4), 2, "y' = x"),
-        (1, 1, 0, 0, 1, sp.Rational(1, 5), 2, "y' = x + y"),
-        (0, -1, 2, 0, 1, sp.Rational(1, 5), 2, "y' = 2 - y"),
-        (2, -1, 0, 0, 1, sp.Rational(1, 10), 2, "y' = 2x - y"),
-    )
     for args in specs:
         item = _item(*args)
-        if item is not None:
-            found.append(item)
-    if len(found) < 4:
-        raise RuntimeError("The Euler bank is too small.")
+        if item is None:
+            raise RuntimeError(f"Euler spec {args[-1]} did not survive.")
+        found.append(item)
+    keys = {
+        (sp.sstr(item["rhs"]), item["x0"], item["y0"], sp.sstr(item["step"]))
+        for item in found
+    }
+    if len(keys) < minimum:
+        raise RuntimeError(f"The Euler bank has only {len(keys)} distinct equations.")
     return tuple(found)
+
+
+def _short_bank():
+    # h is 1/10, 1/5, 1/4 or 1/2. Each survivor has a short rational Euler value.
+    return _bank(
+        (
+            (0, 1, 0, 0, 1, sp.Rational(1, 5), 2, "y' = y"),
+            (0, 1, 0, 0, 2, sp.Rational(1, 10), 2, "y' = y, h = 1/10"),
+            (0, 1, 0, 0, 1, sp.Rational(1, 2), 2, "y' = y, h = 1/2"),
+            (1, 0, 0, 0, 0, sp.Rational(1, 4), 2, "y' = x"),
+            (1, 0, 0, 0, 1, sp.Rational(1, 2), 2, "y' = x, h = 1/2"),
+            (1, 1, 0, 0, 1, sp.Rational(1, 5), 2, "y' = x + y"),
+            (0, -1, 2, 0, 1, sp.Rational(1, 5), 2, "y' = 2 - y"),
+            (2, -1, 0, 0, 1, sp.Rational(1, 5), 2, "y' = 2x - y"),
+            (0, -2, 0, 0, 1, sp.Rational(1, 4), 2, "y' = -2y"),
+            (1, -1, 1, 0, 1, sp.Rational(1, 4), 2, "y' = x - y + 1"),
+            (1, 0, 1, 0, 1, sp.Rational(1, 5), 2, "y' = x + 1"),
+            (2, 0, 0, 0, 1, sp.Rational(1, 4), 2, "y' = 2x"),
+            (0, 1, 1, 0, 1, sp.Rational(1, 5), 2, "y' = y + 1"),
+            (1, -1, 0, 0, 1, sp.Rational(1, 4), 2, "y' = x - y"),
+        ),
+        10,
+    )
 
 
 def _long_bank():
-    found = []
-    specs = (
-        (1, 1, 0, 0, 1, sp.Rational(1, 10), 3, "y' = x + y, three steps"),
-        (0, -2, 0, 0, 1, sp.Rational(1, 10), 3, "y' = -2y"),
-        (2, -1, 0, 0, 1, sp.Rational(1, 10), 3, "y' = 2x - y, three steps"),
-        (1, -1, 1, 1, 2, sp.Rational(1, 5), 3, "y' = x - y + 1"),
+    return _bank(
+        (
+            (1, 0, 0, 0, 1, sp.Rational(1, 5), 3, "y' = x, three steps"),
+            (1, 1, 0, 0, 1, sp.Rational(1, 4), 3, "y' = x + y, three steps"),
+            (0, -2, 0, 0, 1, sp.Rational(1, 4), 3, "y' = -2y, three steps"),
+            (1, -1, 1, 0, 1, sp.Rational(1, 2), 3, "y' = x - y + 1, three steps"),
+            (2, -1, 0, 0, 1, sp.Rational(1, 2), 3, "y' = 2x - y, three steps"),
+            (0, -1, 2, 0, 1, sp.Rational(1, 2), 3, "y' = 2 - y, three steps"),
+            (2, 0, 0, 0, 1, sp.Rational(1, 5), 3, "y' = 2x, three steps"),
+            (2, 0, 0, 0, 1, sp.Rational(1, 10), 3, "y' = 2x, h = 1/10"),
+            (1, 0, 1, 0, 1, sp.Rational(1, 5), 3, "y' = x + 1, three steps"),
+            (0, 1, 0, 0, 1, sp.Rational(1, 2), 3, "y' = y, three steps"),
+            (1, -1, 0, 0, 1, sp.Rational(1, 2), 3, "y' = x - y, three steps"),
+            (0, -1, 3, 0, 1, sp.Rational(1, 4), 3, "y' = 3 - y, three steps"),
+            (2, 1, 0, 0, 1, sp.Rational(1, 2), 3, "y' = 2x + y, three steps"),
+        ),
+        10,
     )
-    for args in specs:
-        item = _item(*args)
-        if item is not None:
-            found.append(item)
-    if len(found) < 3:
-        raise RuntimeError("The challenging Euler bank is too small.")
-    return tuple(found)
 
 
 _SHORT = _short_bank()
 _LONG = _long_bank()
+
+
+def _numeric_id(item) -> str:
+    return (
+        f"rhs={sp.sstr(item['rhs'])}|x0={item['x0']}|y0={item['y0']}|"
+        f"h={sp.sstr(item['step'])}"
+    )
+
+
+def _bias(item) -> str:
+    gap = sp.N(sp.simplify(item["euler_y"] - item["exact_y"]), 20)
+    if gap == 0:
+        raise RuntimeError("Euler's method matched the exact value.")
+    return "overestimate" if gap > 0 else "underestimate"
 
 
 def gen_euler_method(clean_integers: bool, difficulty: str = "standard"):
@@ -155,11 +194,15 @@ def gen_euler_method(clean_integers: bool, difficulty: str = "standard"):
                         "Apply Euler's method again, then read the exact solution:",
                         rf"y \approx {_latex_number(item['euler_y'])}, \quad y = {_latex_number(item['exact_y'])}",
                         "M1 A1 A1",
+                        ft=True,
                     ),
                 ),
             ],
             archetype=f"Euler two steps {item['label']} h={sp.latex(item['step'])}",
             family="Two Euler iterations on a linear ODE",
+            part_graph_id="euler_two_steps",
+            cover_id="plain",
+            numeric_id=_numeric_id(item),
         )
     else:
         task = pack_task(
@@ -187,14 +230,23 @@ def gen_euler_method(clean_integers: bool, difficulty: str = "standard"):
                     "and state whether the Euler approximation is an overestimate or an underestimate.",
                     2,
                     step(
-                        "Read the exact solution. The linear slope keeps the local error on one side:",
-                        rf"y = {_latex_number(item['exact_y'])}, \quad \text{{Euler gives }} {_latex_number(item['euler_y'])}",
-                        "M1 A1",
+                        "Solve the differential equation with the initial condition. This value does not use the table:",
+                        rf"y = {_latex_number(item['exact_y'])}",
+                        "M1",
+                    ),
+                    step(
+                        "Compare the final row of the table with the exact value:",
+                        rf"\mathrm{{{_bias(item)}}}",
+                        "A1",
+                        ft=True,
                     ),
                 ),
             ],
             archetype=f"Euler three steps {item['label']} h={sp.latex(item['step'])}",
             family="Three Euler iterations on a linear ODE",
+            part_graph_id="euler_three_steps",
+            cover_id="plain",
+            numeric_id=_numeric_id(item),
         )
     if task.marks != 6:
         raise RuntimeError("Euler's method must be worth 6 marks.")

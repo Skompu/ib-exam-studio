@@ -83,6 +83,9 @@ def _about_x(factor: int, limit: int):
         fig=fig, plot_type="essential",
         archetype=f"Rotation about the x-axis up to x={limit}",
         family="Square root curve with an integer multiple of pi",
+        part_graph_id="vol_rev_disk_ox",
+        cover_id="plain",
+        numeric_id=f"factor={factor}|limit={limit}",
     )
 
 
@@ -144,12 +147,15 @@ def _about_y(slope: int):
         fig=fig, plot_type="essential",
         archetype=f"Rotation about the y-axis between y=x^2 and y={slope}x",
         family="Washer method with an exact rational multiple of pi",
+        part_graph_id="vol_rev_washer_oy",
+        cover_id="plain",
+        numeric_id=f"slope={slope}",
     )
 
 
 def gen_volume_revolution(clean_integers: bool, difficulty: str = "standard"):
     if difficulty == "challenging":
-        task = _about_y(choice((1, 2) if clean_integers else (1, 2, 3)))
+        task = _about_y(choice((1, 2, 3) if clean_integers else (1, 2, 3, 4)))
     else:
         factor = choice((1, 2) if clean_integers else (1, 2, 3, 4))
         limit = choice((2, 4) if clean_integers else (2, 4, 6))

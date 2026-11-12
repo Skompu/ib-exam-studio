@@ -223,6 +223,107 @@ def test_kin_gdc_standard_bank_supports_three_cohorts():
         plt.close(task.fig)
 
 
+def test_calculus_identity_banks_fill_three_cohorts():
+    import matplotlib.pyplot as plt
+    import sympy as sp
+
+    from generators.calculus_euler import _LONG, _SHORT
+    from generators.calculus_lhopital import _ONCE, _TWICE
+    from generators.calculus_log_parameter import _EXPONENTS
+
+    assert len(_SHORT) >= 10 and len(_LONG) >= 10
+    assert len({(item["x0"], item["y0"], str(item["step"]), str(item["rhs"])) for item in _SHORT}) >= 10
+    assert len({item["name"] for item in _ONCE}) >= 10
+    assert len({item["name"] for item in _TWICE}) >= 10
+    assert set(_EXPONENTS) == {sp.Integer(2), sp.Rational(5, 2), sp.Integer(3), sp.Rational(7, 2)}
+
+    short = _draw("calc_euler", "standard", 1)[0]
+    long = _draw("calc_euler", "challenging", 1)[0]
+    assert short.part_graph_id == "euler_two_steps"
+    assert short.parts[1].scheme[0].ft is True
+    assert long.part_graph_id == "euler_three_steps"
+    assert long.parts[1].scheme[0].ft is False
+    assert long.parts[1].scheme[1].ft is True
+
+    once = _draw("calc_lhopital", "standard", 1)[0]
+    twice = _draw("calc_lhopital", "challenging", 1)[0]
+    assert once.part_graph_id == "lhopital_once"
+    assert twice.part_graph_id == "lhopital_twice"
+    assert once.numeric_id and twice.numeric_id
+
+    for key in ("calc_euler", "calc_lhopital"):
+        papers = compose_papers((key,), 3, True, 2026, "standard", "strict_parallel")
+        numerics = [paper["tasks"][0]["numeric_id"] for paper in papers]
+        assert len(set(numerics)) == 3, (key, numerics)
+        assert len({paper["tasks"][0]["part_graph_id"] for paper in papers}) == 1
+
+    for key, difficulty, graph in (
+        ("ext_ln", "standard", "ext_ln_area_given_second"),
+        ("ext_ln", "challenging", "ext_ln_area_find_second"),
+        ("vol_rev", "standard", "vol_rev_disk_ox"),
+        ("vol_rev", "challenging", "vol_rev_washer_oy"),
+    ):
+        papers = compose_papers((key,), 3, True, 2026, difficulty, "strict_parallel")
+        numerics = [paper["tasks"][0]["numeric_id"] for paper in papers]
+        assert len(set(numerics)) == 3, (key, difficulty, numerics)
+        assert {paper["tasks"][0]["part_graph_id"] for paper in papers} == {graph}
+        for paper in papers:
+            fig = paper["tasks"][0].get("fig")
+            if fig is not None:
+                plt.close(fig)
+        if key == "ext_ln":
+            assert all(not item.endswith("=3/2") and "9/2" not in item for item in numerics)
+
+
+def test_algebra_and_proof_banks_fill_three_cohorts():
+    from generators.algebra_combinations import COVERS, _PAIRS, _WOMEN
+    from generators.algebra_contradiction import _CHALLENGING_RADICALS, _STANDARD_RADICALS
+    from generators.algebra_direct_proof import _DIRECT
+    from generators.binomial_fractional import _FRACTIONAL, _STANDARD
+    from generators.complex_roots_demoivre import _BANK
+
+    assert len(_STANDARD) >= 8 and len(_FRACTIONAL) >= 8
+    assert len({(item["n"], item["a"]) for item in _STANDARD}) >= 8
+    assert len({(item["n"], item["a"]) for item in _FRACTIONAL}) >= 8
+    assert len(_WOMEN) >= 8 and len(_PAIRS) >= 8
+    assert [cover["id"] for cover in COVERS] == [
+        "school_council",
+        "project_team",
+        "sports_delegation",
+    ]
+    assert len(_DIRECT) >= 6
+    assert [pair[1] for pair in _STANDARD_RADICALS] == [2, 3, 5]
+    assert [pair[1] for pair in _CHALLENGING_RADICALS] == [5, 6, 7]
+    for order in (3, 4):
+        clean = [item for item in _BANK if item["order"] == order and item["integer_coordinates"]]
+        assert len(clean) >= 8, (order, len(clean))
+
+    for key, graph in (
+        ("binomial_frac", "binomial_neg_int"),
+        ("alg_comb", "comb_exclude_pair"),
+        ("proof_contra", "proof_sqrt_residue"),
+        ("proof_direct", "proof_direct_expand"),
+        ("complex_demoivre", "complex_demoivre_n3"),
+    ):
+        papers = compose_papers((key,), 3, True, 2026, "standard", "strict_parallel")
+        numerics = [paper["tasks"][0]["numeric_id"] for paper in papers]
+        assert len(set(numerics)) == 3, (key, numerics)
+        assert {paper["tasks"][0]["part_graph_id"] for paper in papers} == {graph}
+
+    papers = compose_papers(("alg_comb",), 3, True, 2026, "standard", "cognitive_twin")
+    covers = [paper["tasks"][0]["cover_id"] for paper in papers]
+    assert set(covers) == {"school_council", "project_team", "sports_delegation"}
+    assert {paper["tasks"][0]["part_graph_id"] for paper in papers} == {"comb_exclude_pair"}
+
+    hard = _draw("proof_direct", "challenging", 1)[0]
+    assert hard.part_graph_id == "proof_parity_contradiction"
+    assert hard.numeric_id == "odd_square_implies_odd"
+    fractional = _draw("binomial_frac", "challenging", 1)[0]
+    assert fractional.part_graph_id == "binomial_frac_validity"
+    square = _draw("complex_demoivre", "challenging", 1)[0]
+    assert square.part_graph_id == "complex_demoivre_n4"
+
+
 def test_cognitive_twin_three_cohorts_on_story_covers():
     for key in ("gdc_chi", "gdc_chi_gof", "ext_gdc_stat", "gdc_dist", "gdc_invnorm", "bivar"):
         papers = compose_papers((key,), 3, True, 2026, "standard", "cognitive_twin")

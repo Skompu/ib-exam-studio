@@ -67,6 +67,15 @@ def candidate_allowed(
     return ids.cover_id not in used_cover
 
 
+def _release_figure(task: Task) -> None:
+    figure = getattr(task, "fig", None)
+    if figure is None:
+        return
+    import matplotlib.pyplot as plt
+
+    plt.close(figure)
+
+
 def _mark_vector(task: dict) -> tuple:
     vector = task.get("marks_vector")
     if vector:
@@ -168,6 +177,7 @@ def compose_papers(
                         used_numeric[key],
                         used_cover[key],
                     ):
+                        _release_figure(candidate)
                         continue
                     used_numeric[key].add(ids.numeric_id)
                     used_cover[key].add(ids.cover_id)

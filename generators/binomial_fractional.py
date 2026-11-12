@@ -29,19 +29,24 @@ def _expanded(n, a, terms):
     return restored
 
 
+def _outer(a) -> str:
+    if a == 1:
+        return r"(1 + x)"
+    if a == -1:
+        return r"(1 - x)"
+    if a < 0:
+        return rf"(1 - {sp.latex(-a)}x)"
+    return rf"(1 + {sp.latex(a)}x)"
+
+
 def _item(n, a, label):
     expanded = _expanded(n, a, 4)
     coeffs = [sp.simplify(expanded.coeff(x, power)) for power in range(3)]
     if any(not coeff.is_rational for coeff in coeffs):
         return None
-    inner = _ax_latex(a)
-    if inner == "x":
-        outer = r"(1 + x)"
-    elif inner == "-x":
-        outer = r"(1 - x)"
-    else:
-        outer = rf"(1 + {inner})"
-    validity = rf"|{inner}| < 1"
+    scale = "" if abs(a) == 1 else sp.latex(abs(a))
+    outer = _outer(a)
+    validity = rf"|{scale}x| < 1"
     return {
         "n": n,
         "a": a,
@@ -56,36 +61,38 @@ def _item(n, a, label):
 
 def _bank():
     found = []
-    for n, a, label in (
-        (-1, 1, "1/(1+x)"),
-        (-1, -2, "1/(1-2x)"),
-        (-2, 1, "1/(1+x)^2"),
-        (-2, -1, "1/(1-x)^2"),
-        (sp.Rational(1, 2), 1, "(1+x)^(1/2)"),
-        (sp.Rational(1, 2), -1, "(1-x)^(1/2)"),
-        (sp.Rational(3, 2), 1, "(1+x)^(3/2)"),
-        (-sp.Rational(1, 2), 1, "(1+x)^(-1/2)"),
-        (-sp.Rational(1, 2), -2, "(1-2x)^(-1/2)"),
-    ):
-        item = _item(n, a, label)
-        if item is not None:
-            found.append(item)
-    if len(found) < 6:
-        raise RuntimeError("The fractional binomial bank is too small.")
+    exponents = (
+        sp.Integer(-3),
+        sp.Integer(-2),
+        sp.Integer(-1),
+        sp.Rational(1, 2),
+        sp.Rational(-1, 2),
+        sp.Rational(3, 2),
+        sp.Rational(-3, 2),
+    )
+    for n in exponents:
+        for a in (-3, -2, -1, 1, 2, 3):
+            item = _item(n, a, f"n={sp.sstr(n)}|a={a}")
+            if item is not None:
+                found.append(item)
     return tuple(found)
 
 
 _BANK = _bank()
-_STANDARD = tuple(item for item in _BANK if item["n"].is_integer or item["n"] == -1 or item["n"] == -2)
+_STANDARD = tuple(item for item in _BANK if item["n"].is_integer)
 _FRACTIONAL = tuple(item for item in _BANK if not item["n"].is_integer)
+if len(_STANDARD) < 8 or len(_FRACTIONAL) < 8:
+    raise RuntimeError(
+        f"Binomial banks are too small (integer {len(_STANDARD)}, fractional {len(_FRACTIONAL)})."
+    )
 
 
 def gen_binomial_fractional(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
     pool = _FRACTIONAL if difficulty == "challenging" else _STANDARD
-    if not pool:
-        pool = _BANK
     item = choice(pool)
+    graph = "binomial_frac_validity" if difficulty == "challenging" else "binomial_neg_int"
+    numeric = f"n={sp.sstr(item['n'])}|a={sp.sstr(item['a'])}"
     if difficulty == "challenging":
         task = pack_task(
             title="Algebra: General Binomial Expansion",
@@ -115,6 +122,9 @@ def gen_binomial_fractional(clean_integers: bool, difficulty: str = "standard"):
             ],
             archetype=f"Fractional binomial {item['label']} plus validity",
             family="Expansion to x^2 with a convergence condition",
+            part_graph_id=graph,
+            cover_id="plain",
+            numeric_id=numeric,
         )
     else:
         task = pack_task(
@@ -145,6 +155,9 @@ def gen_binomial_fractional(clean_integers: bool, difficulty: str = "standard"):
             ],
             archetype=f"Fractional binomial {item['label']}",
             family="Negative-index binomial expansion to x^2",
+            part_graph_id=graph,
+            cover_id="plain",
+            numeric_id=numeric,
         )
     if task.marks != 6:
         raise RuntimeError("The fractional binomial question must be worth 6 marks.")

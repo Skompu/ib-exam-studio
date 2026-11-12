@@ -3,6 +3,7 @@
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step
+from core.rng import choice
 
 k = sp.symbols("k", integer=True)
 
@@ -61,15 +62,20 @@ def _irrational(modulus, radical):
         ],
         archetype=f"Irrationality of sqrt({radical}) by contradiction",
         family=f"Divisibility by {modulus}, then a lowest-terms contradiction",
+        part_graph_id="proof_sqrt_residue",
+        cover_id="plain",
+        numeric_id=f"rad={radical}",
     )
+
+
+_STANDARD_RADICALS = ((2, 2), (3, 3), (5, 5))
+_CHALLENGING_RADICALS = ((5, 5), (6, 6), (7, 7))
 
 
 def gen_proof_contradiction(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    if difficulty == "challenging":
-        task = _irrational(3, 3)
-    else:
-        task = _irrational(2, 2)
+    modulus, radical = choice(_CHALLENGING_RADICALS if difficulty == "challenging" else _STANDARD_RADICALS)
+    task = _irrational(modulus, radical)
     if task.marks != 6:
         raise RuntimeError("Contradiction question must be worth 6 marks.")
     return task
