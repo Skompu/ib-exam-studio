@@ -361,17 +361,16 @@ def _append_rich(story, text: str, style, max_width: float):
 
 
 def figure_visible(task: dict, *, is_markscheme: bool, exam_mode: bool) -> bool:
-    """Mark schemes keep every figure. A booklet hides illustrative spoilers."""
+    """Show the curve on the student sheet and in the mark scheme.
+
+    Answer marks are left off the drawing itself, so an illustrative figure
+    no longer has to be hidden.
+    """
+    del is_markscheme, exam_mode
     if not task.get("png_bytes"):
         return False
-    if is_markscheme:
-        return True
     kind = task.get("plot_type") or "illustrative"
-    if kind in {"essential", "grid_to_sketch"}:
-        return True
-    if kind == "illustrative":
-        return not exam_mode
-    return False
+    return kind != "none"
 
 
 def _scheme_groups(task: dict) -> list:
@@ -752,6 +751,7 @@ def build_multi_question_pdf(
         variant = paper["variant"]
         tasks = paper["tasks"]
         total_marks = paper["total_marks"]
+        cohort_list = ", ".join(item["variant"] for item in papers)
 
         doc_type_label = "OFFICIAL MARK SCHEME & SOLUTIONS" if is_markscheme else "ASSESSMENT EXAMINATION PAPER"
         _append_paper_cover(
@@ -769,6 +769,13 @@ def build_multi_question_pdf(
             meta_style=meta_style,
             title_style=title_style,
         )
+        if len(papers) > 1:
+            story.append(Paragraph(
+                f"Twin papers {cohort_list}: same difficulty, different data, different answers. "
+                "Not an easier or a harder version.",
+                meta_style,
+            ))
+            story.append(Spacer(1, 6))
         if is_markscheme and paper.get("difficulty"):
             difficulty_label = (
                 "Challenging (IB exam-trap)" if paper["difficulty"] == "challenging" else "Standard procedures"
@@ -805,6 +812,7 @@ def build_multi_question_pdf(
         for task in tasks:
             section = task.get("section", "A")
             entering_section = section != current_section
+            section_banner = None
 
             if section == "B" and paper_format == "exam_booklet" and not is_markscheme:
                 # Each extended question starts at the top of a fresh page.
@@ -821,13 +829,24 @@ def build_multi_question_pdf(
                     if section == "A"
                     else "SECTION B — Extended-response questions"
                 )
-                story.append(Paragraph(f"{banner} ({section_marks[section]} marks)", section_style))
+                banner_flowable = Paragraph(
+                    f"{banner} ({section_marks[section]} marks)",
+                    section_style,
+                )
+                # Keep the banner with the first question. A lone banner at the
+                # foot of a worksheet page otherwise leaves Question 10 below it.
+                if paper_format == "worksheet":
+                    section_banner = banner_flowable
+                else:
+                    story.append(banner_flowable)
             on_fresh_page = False
 
             q_num = task["q_number"]
             q_title = task["title"]
             q_marks = task["marks"]
             question_flowables = []
+            if section_banner is not None:
+                question_flowables.append(section_banner)
             short_title = re.sub(r"^Paper 2:\s*", "", q_title).strip()
             question_flowables.append(Paragraph(
                 f"<b>Question {q_num}.</b> {escape(short_title)} "

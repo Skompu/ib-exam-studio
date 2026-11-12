@@ -2,8 +2,8 @@
 
 import sympy as sp
 
+from core.deck import deal
 from core.randomizer import assert_zero, pack_task, part, step
-from core.rng import choice
 
 n = sp.symbols("n", integer=True)
 k = sp.symbols("k", integer=True)
@@ -13,7 +13,7 @@ def _odd_squares_even():
     identity = sp.expand((2 * n - 1) ** 2 + (2 * n + 1) ** 2 - (8 * n**2 + 2))
     assert_zero(identity, "The sum of two consecutive odd squares is not 8n^2 + 2.")
     factored = sp.factor(8 * n**2 + 2)
-    if factored != 2 * (4 * n**2 + 1):
+    if sp.expand(factored - 2 * (4 * n**2 + 1)) != 0:
         raise RuntimeError("8n^2 + 2 did not factor as twice an integer.")
     return pack_task(
         title="Proof: Consecutive Odd Squares",
@@ -118,7 +118,7 @@ def _contradiction():
         ],
         archetype="If n^2 is odd then n is odd, by contradiction",
         family="Proof by contradiction on parity",
-        part_graph_id="proof_parity_contradiction",
+        part_graph_id="proof_direct_expand",
         cover_id="plain",
         numeric_id="odd_square_implies_odd",
     )
@@ -272,18 +272,22 @@ def _even_square():
     )
 
 
-_DIRECT = (
-    _odd_squares_even,
-    _odd_square_mod_eight,
-    _odd_square_difference,
-    _three_consecutive,
-    _even_product,
-    _even_square,
+_STANDARD = (
+    ("odd_squares_even", _odd_squares_even),
+    ("odd_square_mod_eight", _odd_square_mod_eight),
+    ("odd_square_difference_mod_eight", _odd_square_difference),
+    ("three_consecutive_div_three", _three_consecutive),
+)
+_CHALLENGING = (
+    ("odd_square_implies_odd", _contradiction),
+    ("even_product_div_four", _even_product),
+    ("even_square_div_four", _even_square),
+    ("three_consecutive_div_three", _three_consecutive),
 )
 
 
-def gen_direct_proof(clean_integers: bool, difficulty: str = "standard"):
+def gen_direct_proof(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
     del clean_integers
-    if difficulty == "challenging":
-        return _contradiction()
-    return choice(_DIRECT)()
+    bank = _CHALLENGING if difficulty == "challenging" else _STANDARD
+    _name, builder = deal(bank, exclude_numeric_ids, lambda row: row[0])
+    return builder()

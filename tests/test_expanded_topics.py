@@ -120,7 +120,7 @@ def test_integration_techniques_stay_off_the_fixed_papers():
         "calc_sub": {"standard": "calc_sub_direct", "challenging": "calc_sub_rearrange"},
     }
     for key in ("calc_parts", "calc_sub"):
-        assert key not in {item for preset in PRESETS.values() for item in preset["keys"]}
+        assert key not in {item for preset in PRESETS.values() for item in preset.get("keys", ())}
         for difficulty, minimum in (("standard", 5), ("challenging", 3)):
             seen = set()
             numerics = set()
@@ -141,13 +141,13 @@ def test_integration_techniques_stay_off_the_fixed_papers():
             assert len(seen) >= minimum, (key, difficulty, seen)
             assert len(numerics) >= minimum, (key, difficulty, numerics)
     assert PRESETS["mid"]["marks"] == 50
-    assert PRESETS["mock"]["marks"] == 100
+    assert PRESETS["mock"]["marks"] == 110
     assert PRESETS["paper2"]["marks"] == 24
 
 
 def test_polynomial_root_questions_stay_off_the_fixed_papers():
     for key in ("alg_factor", "alg_vieta"):
-        assert key not in {item for preset in PRESETS.values() for item in preset["keys"]}
+        assert key not in {item for preset in PRESETS.values() for item in preset.get("keys", ())}
         for difficulty, minimum in (("standard", 3), ("challenging", 2)):
             seen = set()
             for index in range(12):
@@ -162,7 +162,7 @@ def test_polynomial_root_questions_stay_off_the_fixed_papers():
                 assert task.fig is None
             assert len(seen) >= minimum, (key, difficulty, seen)
     assert PRESETS["mid"]["marks"] == 50
-    assert PRESETS["mock"]["marks"] == 100
+    assert PRESETS["mock"]["marks"] == 110
     assert PRESETS["paper2"]["marks"] == 24
 
 
@@ -184,7 +184,7 @@ def _parses(parser, formula):
 
 def test_linear_systems_implicit_and_lhopital():
     parser = MathTextParser("agg")
-    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
+    locked = {item for preset in PRESETS.values() for item in preset.get("keys", ())}
     for key in ("calc_implicit", "calc_lhopital"):
         assert key not in locked
     assert "gdc_system" in PRESETS["paper2plus"]["keys"]
@@ -208,7 +208,7 @@ def test_linear_systems_implicit_and_lhopital():
         modes.add("infinite" if "infinite" in task.archetype else "none")
     assert modes == {"infinite", "none"}
     assert PRESETS["mid"]["marks"] == 50
-    assert PRESETS["mock"]["marks"] == 100
+    assert PRESETS["mock"]["marks"] == 110
     assert PRESETS["paper2"]["marks"] == 24
     assert PRESETS["paper2plus"]["marks"] == 65
 
@@ -217,7 +217,7 @@ def test_trig_paper3_and_probe_presets():
     assert PRESETS["paper3_probe"]["marks"] == 32
     assert PRESETS["paper3_probe"]["calculator"] == "gdc"
     assert PRESETS["paper3_probe"]["keys"] == ("paper3_geo", "paper3_mac")
-    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
+    locked = {item for preset in PRESETS.values() for item in preset.get("keys", ())}
     for key in ("trig_recip", "trig_inv"):
         assert key not in PRESETS["mock"]["keys"]
         for difficulty in ("standard", "challenging"):
@@ -306,8 +306,8 @@ def test_extended_gdc_model_variants():
 
 
 def test_extended_gdc_stat_and_mock_p2():
-    assert PRESETS["mock_p2"]["marks"] == 100
-    assert PRESETS["mock"]["marks"] == 100
+    assert PRESETS["mock_p2"]["marks"] == 110
+    assert PRESETS["mock"]["marks"] == 110
     assert PRESETS["mock_p2"]["calculator"] == "gdc"
     assert PRESETS["mock"].get("calculator", "none") == "none"
     for difficulty in ("standard", "challenging"):
@@ -335,7 +335,7 @@ def test_extended_gdc_stat_and_mock_p2():
 
 
 def test_gdc_chi_gof_off_fixed_presets_and_variants():
-    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
+    locked = {item for preset in PRESETS.values() for item in preset.get("keys", ())}
     assert "gdc_chi_gof" not in PRESETS["mock"]["keys"]
     assert "gdc_chi_gof" in PRESETS["paper2plus"]["keys"]
     for difficulty in ("standard", "challenging"):
@@ -372,7 +372,7 @@ def test_gdc_chi_uses_native_display_table():
 
 
 def test_chi_exponential_and_gdc_chi_preset():
-    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
+    locked = {item for preset in PRESETS.values() for item in preset.get("keys", ())}
     for key in ("prob_exp",):
         assert key not in PRESETS["mock"]["keys"]
         task = _one(key, "standard")
@@ -398,7 +398,7 @@ def test_chi_exponential_and_gdc_chi_preset():
 
 
 def test_euler_and_fractional_binomial_stay_off_fixed_papers():
-    locked = {item for preset in PRESETS.values() for item in preset["keys"]}
+    locked = {item for preset in PRESETS.values() for item in preset.get("keys", ())}
     for key in ("calc_euler", "binomial_frac"):
         assert key not in locked
         for difficulty in ("standard", "challenging"):

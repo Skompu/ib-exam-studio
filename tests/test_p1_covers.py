@@ -278,7 +278,8 @@ def test_calculus_identity_banks_fill_three_cohorts():
 def test_algebra_and_proof_banks_fill_three_cohorts():
     from generators.algebra_combinations import COVERS, _PAIRS, _WOMEN
     from generators.algebra_contradiction import _CHALLENGING_RADICALS, _STANDARD_RADICALS
-    from generators.algebra_direct_proof import _DIRECT
+    from generators.algebra_direct_proof import _CHALLENGING as _DIRECT_HARD
+    from generators.algebra_direct_proof import _STANDARD as _DIRECT_STD
     from generators.binomial_fractional import _FRACTIONAL, _STANDARD
     from generators.complex_roots_demoivre import _BANK
 
@@ -291,9 +292,10 @@ def test_algebra_and_proof_banks_fill_three_cohorts():
         "project_team",
         "sports_delegation",
     ]
-    assert len(_DIRECT) >= 6
-    assert [pair[1] for pair in _STANDARD_RADICALS] == [2, 3, 5]
-    assert [pair[1] for pair in _CHALLENGING_RADICALS] == [5, 6, 7]
+    assert len(_DIRECT_STD) >= 4
+    assert len(_DIRECT_HARD) >= 4
+    assert [pair[1] for pair in _STANDARD_RADICALS] == [2, 3, 5, 13]
+    assert [pair[1] for pair in _CHALLENGING_RADICALS] == [7, 17, 19, 23]
     for order in (3, 4):
         clean = [item for item in _BANK if item["order"] == order and item["integer_coordinates"]]
         assert len(clean) >= 8, (order, len(clean))
@@ -315,9 +317,9 @@ def test_algebra_and_proof_banks_fill_three_cohorts():
     assert set(covers) == {"school_council", "project_team", "sports_delegation"}
     assert {paper["tasks"][0]["part_graph_id"] for paper in papers} == {"comb_exclude_pair"}
 
-    hard = _draw("proof_direct", "challenging", 1)[0]
-    assert hard.part_graph_id == "proof_parity_contradiction"
-    assert hard.numeric_id == "odd_square_implies_odd"
+    hard = _draw("proof_direct", "challenging", 8)
+    assert {task.part_graph_id for task in hard} == {"proof_direct_expand"}
+    assert len({task.numeric_id for task in hard}) >= 2
     fractional = _draw("binomial_frac", "challenging", 1)[0]
     assert fractional.part_graph_id == "binomial_frac_validity"
     square = _draw("complex_demoivre", "challenging", 1)[0]

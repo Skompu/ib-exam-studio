@@ -2,8 +2,8 @@
 
 import sympy as sp
 
+from core.deck import deal
 from core.randomizer import assert_zero, pack_task, part, step
-from core.rng import choice
 
 k = sp.symbols("k", integer=True)
 
@@ -68,13 +68,14 @@ def _irrational(modulus, radical):
     )
 
 
-_STANDARD_RADICALS = ((2, 2), (3, 3), (5, 5))
-_CHALLENGING_RADICALS = ((5, 5), (6, 6), (7, 7))
+_STANDARD_RADICALS = ((2, 2), (3, 3), (5, 5), (13, 13))
+_CHALLENGING_RADICALS = ((7, 7), (17, 17), (19, 19), (23, 23))
 
 
-def gen_proof_contradiction(clean_integers: bool, difficulty: str = "standard"):
+def gen_proof_contradiction(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
     del clean_integers
-    modulus, radical = choice(_CHALLENGING_RADICALS if difficulty == "challenging" else _STANDARD_RADICALS)
+    bank = _CHALLENGING_RADICALS if difficulty == "challenging" else _STANDARD_RADICALS
+    modulus, radical = deal(bank, exclude_numeric_ids, lambda pair: f"rad={pair[1]}")
     task = _irrational(modulus, radical)
     if task.marks != 6:
         raise RuntimeError("Contradiction question must be worth 6 marks.")

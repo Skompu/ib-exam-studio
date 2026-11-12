@@ -66,17 +66,22 @@ def _bank():
         _item(3, sp.Rational(9, 10), 12, sp.Rational(1, 100), sp.Rational(-9, 10)),
         _item(5, sp.Rational(4, 5), 10, sp.Rational(1, 50), sp.Rational(-4, 5)),
         _item(2, sp.Rational(7, 10), 14, sp.Rational(1, 200), sp.Rational(-7, 10)),
+        _item(4, sp.Rational(3, 4), 12, sp.Rational(1, 100), sp.Rational(-3, 4)),
+        _item(6, sp.Rational(2, 3), 16, sp.Rational(1, 80), sp.Rational(-2, 3)),
+        _item(8, sp.Rational(5, 6), 15, sp.Rational(1, 150), sp.Rational(-5, 6)),
+        _item(4, sp.Rational(4, 5), 13, sp.Rational(1, 100), sp.Rational(-4, 5)),
     )
 
 
 _BANK = _bank()
+_LONG = tuple(item for item in _BANK if item["terms"] >= 12)
+if len(_BANK) < 4 or len(_LONG) < 4:
+    raise RuntimeError("The Paper 3 geometric bank cannot fill four cohorts.")
 
 
 def gen_paper3_investigation(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    item = choice(_BANK)
-    if difficulty == "challenging":
-        item = max(_BANK, key=lambda row: row["terms"])
+    item = choice(_LONG if difficulty == "challenging" else _BANK)
     ratio_tex = sp.latex(item["ratio"])
     neg_tex = sp.latex(item["negative_ratio"])
     shown_finite = item["shown_finite"]

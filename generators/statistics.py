@@ -30,7 +30,7 @@ def _draw_normal(mu, sigma, boundary, shade_label):
     ax.text(boundary, max_y * 0.55, shade_label, ha="center", fontsize=8, fontweight="bold", color="#dc2626")
     ax.text(mu, max_y * 0.15, r"$\mu$", ha="center", fontsize=11, fontweight="bold", color="#475569")
     ax.set_yticks([])
-    ax.set_xticks([mu - 2 * sigma, mu, mu + 2 * sigma])
+    ax.set_xticks([])
     ax.set_title("Normal Distribution Curve", fontsize=8, color="#64748b", style="italic")
     ax.legend(frameon=True, fontsize=7.5, loc="upper left")
     return fig

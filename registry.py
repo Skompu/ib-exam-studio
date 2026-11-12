@@ -1,3 +1,7 @@
+from collections import Counter
+from functools import lru_cache
+from itertools import combinations, product
+
 from core.task_contract import Task
 from generators.algebra_contradiction import gen_proof_contradiction
 from generators.algebra_combinations import gen_combinations
@@ -8,7 +12,18 @@ from generators.algebra_polynomials import gen_factor_remainder, gen_vieta
 from generators.algebra_seq import gen_algebra_quadratics, gen_sequences
 from generators.binomial_fractional import gen_binomial_fractional
 from generators.binomial_series import gen_binomial_expansion
-from generators.calculus import gen_calculus_area, gen_calculus_differential
+from generators.aa_hl_gap import (
+    gen_complex_poly_euler,
+    gen_continuous_pdf,
+    gen_continuous_pdf_gdc,
+    gen_cross_log_calc,
+    gen_cross_log_calc_gdc,
+    gen_cross_trig_seq,
+    gen_cross_trig_seq_gdc,
+    gen_implicit_rates,
+    gen_linear_system_parameter,
+)
+from generators.calculus import gen_calc_recover_coeffs, gen_calc_stationary, gen_calculus_area, gen_calculus_differential
 from generators.calculus_euler import gen_euler_method
 from generators.calculus_parts import gen_integration_parts
 from generators.calculus_substitution import gen_integration_substitution
@@ -58,9 +73,9 @@ from generators.trigonometry_reciprocal import gen_reciprocal_trig
 from generators.trigonometry_rform import gen_r_form
 from generators.trigonometry_triangle import gen_triangle_sine_cosine
 from generators.sequences_infinite_series import gen_infinite_geometric_series
-from generators.vectors_plane_intersection import gen_vector_line_plane
+from generators.vectors_plane_intersection import gen_vector_line_plane, gen_vector_line_plane_gdc
 from generators.vectors_planes import gen_vectors_plane
-from generators.vectors_skew import gen_vectors_skew
+from generators.vectors_skew import gen_vec_lines_intersect, gen_vec_plane_cross, gen_vectors_skew
 
 TASK_REGISTRY = {
     "calc_diff": {
@@ -660,9 +675,149 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "search": "normal invNorm binomial expected profit quality control GDC",
     },
+    "calc_recover_coeffs": {
+        "name": "Calculus: Recover the Cubic Coefficients",
+        "func": gen_calc_recover_coeffs,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "pool": False,
+        "search": "cubic coefficients stationary points parameter recovery",
+    },
+    "calc_stationary": {
+        "name": "Calculus: Stationary Points and Inflection",
+        "func": gen_calc_stationary,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "search": "stationary points inflection second derivative",
+    },
+    "vec_plane_cross": {
+        "name": "Vectors: Plane from a Cross Product",
+        "func": gen_vec_plane_cross,
+        "marks": 7,
+        "category": "Vectors",
+        "section": "A",
+        "search": "cross product cartesian plane",
+    },
+    "vec_lines_intersect": {
+        "name": "Vectors: Skew Lines",
+        "func": gen_vec_lines_intersect,
+        "marks": 7,
+        "category": "Vectors",
+        "section": "A",
+        "search": "skew lines shortest distance do not intersect",
+    },
+    "prob_continuous_pdf": {
+        "name": "Probability: Continuous Density",
+        "func": gen_continuous_pdf,
+        "marks": 8,
+        "category": "Probability",
+        "section": "A",
+        "search": "continuous random variable density median expectation",
+    },
+    "prob_pdf_gdc": {
+        "name": "Paper 2: Continuous Density",
+        "func": gen_continuous_pdf_gdc,
+        "marks": 8,
+        "category": "Statistics",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "continuous density GDC median expectation",
+    },
+    "calc_implicit_rates": {
+        "name": "Calculus: Implicit Tangents",
+        "func": gen_implicit_rates,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "search": "implicit differentiation horizontal vertical tangent",
+    },
+    "complex_poly_euler": {
+        "name": "Complex Numbers: Conjugate Roots and Euler Form",
+        "func": gen_complex_poly_euler,
+        "marks": 7,
+        "category": "Complex Numbers",
+        "section": "A",
+        "search": "conjugate root euler form real polynomial",
+    },
+    "alg_sys3_param": {
+        "name": "Algebra: Three Equations with a Parameter",
+        "func": gen_linear_system_parameter,
+        "marks": 8,
+        "category": "Algebra",
+        "section": "A",
+        "search": "three linear equations parameter infinite solutions line",
+    },
+    "vec_line_plane_gdc": {
+        "name": "Paper 2: Line, Plane and Angle",
+        "func": gen_vector_line_plane_gdc,
+        "marks": 7,
+        "category": "Vectors",
+        "section": "A",
+        "calculator": "gdc",
+        "search": "line plane intersection angle GDC",
+    },
+    "ext_cross_trig_seq": {
+        "name": "Section B: Trigonometry and a Geometric Series",
+        "func": gen_cross_trig_seq,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "search": "sine squared geometric series sum to infinity",
+    },
+    "ext_cross_log_calc": {
+        "name": "Section B: Logarithm, Derivative and Area",
+        "func": gen_cross_log_calc,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "search": "logarithm stationary point exact area",
+    },
+    "ext_cross_trig_gdc": {
+        "name": "Section B: Trigonometry and a Geometric Series (GDC)",
+        "func": gen_cross_trig_seq_gdc,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "search": "geometric series GDC sum to infinity",
+    },
+    "ext_cross_log_gdc": {
+        "name": "Section B: Logarithm and Area (GDC)",
+        "func": gen_cross_log_calc_gdc,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "search": "logarithm area GDC",
+    },
 }
 
 PRESETS = {
+    "dynamic_mock": {
+        "label": "Dynamic Full Mock (110 marks — randomized topic slots)",
+        "description": (
+            "A fresh slot blueprint for this calculator policy. "
+            "Section A is about 55 to 60 marks and Section B about 50 to 55, totalling 110 marks in 120 minutes. "
+            "New Topic Mix deals the slots again. New Numbers keeps the slots and changes the values."
+        ),
+        "time": "120 minutes",
+        "marks": 110,
+        "blueprint": True,
+        "target_marks": 110,
+    },
+    "dynamic_mid": {
+        "label": "Dynamic Mid-Term Test (50 marks — randomized topic slots)",
+        "description": (
+            "A 50-mark slot blueprint. One Section B question, then Section A from warm-up through the core. "
+            "The slots add up to 50 when the bank allows it."
+        ),
+        "time": "60 minutes",
+        "marks": 50,
+        "blueprint": True,
+        "target_marks": 50,
+    },
     "quick": {
         "label": "Quick Pop-Quiz (20–30 min)",
         "description": "Four short Section A questions, 25 marks, for a lesson or a tutorial.",
@@ -687,13 +842,13 @@ PRESETS = {
     },
     "mock": {
         "label": "Full paper, HL length (120 min)",
-        "description": "Nine short questions and three extended questions, 100 marks. A published IB HL Paper 1 is 110 marks and this studio paper does not copy it.",
+        "description": "Nine Section A questions (56 marks) and four Section B questions (54 marks). 110 marks, 120 minutes.",
         "time": "120 minutes",
-        "marks": 100,
+        "marks": 110,
         "keys": (
             "calc_diff",
             "fn_core",
-            "diff_eq",
+            "log_eq",
             "induction",
             "prob_rv",
             "vectors_3d",
@@ -701,8 +856,9 @@ PRESETS = {
             "complex_num",
             "alg_quad",
             "ext_calculus",
-            "ext_ln",
+            "ext_vectors",
             "ext_model",
+            "ext_cross_trig_seq",
         ),
     },
     "skills": {
@@ -780,20 +936,17 @@ PRESETS = {
     "mock_p2": {
         "label": "Mock Paper 2 (GDC, 120 min)",
         "description": (
-            "A full studio Mock Paper 2: ten short Section A questions (65 marks) and two extended "
-            "Section B questions (35 marks). Section A matches the extended GDC extract; Section B "
-            "is a functional model finished on a GDC and a normal–binomial quality-control item. "
-            "Give numerical answers to three significant figures where appropriate. 100 marks. "
-            "A published IB HL Paper 2 is 110 marks and this studio paper does not copy it."
+            "A full studio Mock Paper 2: nine Section A questions (59 marks) and three Section B "
+            "questions (51 marks). Numerical answers are to three significant figures where appropriate. "
+            "110 marks, 120 minutes."
         ),
         "time": "120 minutes",
-        "marks": 100,
+        "marks": 110,
         "calculator": "gdc",
         "keys": (
             "gdc_intersect",
             "gdc_area",
             "gdc_dist",
-            "bivar",
             "kin_gdc",
             "gdc_trig",
             "gdc_curve",
@@ -802,15 +955,29 @@ PRESETS = {
             "gdc_chi_gof",
             "ext_gdc_model",
             "ext_gdc_stat",
+            "ext_cross_trig_gdc",
         ),
     },
 }
 
 
-def call_generator(key: str, clean_integers: bool, difficulty: str) -> Task:
-    """Every registered generator takes the same two arguments and returns a Task."""
+def call_generator(key: str, clean_integers: bool, difficulty: str, exclude_numeric_ids=None) -> Task:
+    """Every registered generator takes the same two arguments and returns a Task.
+
+    Generators that deal a finite bank also accept the numeric ids already used
+    by earlier cohorts.
+    """
     spec = TASK_REGISTRY[key]
-    task = spec["func"](clean_integers, difficulty)
+    func = spec["func"]
+    if exclude_numeric_ids:
+        try:
+            task = func(clean_integers, difficulty, exclude_numeric_ids=exclude_numeric_ids)
+        except TypeError as exc:
+            if "exclude_numeric_ids" not in str(exc):
+                raise
+            task = func(clean_integers, difficulty)
+    else:
+        task = func(clean_integers, difficulty)
     if not isinstance(task, Task):
         raise TypeError(f"{key} returned {type(task).__name__}, expected Task.")
     if task.marks != spec["marks"]:
@@ -824,6 +991,11 @@ def order_task_keys(keys):
     """Keep Section A before Section B without rearranging questions inside a section."""
     return tuple(sorted(keys, key=lambda key: 0 if TASK_REGISTRY[key].get("section", "A") == "A" else 1))
 
+
+_SHALLOW_COHORTS = {
+    "alg_comb": 3,
+    "ext_ln": 4,
+}
 
 _CORE_LADDER = {
     "alg_quad",
@@ -862,10 +1034,533 @@ _CORE_LADDER = {
 }
 for _key, _spec in TASK_REGISTRY.items():
     _spec["ladder"] = "core" if _key in _CORE_LADDER else "exam"
+    _spec["cohort_depth"] = _SHALLOW_COHORTS.get(_key, 4)
+
+
+def advancement_band(spec: dict) -> int | None:
+    """Warm-up, core, or advanced Section A. Section B and Paper 3 sit outside the bands."""
+    if spec.get("section") == "B" or spec.get("category") == "Paper 3":
+        return None
+    marks = spec["marks"]
+    if marks > 8 or marks < 4:
+        return None
+    ladder = spec.get("ladder", "exam")
+    if marks <= 5 or (ladder == "core" and marks <= 6):
+        return 1
+    if marks >= 8 or (ladder == "exam" and marks >= 7):
+        return 3
+    return 2
+
+
+# Cohorts that fit on one graph for this difficulty. Omitted topics support 4.
+_THIN_BANKS = {
+    ("maclaurin", "standard"): 3,
+    ("maclaurin", "challenging"): 2,
+    ("induction", "standard"): 3,
+    ("induction", "challenging"): 2,
+    ("prob_rv", "standard"): 3,
+    ("prob_rv", "challenging"): 2,
+    ("alg_comb", "standard"): 2,
+    ("alg_comb", "challenging"): 2,
+    ("trig_compound", "challenging"): 1,
+    ("trig_rform", "standard"): 2,
+    ("trig_rform", "challenging"): 3,
+    ("trig_recip", "standard"): 2,
+    ("trig_recip", "challenging"): 2,
+    ("trig_inv", "standard"): 2,
+    ("trig_inv", "challenging"): 3,
+    ("trig_identity", "standard"): 3,
+    ("trig_identity", "challenging"): 3,
+    ("trig_amb", "challenging"): 3,
+}
+
+
+def _cohort_depth(key: str, difficulty: str = "standard") -> int:
+    return _THIN_BANKS.get((key, difficulty), int(TASK_REGISTRY[key].get("cohort_depth", 4)))
+
+
+def _syllabus_area(key: str) -> str:
+    """Diversity uses a syllabus area. Several Paper 2 keys share the label 'Paper 2'."""
+    mapped = {
+        "gdc_intersect": "Calculus",
+        "gdc_area": "Calculus",
+        "gdc_curve": "Calculus",
+        "kin_gdc": "Calculus",
+        "gdc_trig": "Trigonometry",
+        "gdc_system": "Algebra",
+        "gdc_chi": "Probability & Statistics",
+        "gdc_chi_gof": "Probability & Statistics",
+        "bivar": "Probability & Statistics",
+        "gdc_dist": "Probability & Statistics",
+        "gdc_invnorm": "Probability & Statistics",
+    }
+    if key in mapped:
+        return mapped[key]
+    category = TASK_REGISTRY[key]["category"]
+    if category in {"Statistics", "Probability"}:
+        return "Probability & Statistics"
+    return category
+
+
+_FOCUS_AREAS = (
+    "Algebra",
+    "Functions",
+    "Trigonometry",
+    "Calculus",
+    "Vectors",
+    "Probability & Statistics",
+    "Complex Numbers",
+)
+
+
+def _marks_of(keys) -> int:
+    return sum(TASK_REGISTRY[key]["marks"] for key in keys)
+
+
+def _band_areas(keys) -> dict[int, dict[str, list[str]]]:
+    grouped: dict[int, dict[str, list[str]]] = {1: {}, 2: {}, 3: {}}
+    for key in keys:
+        band = advancement_band(TASK_REGISTRY[key])
+        if band is None:
+            continue
+        area = _syllabus_area(key)
+        grouped[band].setdefault(area, []).append(key)
+    for areas in grouped.values():
+        for items in areas.values():
+            items.sort(key=lambda key: (TASK_REGISTRY[key]["marks"], key))
+    return grouped
+
+
+def _b_subsets(keys: tuple[str, ...], target: int) -> tuple[tuple[str, ...], ...]:
+    ordered = tuple(sorted(keys, key=lambda key: (TASK_REGISTRY[key]["marks"], key)))
+    sizes = range(len(ordered), -1, -1) if target >= 80 else ((1, 0) if ordered else (0,))
+    subsets = []
+    for size in sizes:
+        subsets.extend(combinations(ordered, size))
+    if target >= 105:
+        shaped = [
+            subset
+            for subset in subsets
+            if 3 <= len(subset) <= 4 and 48 <= _marks_of(subset) <= 60
+        ]
+        if shaped:
+            subsets = sorted(shaped, key=lambda subset: (abs(_marks_of(subset) - 53), subset))
+    return tuple(subsets)
+
+
+def _assemble(section_a, section_b) -> tuple[str, ...]:
+    ordered_a = tuple(
+        sorted(
+            section_a,
+            key=lambda key: (
+                advancement_band(TASK_REGISTRY[key]) or 9,
+                TASK_REGISTRY[key]["marks"],
+                key,
+            ),
+        )
+    )
+    ordered_b = tuple(sorted(section_b, key=lambda key: (TASK_REGISTRY[key]["marks"], key)))
+    return ordered_a + ordered_b
+
+
+def _score(
+    section_a,
+    section_b,
+    target: int,
+    min_cohort_depth: int,
+    extended_available: int,
+    difficulty: str,
+) -> tuple:
+    total = _marks_of(section_a) + _marks_of(section_b)
+    areas = Counter(_syllabus_area(key) for key in section_a)
+    present = [advancement_band(TASK_REGISTRY[key]) for key in section_a]
+    counts = Counter(band for band in present if band)
+    imbalance = max(counts.values()) - min(counts.values()) if counts else 0
+    section_b_marks = _marks_of(section_b)
+    if target >= 105:
+        extended_penalty = abs(section_b_marks - 53) + (0 if len(section_b) in (3, 4) else 8)
+    elif target >= 80:
+        extended_penalty = extended_available - len(section_b)
+    else:
+        extended_penalty = 0 if len(section_b) == 1 else 1
+    gap = abs(total - target)
+    if target >= 105:
+        gap = gap * 20 + min(extended_penalty, 19)
+    return (
+        gap,
+        sum(1 for key in (*section_a, *section_b) if _cohort_depth(key, difficulty) < min_cohort_depth),
+        max(areas.values(), default=0),
+        sum(1 for band in (1, 2, 3) if band not in counts),
+        imbalance,
+        -sum(1 for area in _FOCUS_AREAS if areas.get(area)),
+        extended_penalty,
+    )
+
+
+def _window(scored: list[tuple[tuple, tuple[str, ...]]]) -> tuple[tuple[str, ...], ...]:
+    """Keep the best shape. A short best class may include a neighbouring mix."""
+    scored.sort(key=lambda item: (item[0], item[1]))
+    best = scored[0][0]
+
+    def take(imbalance_slack: int, coverage_slack: int) -> list[tuple[str, ...]]:
+        seen: set[tuple[str, ...]] = set()
+        picked: list[tuple[str, ...]] = []
+        for score, paper in scored:
+            if paper in seen:
+                continue
+            same = (
+                score[:4] == best[:4]
+                and best[4] <= score[4] <= best[4] + imbalance_slack
+                and best[5] <= score[5] <= best[5] + coverage_slack
+                and score[6:] == best[6:]
+            )
+            if same:
+                seen.add(paper)
+                picked.append(paper)
+        return picked
+
+    exact = take(0, 0)
+    if len(exact) >= 4:
+        return tuple(exact)
+    same_balance = take(0, 1)
+    if len(same_balance) >= 4:
+        return tuple(same_balance)
+    return tuple(take(2, 1) or exact)
+
+
+def _spread(papers: list[tuple[str, ...]], limit: int) -> list[tuple[str, ...]]:
+    unique = sorted(set(papers))
+    if len(unique) <= limit:
+        return unique
+    step = len(unique) / limit
+    return [unique[int(index * step)] for index in range(limit)]
+
+
+def _exact_from_lists(lists: list[list[str]], remainder: int, ceiling: int) -> list[tuple[str, ...]]:
+    suffix_min = [0] * (len(lists) + 1)
+    suffix_max = [0] * (len(lists) + 1)
+    for index in range(len(lists) - 1, -1, -1):
+        marks = [TASK_REGISTRY[key]["marks"] for key in lists[index]]
+        suffix_min[index] = suffix_min[index + 1] + min(marks)
+        suffix_max[index] = suffix_max[index + 1] + max(marks)
+    found: list[tuple[str, ...]] = []
+
+    def walk(index: int, left: int, chosen: tuple[str, ...]) -> None:
+        if len(found) >= ceiling:
+            return
+        if left < suffix_min[index] or left > suffix_max[index]:
+            return
+        if index == len(lists):
+            found.append(chosen)
+            return
+        for key in lists[index]:
+            walk(index + 1, left - TASK_REGISTRY[key]["marks"], chosen + (key,))
+
+    walk(0, remainder, ())
+    return found
+
+
+def _can_hit(lists: list[list[str]], remainder: int) -> bool:
+    possible = {0}
+    for keys in lists:
+        marks = {TASK_REGISTRY[key]["marks"] for key in keys}
+        possible = {total + mark for total in possible for mark in marks if total + mark <= remainder}
+        if not possible:
+            return False
+    return remainder in possible
+
+
+def _exact_distinct(lists: list[list[str]], remainder: int, ceiling: int) -> list[tuple[str, ...]]:
+    """Meet in the middle so an 8- or 9-question fill does not walk the whole tree."""
+    if not lists or not _can_hit(lists, remainder):
+        return []
+    mid = len(lists) // 2
+    left = _partials(lists[:mid], 8)
+    right = _partials(lists[mid:], 8)
+    found: list[tuple[str, ...]] = []
+    for total, rows in left.items():
+        needed = remainder - total
+        if needed not in right:
+            continue
+        for first in rows:
+            used = set(first)
+            for second in right[needed]:
+                if used.intersection(second):
+                    continue
+                found.append(first + second)
+                if len(found) >= ceiling:
+                    return found
+    return found
+
+
+def _partials(lists: list[list[str]], per_sum: int) -> dict[int, list[tuple[str, ...]]]:
+    store: dict[int, list[tuple[str, ...]]] = {0: [()]}
+    for keys in lists:
+        nxt: dict[int, list[tuple[str, ...]]] = {}
+        for total, rows in store.items():
+            for key in keys:
+                mark = total + TASK_REGISTRY[key]["marks"]
+                bucket = nxt.setdefault(mark, [])
+                if len(bucket) >= per_sum:
+                    continue
+                for row in rows:
+                    if key in row:
+                        continue
+                    bucket.append(row + (key,))
+                    if len(bucket) >= per_sum:
+                        break
+        store = nxt
+    return store
+
+
+def _cap_wide_papers(grouped, remainder: int) -> list[tuple[str, ...]]:
+    """Eight or nine Section A questions, at most two repeated areas, exact remainder."""
+    focus = [area for area in _FOCUS_AREAS if any(area in grouped[band] for band in (1, 2, 3))]
+    if len(focus) < 7:
+        return []
+    found: list[tuple[str, ...]] = []
+    repeats = list(combinations(focus, 2)) + [(area, area) for area in focus]
+    shapes = ((9, (3, 3, 3)), (8, (3, 3, 2)), (8, (3, 2, 3)), (8, (2, 3, 3)))
+    for length, band_counts in shapes:
+        for extra in repeats:
+            slots = list(focus) + ([extra[0]] if length == 8 else list(extra))
+            available = []
+            usable = True
+            for area in slots:
+                bands = {band for band in (1, 2, 3) if grouped[band].get(area)}
+                if not bands:
+                    usable = False
+                    break
+                available.append(bands)
+            if not usable:
+                continue
+            for assignment in _band_plan(available, band_counts):
+                lists = [grouped[band][area] for area, band in zip(slots, assignment)]
+                found.extend(_exact_distinct(lists, remainder, 4))
+                if len(found) >= 16:
+                    return _spread(found, 16)
+        if found:
+            return _spread(found, 16)
+    return []
+
+
+def _band_plan(available: list[set[int]], counts: tuple[int, int, int]):
+    """Band labels with the requested counts, skipping slots that lack that band."""
+    indices = range(len(available))
+    first, second, third = counts
+    del third
+    for band1 in combinations(indices, first):
+        chosen1 = set(band1)
+        if any(1 not in available[index] for index in chosen1):
+            continue
+        rest = [index for index in indices if index not in chosen1]
+        for band2 in combinations(rest, second):
+            if any(2 not in available[index] for index in band2):
+                continue
+            band3 = [index for index in rest if index not in set(band2)]
+            if any(3 not in available[index] for index in band3):
+                continue
+            assignment = [3] * len(available)
+            for index in chosen1:
+                assignment[index] = 1
+            for index in band2:
+                assignment[index] = 2
+            yield assignment
+
+
+def _cap_one_papers(grouped, remainder: int) -> list[tuple[str, ...]]:
+    """One topic per syllabus area, every band used, marks exactly `remainder`.
+
+    Band counts stay as even as the mark total allows, so the paper does not open
+    with four warm-up questions and a single core question.
+    """
+    focus = [
+        area
+        for area in _FOCUS_AREAS
+        if any(area in grouped[band] for band in (1, 2, 3))
+    ]
+    for count in range(len(focus), 3, -1):
+        assignments = []
+        for chosen in combinations(focus, count):
+            options = []
+            for area in chosen:
+                options.append([band for band in (1, 2, 3) if grouped[band].get(area)])
+            for assignment in product(*options):
+                used = Counter(assignment)
+                counts = [used[band] for band in (1, 2, 3)]
+                if min(counts) == 0 or max(counts) > 4:
+                    continue
+                assignments.append((max(counts) - min(counts), chosen, assignment))
+        assignments.sort(key=lambda item: item[0])
+        found: list[tuple[str, ...]] = []
+        accepted = None
+        for balance, chosen, assignment in assignments:
+            if accepted is not None and balance > accepted:
+                break
+            lists = [grouped[band][area] for area, band in zip(chosen, assignment)]
+            batch = _exact_from_lists(lists, remainder, 16)
+            if not batch:
+                continue
+            accepted = balance
+            found.extend(batch)
+            if len(found) >= 96:
+                break
+        if found:
+            return _spread(found, 48)
+    return []
+
+
+def _enumerate_small(section_a, section_b, target: int, min_cohort_depth: int, difficulty: str):
+    scored = []
+    available = len(section_b)
+    for subset in _b_subsets(tuple(section_b), target):
+        remainder = target - _marks_of(subset)
+        if remainder < 0:
+            continue
+        for size in range(len(section_a) + 1):
+            for combo in combinations(section_a, size):
+                gap = abs(_marks_of(combo) - remainder)
+                if gap > 2:
+                    continue
+                scored.append(
+                    (
+                        _score(combo, subset, target, min_cohort_depth, available, difficulty),
+                        _assemble(combo, subset),
+                    )
+                )
+    return scored
+
+
+def _enumerate_large(section_a, section_b, target: int, min_cohort_depth: int, difficulty: str):
+    grouped = _band_areas(section_a)
+    available = len(section_b)
+    scored = []
+    for subset in _b_subsets(tuple(section_b), target):
+        remainder = target - _marks_of(subset)
+        if remainder < 4:
+            continue
+        found = _cap_wide_papers(grouped, remainder) if target >= 105 else []
+        found = found or _cap_one_papers(grouped, remainder)
+        for picks in found:
+            scored.append(
+                (
+                    _score(picks, subset, target, min_cohort_depth, available, difficulty),
+                    _assemble(picks, subset),
+                )
+            )
+        if found and 80 <= target < 105 and len(subset) == available:
+            break
+    return scored
+
+
+_HL110_ONLY = frozenset({
+    "calc_stationary",
+    "vec_plane_cross",
+    "vec_lines_intersect",
+    "prob_continuous_pdf",
+    "prob_pdf_gdc",
+    "calc_implicit_rates",
+    "complex_poly_euler",
+    "alg_sys3_param",
+    "vec_line_plane_gdc",
+    "ext_cross_trig_seq",
+    "ext_cross_log_calc",
+    "ext_cross_trig_gdc",
+    "ext_cross_log_gdc",
+})
+
+
+def _pools(calculator: str, min_cohort_depth: int, difficulty: str, *, relax: bool, target: int):
+    section_a = []
+    section_b = []
+    for key, spec in TASK_REGISTRY.items():
+        if spec.get("pool") is False:
+            continue
+        if spec.get("calculator", "none") != calculator:
+            continue
+        if target < 105 and key in _HL110_ONLY:
+            continue
+        if target >= 105 and key == "vectors_3d":
+            continue
+        if not relax and _cohort_depth(key, difficulty) < min_cohort_depth:
+            continue
+        if spec.get("section") == "B":
+            section_b.append(key)
+            continue
+        if advancement_band(spec) is None:
+            continue
+        section_a.append(key)
+    section_a.sort()
+    section_b.sort()
+    return tuple(section_a), tuple(section_b)
+
+
+@lru_cache(maxsize=32)
+def _blueprint_shortlist(
+    calculator: str,
+    target: int,
+    min_cohort_depth: int,
+    difficulty: str,
+) -> tuple[tuple[str, ...], ...]:
+    def collect(relax: bool):
+        section_a, section_b = _pools(
+            calculator, min_cohort_depth, difficulty, relax=relax, target=target
+        )
+        if len(section_a) <= 14:
+            return _enumerate_small(section_a, section_b, target, min_cohort_depth, difficulty)
+        return _enumerate_large(section_a, section_b, target, min_cohort_depth, difficulty)
+
+    strict = collect(False)
+    if any(_marks_of(paper) == target and score[1] == 0 for score, paper in strict):
+        return _window(strict)
+    relaxed = collect(True)
+    if any(_marks_of(paper) == target for score, paper in relaxed):
+        return _window(relaxed)
+    fallback = relaxed or strict
+    if not fallback:
+        return ()
+    return _window(fallback)
+
+
+def build_exam_blueprint(
+    calculator: str,
+    target_marks: int,
+    topic_seed: int,
+    min_cohort_depth: int = 1,
+    difficulty: str = "standard",
+) -> tuple[str, ...]:
+    """Deal one paper from topic slots. The same tuple is shared by every cohort.
+
+    Section A is one topic per syllabus area when the bank is large enough, ordered
+    warm-up, then core, then advanced. Section B is appended. A full mock uses every
+    extended question the paper actually has; a 50-mark test uses one. The topic seed
+    picks among papers with the same best shape, so a redraw changes the topics
+    without giving up the mark total.
+    """
+    if calculator not in {"none", "gdc"}:
+        raise ValueError(f"Unknown calculator policy {calculator!r}.")
+    if target_marks < 4:
+        raise ValueError("target_marks must leave room for at least one question.")
+    if min_cohort_depth < 1:
+        raise ValueError("min_cohort_depth must be at least 1.")
+    if difficulty not in {"standard", "challenging"}:
+        raise ValueError(f"Unknown difficulty {difficulty!r}.")
+    papers = _blueprint_shortlist(calculator, int(target_marks), int(min_cohort_depth), difficulty)
+    if not papers:
+        raise RuntimeError(
+            f"No slot blueprint within 2 marks of {target_marks} for calculator {calculator!r}."
+        )
+    return papers[int(topic_seed) % len(papers)]
 
 
 def _check_presets():
+    for spec in TASK_REGISTRY.values():
+        spec.setdefault("ladder", "exam")
     for name, preset in PRESETS.items():
+        if preset.get("blueprint"):
+            if preset.get("target_marks") != preset.get("marks"):
+                raise RuntimeError(f"Preset {name} target does not match its mark label.")
+            continue
         missing = [key for key in preset["keys"] if key not in TASK_REGISTRY]
         if missing:
             raise RuntimeError(f"Preset {name} refers to unknown topics: {missing}")

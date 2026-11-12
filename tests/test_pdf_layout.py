@@ -13,7 +13,7 @@ from matplotlib.patches import Wedge
 from pypdf import PdfReader
 
 from core.cohorts import compose_papers
-from core.pdf_engine import build_multi_question_pdf
+from core.pdf_engine import build_multi_question_pdf, figure_visible
 from core.rng import bind, release
 from registry import PRESETS, call_generator, order_task_keys
 
@@ -193,7 +193,7 @@ def _assert_booklet(pdf_bytes, papers):
 def test_presets_balance():
     import registry
 
-    assert registry.PRESETS["mock"]["marks"] == 100
+    assert registry.PRESETS["mock"]["marks"] == 110
     assert registry.PRESETS["paper2"]["marks"] == 24
 
 
@@ -246,6 +246,46 @@ def test_mock_booklet_rules_and_no_blank_page(mock_papers):
 
 def _plain(text: str) -> str:
     return " ".join(text.split())
+
+
+def test_student_sheet_shows_the_curve_without_answer_marks():
+    import sympy as sp
+
+    from generators.calculus import _plot_function
+    from generators.maclaurin import _plot_series
+
+    illustrative = {"png_bytes": b"png", "plot_type": "illustrative"}
+    assert figure_visible(illustrative, is_markscheme=False, exam_mode=False)
+    assert figure_visible(illustrative, is_markscheme=False, exam_mode=True)
+    assert figure_visible({"plot_type": "illustrative"}, is_markscheme=True, exam_mode=True) is False
+
+    symbol = sp.symbols("x")
+    curve = _plot_function(symbol**3, [(1, 1, "P(1, 1)")], [(2 * symbol, "Tangent")])
+    labels = [line.get_label() for line in curve.axes[0].get_lines()]
+    assert len(curve.axes[0].collections) == 0
+    assert list(curve.axes[0].get_xticks()) == []
+    assert list(curve.axes[0].get_yticks()) == []
+    assert "Tangent" not in " ".join(labels)
+    plt.close(curve)
+
+    series = _plot_series(sp.exp(-(symbol**2)), 1 - symbol**2)
+    series_labels = [line.get_label() for line in series.axes[0].get_lines()]
+    assert "Maclaurin" not in " ".join(series_labels)
+    assert len(series.axes[0].collections) == 0
+    plt.close(series)
+
+
+def test_vector_plane_uses_a_latin_name():
+    from generators.vectors_skew import _combined, _plane_question
+
+    for difficulty in ("standard", "challenging"):
+        for builder in (_plane_question, _combined):
+            task = builder(difficulty)
+            shown = " ".join([task.intro, *(part.prompt for part in task.parts)])
+            assert r"\Pi" not in shown
+            assert "the plane $P$" in shown
+    standard = _plane_question("standard")
+    assert standard.parts[1].prompt == "Hence find the Cartesian equation of the plane $P$."
 
 
 def test_exam_booklet_opens_with_ib_instructions():

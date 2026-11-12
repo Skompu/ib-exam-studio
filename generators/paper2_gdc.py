@@ -200,7 +200,7 @@ def _half_limit(integrand, lower, upper, total):
 
 
 def _numerical_area(difficulty: str):
-    constant = choice((1, 2, 3))
+    constant = choice((1, 2, 3, 5, 6, 8))
     if difficulty == "challenging":
         lower, upper = 1, 3
     else:
@@ -266,6 +266,9 @@ def _numerical_area(difficulty: str):
         ],
         archetype="Non-elementary area, then a half-area limit, both to 3 s.f.",
         family="Area under y=sqrt(x^3+k)",
+        part_graph_id="gdc_area_sqrt_cubic_shift",
+        cover_id="plain",
+        numeric_id=f"k={constant}|[{lower},{upper}]",
     )
 
 

@@ -4,7 +4,7 @@ import threading
 from typing import Literal
 import matplotlib.pyplot as plt
 import streamlit as st
-from registry import PRESETS, TASK_REGISTRY, order_task_keys
+from registry import PRESETS, TASK_REGISTRY, build_exam_blueprint, order_task_keys
 from core.license import membership_id_for, validate_whop_license
 from core.storage import (
     get_paper_snapshot,
@@ -61,12 +61,18 @@ def generate_all_papers(
     seed_value: int,
     difficulty: str,
     cohort_mode: Literal["strict_parallel", "cognitive_twin"] = "strict_parallel",
+    shuffle_order: bool = False,
 ):
-    # Generators share the process-wide random module. One paper at a time
-    # keeps two teachers from mixing each other's draws. Difficulty is frozen
-    # for every cohort in the run.
+    # Both counts are arguments, so a later run cannot reuse a one-cohort cache entry.
+    # Question order stays Section A then Section B; shuffle_order is on the cache key.
     if cohort_mode not in COHORT_MODES:
         raise ValueError(f"Unknown cohort_mode {cohort_mode!r}.")
+    if not isinstance(shuffle_order, bool):
+        raise ValueError("shuffle_order must be true or false.")
+    if num_variants < 1 or num_variants > 4:
+        raise ValueError("num_variants must be 1, 2, 3 or 4.")
+    if shuffle_order:
+        task_keys_tuple = _shuffle_within_sections(task_keys_tuple, seed_value)
     with _PAPER_LOCK:
         return _compose_papers(
             task_keys_tuple,
@@ -76,6 +82,24 @@ def generate_all_papers(
             difficulty,
             cohort_mode,
         )
+
+
+def _shuffle_within_sections(keys: tuple, seed: int) -> tuple:
+    """Shuffle inside a section only. Every cohort keeps this same order."""
+    rng = random.Random(seed)
+    grouped: list[list[str]] = []
+    current = None
+    for key in keys:
+        section = TASK_REGISTRY[key].get("section", "A")
+        if section != current:
+            grouped.append([])
+            current = section
+        grouped[-1].append(key)
+    ordered: list[str] = []
+    for bucket in grouped:
+        rng.shuffle(bucket)
+        ordered.extend(bucket)
+    return tuple(ordered)
 
 
 def _compose_papers(
@@ -99,6 +123,20 @@ def _compose_papers(
             task["png_bytes"] = fig_to_png_bytes(task.get("fig"))
             task.pop("fig", None)
     return papers
+
+
+def _student_fingerprint(task: dict) -> str:
+    table = task.get("table_data") or task.get("display_table") or []
+    parts = " ".join(str(part) for part in task.get("subquestions") or [])
+    return f"{task.get('intro', '')}|{task.get('latex_main', '')}|{parts}|{table}"
+
+
+def _questions_that_differ(base: dict, other: dict) -> list[str]:
+    changed = []
+    for left, right in zip(base["tasks"], other["tasks"]):
+        if _student_fingerprint(left) != _student_fingerprint(right):
+            changed.append(str(right["q_number"]))
+    return changed
 
 
 def practice_level(task: dict, difficulty: str) -> tuple[int, str, str]:
@@ -155,7 +193,9 @@ def _render_stem_math(task: dict) -> None:
         return
     if latex_main.lower() in {"observed frequencies", "contingency table"}:
         return
-    if "\\" in latex_main or (latex_main.startswith("$") and latex_main.endswith("$")):
+    if any(token in latex_main for token in ("\\", "^", "_", "=")) or (
+        latex_main.startswith("$") and latex_main.endswith("$")
+    ):
         st.latex(latex_main.strip("$"))
     else:
         st.write(latex_main)
@@ -271,10 +311,10 @@ with st.sidebar:
     calculator_mode = "gdc" if gdc_paper else "none"
     preset_ids = [
         key for key, preset in PRESETS.items()
-        if preset.get("calculator", "none") == calculator_mode
+        if preset.get("blueprint") or preset.get("calculator", "none") == calculator_mode
     ]
     preset_ids.append("custom")
-    preferred = "paper2" if gdc_paper else "mid"
+    preferred = "dynamic_mock"
     preset_id = st.radio(
         "Choose a paper, or build your own",
         options=preset_ids,
@@ -288,21 +328,32 @@ with st.sidebar:
         index=0,
         key=f"cohort-mode-{calculator_mode}",
         format_func=lambda key: (
-            "Strict Parallel — official mock (same story, different numbers)"
+            "Strict Parallel — twin numbers (same story, different data, different answers)"
             if key == "strict_parallel"
-            else "Cognitive Twin — class test (same structure, different story)"
+            else "Cognitive Twin — twin stories (same structure, different story, different answers)"
         ),
     )
     st.caption(
-        "Every cohort uses the same difficulty. "
-        "Strict Parallel pins the question graph and cover from variant A and requires distinct numbers. "
-        "Cognitive Twin keeps that graph and requires a distinct cover story for each cohort. "
+        "A cohort is a twin paper, not a harder or easier version. "
+        "Every twin keeps the difficulty chosen below. "
+        "Strict Parallel keeps the story and changes the numbers. "
+        "Cognitive Twin keeps the structure and changes the story. "
+        "The answers differ either way. "
+        "Cognitive Twin uses a second story when the topic has one. "
+        "A topic with only one story keeps that story and changes the numbers, so the paper still builds. "
         "A one-item bank cannot fill two Strict Parallel cohorts — generation stops instead of copying."
     )
     topic_pool = [
         key for key, spec in TASK_REGISTRY.items()
         if spec.get("calculator", "none") == calculator_mode
     ]
+    topic_state = f"topic-seed-{calculator_mode}"
+    numeric_state = f"numeric-seed-{calculator_mode}"
+    if topic_state not in st.session_state:
+        st.session_state[topic_state] = 2026
+    if numeric_state not in st.session_state:
+        st.session_state[numeric_state] = 2026
+    blueprint_preset = preset_id != "custom" and bool(PRESETS[preset_id].get("blueprint"))
     if preset_id == "custom":
         st.caption("Search stays inside the calculator policy selected above.")
         store = f"picked-{calculator_mode}"
@@ -366,6 +417,9 @@ with st.sidebar:
                     for key in topic_pool:
                         st.session_state[f"box-{calculator_mode}-{key}"] = key in set(legal)
                     st.rerun()
+    elif blueprint_preset:
+        selected_task_keys = []
+        st.caption(PRESETS[preset_id]["description"])
     else:
         preset = PRESETS[preset_id]
         selected_task_keys = list(preset["keys"])
@@ -379,19 +433,54 @@ with st.sidebar:
         options=["standard", "challenging"],
         format_func=lambda key: "Standard procedures" if key == "standard" else "Challenging (IB exam-trap)",
     )
-    num_variants = st.slider(
-        "Number of Variants / Cohorts",
-        min_value=1,
-        max_value=3,
-        value=1,
-        key="cohort-count",
+    st.caption(
+        "This is the harder or easier switch. It applies to every cohort. "
+        "Cohorts are not easier or harder copies of each other."
+    )
+    num_variants = int(
+        st.slider(
+            "Number of Variants / Cohorts",
+            min_value=1,
+            max_value=4,
+            value=1,
+            key="cohort-count",
+        )
+    )
+    st.caption(
+        "Each step adds a twin paper: same difficulty, different data, different answers. "
+        "It does not make the paper easier or harder."
     )
     clean_integers_only = st.checkbox("Strictly enforce integer coordinates/roots", value=True)
     if gdc_paper:
         st.caption("Paper 2 rounds the finished GDC value to three significant figures.")
     elif clean_integers_only:
         st.caption("Critical points are chosen first and the function is integrated in SymPy, so Paper 1 answers stay exact.")
-    random_seed = st.number_input("Random Seed (for reproducibility)", value=2026, step=1)
+    number_col, mix_col = st.columns(2)
+    if number_col.button("🎲 New Numbers (Keep Topics)", key=f"new-numbers-{calculator_mode}"):
+        st.session_state[numeric_state] = int(st.session_state[numeric_state]) + 1
+        st.rerun()
+    if blueprint_preset and mix_col.button(
+        "🔀 New Topic Mix (Redraw Slots)",
+        key=f"new-topics-{calculator_mode}",
+    ):
+        st.session_state[topic_state] = int(st.session_state[topic_state]) + 1
+        st.session_state[numeric_state] = int(st.session_state[numeric_state]) + 1
+        st.rerun()
+    if blueprint_preset:
+        selected_task_keys = list(
+            build_exam_blueprint(
+                calculator_mode,
+                int(PRESETS[preset_id]["target_marks"]),
+                int(st.session_state[topic_state]),
+                min_cohort_depth=num_variants,
+                difficulty=difficulty,
+            )
+        )
+        slot_marks = sum(TASK_REGISTRY[key]["marks"] for key in selected_task_keys)
+        st.caption(f"Dealt slots, {slot_marks} marks. The same topics are frozen for every cohort.")
+        for key in selected_task_keys:
+            item = TASK_REGISTRY[key]
+            st.markdown(f"- Section {item.get('section', 'A')}: {item['name']} ({item['marks']} marks)")
     preset_time = "60 minutes" if preset_id == "custom" else PRESETS[preset_id]["time"]
     time_allowed = st.text_input("Time Allowed", value=preset_time, key=f"time_{preset_id}")
 
@@ -409,6 +498,11 @@ with st.sidebar:
         key=f"deliverable-{preset_id}-{calculator_mode}",
     )
     is_exam_mode = format_choice == "exam_booklet"
+    with st.expander("⚙️ Advanced: Reproducibility & Seeds"):
+        st.number_input("Topic seed", min_value=0, step=1, key=topic_state)
+        st.number_input("Numeric seed", min_value=0, step=1, key=numeric_state)
+        st.caption("Topic seed deals the slots. Numeric seed draws the values inside those topics.")
+    numeric_seed = int(st.session_state[numeric_state])
 
 if not selected_task_keys:
     st.warning("⚠️ Please select at least one question in the sidebar.")
@@ -429,10 +523,16 @@ try:
         order_task_keys(selected_task_keys),
         num_variants,
         clean_integers_only,
-        int(random_seed),
+        numeric_seed,
         difficulty,
         cohort_mode,
+        shuffle_order=False,
     )
+    if len(generated_papers) != num_variants:
+        st.error(
+            f"Requested {num_variants} twin papers but built {len(generated_papers)}."
+        )
+        st.stop()
 except RuntimeError as err:
     st.error(f"❌ {err}")
     st.stop()
@@ -440,11 +540,30 @@ except RuntimeError as err:
 # --- LIVE PREVIEW ---
 st.title("📐 Advanced STEM Examination Studio (IB HL Edition)")
 difficulty_label = "Standard procedures" if difficulty == "standard" else "Challenging (IB exam-trap)"
-mark_col, topic_col, difficulty_col, time_col = st.columns(4)
+mark_col, topic_col, cohort_col, difficulty_col, time_col = st.columns(5)
+cohort_names = ", ".join(paper["variant"] for paper in generated_papers)
 mark_col.metric("Total Marks", generated_papers[0]["total_marks"])
 topic_col.metric("Topics", len(selected_task_keys))
+cohort_col.metric("Cohorts", cohort_names)
 difficulty_col.metric("Difficulty", difficulty_label)
 time_col.metric("Allocated Time", time_allowed)
+if len(generated_papers) == 1:
+    st.caption(
+        f"Cohorts: {cohort_names}. One paper at this difficulty. "
+        "Increase Number of Variants / Cohorts to add twin papers with different data and different answers."
+    )
+else:
+    comparisons = []
+    for paper in generated_papers[1:]:
+        changed = _questions_that_differ(generated_papers[0], paper)
+        listed = ", ".join(changed) if changed else "none"
+        comparisons.append(f"{paper['variant']} changes questions {listed}")
+    st.caption(
+        f"Cohorts: {cohort_names}. Twin papers: same difficulty, different data, different answers. "
+        "Not an easier or a harder version. "
+        + "; ".join(comparisons)
+        + "."
+    )
 
 tab_practice, tab_ladder, tab_exam, tab_solutions, tab_archive = st.tabs([
     "🎓 Topical Practice Book",
@@ -456,7 +575,7 @@ tab_practice, tab_ladder, tab_exam, tab_solutions, tab_archive = st.tabs([
 
 with tab_practice:
     st.caption(
-        "Cohort A, arranged by syllabus category. Inside each category the cards climb from core procedures to exam traps."
+        "Practice shows twin paper A only. The other cohorts, when requested, are the same difficulty with different data and different answers. Switch them in Formal Mock Exam."
     )
     grouped = group_by_category(generated_papers[0]["tasks"], difficulty)
     available_categories = [category for category, _tasks in grouped]
@@ -521,15 +640,16 @@ with tab_ladder:
     if st.button("Another draw", key=f"ladder-again-{calculator_mode}"):
         st.session_state["ladder_nonce"] = st.session_state.get("ladder_nonce", 0) + 1
     ladder_nonce = st.session_state.get("ladder_nonce", 0)
-    ladder_keys = _category_draw(ladder_category, topic_pool, int(random_seed), ladder_nonce)
+    ladder_keys = _category_draw(ladder_category, topic_pool, numeric_seed, ladder_nonce)
     try:
         ladder_paper = generate_all_papers(
             ladder_keys,
             1,
             clean_integers_only,
-            int(random_seed) + ladder_nonce,
+            numeric_seed + ladder_nonce,
             difficulty,
             cohort_mode,
+            shuffle_order=False,
         )[0]
     except RuntimeError as err:
         st.error(f"❌ {err}")
@@ -588,33 +708,61 @@ with tab_archive:
             )
 
 with tab_exam:
-    v_tabs = st.tabs([f"Cohort / Variant {p['variant']}" for p in generated_papers])
-    for idx, paper in enumerate(generated_papers):
-        with v_tabs[idx]:
-            current_section = None
-            for task in paper["tasks"]:
-                section = task.get("section", "A")
-                if section != current_section:
-                    current_section = section
-                    banner = "Section A — Short response" if section == "A" else "Section B — Extended response"
-                    st.subheader(banner)
-                with st.container(border=True):
-                    st.markdown(
-                        f"**Question {task['q_number']}.** {task['title']} · {task['marks']} marks"
-                    )
-                    text_col, figure_col = st.columns([3, 2])
-                    with text_col:
-                        st.write(task["intro"])
-                        _render_stem_math(task)
-                        for part in task["subquestions"]:
-                            st.write(part)
-                    with figure_col:
-                        if figure_visible(task, is_markscheme=False, exam_mode=is_exam_mode):
-                            st.image(task["png_bytes"], width="stretch")
+    variant_labels = [f"Cohort / Variant: {paper['variant']}" for paper in generated_papers]
+    st.markdown(
+        "Twin papers, not a harder or an easier paper. "
+        "Every cohort uses the difficulty selected in the sidebar. "
+        "The data and the answers change. "
+        + " · ".join(variant_labels)
+    )
+    if len(generated_papers) > 1:
+        chosen_variant = st.radio(
+            "Show twin paper",
+            variant_labels,
+            horizontal=True,
+            key="exam-cohort",
+        )
+    else:
+        chosen_variant = variant_labels[0]
+        st.caption("This is the only paper. Increase Number of Variants / Cohorts for twin papers B, C and D.")
+    paper = generated_papers[variant_labels.index(chosen_variant)]
+    st.subheader(f"Twin paper {paper['variant']}")
+    if len(generated_papers) > 1 and paper is not generated_papers[0]:
+        changed = _questions_that_differ(generated_papers[0], paper)
+        listed = ", ".join(changed) if changed else "none"
+        st.caption(
+            f"Same difficulty as cohort A. Different data and different answers in questions {listed}."
+        )
+    current_section = None
+    for task in paper["tasks"]:
+        section = task.get("section", "A")
+        if section != current_section:
+            current_section = section
+            banner = "Section A — Short response" if section == "A" else "Section B — Extended response"
+            st.subheader(banner)
+        with st.container(border=True):
+            st.markdown(
+                f"**Question {task['q_number']}.** {task['title']} · {task['marks']} marks"
+            )
+            text_col, figure_col = st.columns([3, 2])
+            with text_col:
+                st.write(task["intro"])
+                _render_stem_math(task)
+                for part in task["subquestions"]:
+                    st.write(part)
+            with figure_col:
+                if figure_visible(task, is_markscheme=False, exam_mode=is_exam_mode):
+                    st.image(task["png_bytes"], width="stretch")
 
 with tab_solutions:
+    st.caption(
+        "One mark scheme for every twin paper. Same difficulty, different data, different answers."
+    )
     for p in generated_papers:
-        with st.expander(f"Mark scheme — cohort {p['variant']} ({p['total_marks']} marks)", expanded=True):
+        with st.expander(
+            f"Mark scheme — Cohort / Variant: {p['variant']} ({p['total_marks']} marks)",
+            expanded=True,
+        ):
             for task in p["tasks"]:
                 st.markdown(f"#### Question {task['q_number']}: {task['title']}")
                 _render_stem_math(task)

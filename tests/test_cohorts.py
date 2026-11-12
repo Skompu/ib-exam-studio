@@ -191,3 +191,18 @@ def test_validator_rejects_mixed_difficulty():
     ]
     with pytest.raises(RuntimeError, match="mixed difficulty"):
         assert_cohort_consistency(papers, "strict_parallel")
+
+
+def test_one_story_paper1_topic_still_builds_two_cognitive_twins():
+    import matplotlib.pyplot as plt
+
+    papers = compose_papers(("alg_factor",), 2, True, 2026, "standard", "cognitive_twin")
+    assert len(papers) == 2
+    first, second = papers[0]["tasks"][0], papers[1]["tasks"][0]
+    assert first["part_graph_id"] == second["part_graph_id"]
+    assert first["numeric_id"] != second["numeric_id"]
+    assert first["marks_vector"] == second["marks_vector"]
+    for paper in papers:
+        figure = paper["tasks"][0].get("fig")
+        if figure is not None:
+            plt.close(figure)

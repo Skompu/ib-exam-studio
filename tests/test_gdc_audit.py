@@ -2,7 +2,7 @@
 
 from registry import PRESETS, TASK_REGISTRY
 
-PAPER2_MOCK_TARGET_MARKS = 100
+PAPER2_MOCK_TARGET_MARKS = 110
 
 # Paper 2 style Section A questions (GDC). Excludes Paper 3 investigations.
 GDC_PAPER2_POOL = frozenset(
@@ -22,13 +22,27 @@ GDC_PAPER2_POOL = frozenset(
 
 GDC_PAPER3_ONLY = frozenset({"paper3_geo", "paper3_mac"})
 
-GDC_SECTION_B = frozenset({"ext_gdc_model", "ext_gdc_stat"})
+GDC_SECTION_B = frozenset({
+    "ext_gdc_model",
+    "ext_gdc_stat",
+    "ext_cross_trig_gdc",
+    "ext_cross_log_gdc",
+})
+
+GDC_HL_SECTION_A = frozenset({"prob_pdf_gdc", "vec_line_plane_gdc"})
 
 # Split off the inverse-normal family so a preset can pin binomial.
 GDC_OPTIONAL = frozenset({"gdc_invnorm"})
 
 # Section B extended items that remain non-GDC (Paper 1 mock only).
-SECTION_B_NON_GDC = frozenset({"ext_calculus", "ext_vectors", "ext_model", "ext_ln"})
+SECTION_B_NON_GDC = frozenset({
+    "ext_calculus",
+    "ext_vectors",
+    "ext_model",
+    "ext_ln",
+    "ext_cross_trig_seq",
+    "ext_cross_log_calc",
+})
 
 
 def _gdc_keys():
@@ -37,7 +51,7 @@ def _gdc_keys():
 
 def test_every_gdc_key_is_classified():
     gdc = _gdc_keys()
-    assert gdc == GDC_PAPER2_POOL | GDC_PAPER3_ONLY | GDC_SECTION_B | GDC_OPTIONAL
+    assert gdc == GDC_PAPER2_POOL | GDC_PAPER3_ONLY | GDC_SECTION_B | GDC_OPTIONAL | GDC_HL_SECTION_A
 
 
 def test_gdc_paper2_pool_marks_and_coverage():
@@ -71,8 +85,12 @@ def test_mock_p2_is_full_hundred():
     assert preset["calculator"] == "gdc"
     assert preset["marks"] == PAPER2_MOCK_TARGET_MARKS
     assert preset["time"] == "120 minutes"
-    assert set(preset["keys"]) == GDC_PAPER2_POOL | GDC_SECTION_B
-    assert sum(TASK_REGISTRY[key]["marks"] for key in preset["keys"]) == 100
+    assert set(preset["keys"]) == (GDC_PAPER2_POOL - {"bivar"}) | {
+        "ext_gdc_model",
+        "ext_gdc_stat",
+        "ext_cross_trig_gdc",
+    }
+    assert sum(TASK_REGISTRY[key]["marks"] for key in preset["keys"]) == 110
     section_a = sum(
         TASK_REGISTRY[key]["marks"]
         for key in preset["keys"]
@@ -83,8 +101,8 @@ def test_mock_p2_is_full_hundred():
         for key in preset["keys"]
         if TASK_REGISTRY[key].get("section") == "B"
     )
-    assert section_a == 65
-    assert section_b == 35
+    assert section_a == 59
+    assert section_b == 51
 
 
 def test_section_b_gdc_marks():

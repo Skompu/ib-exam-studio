@@ -28,12 +28,13 @@ def _plot_cubic(function, points):
     numeric = sp.lambdify(x, function, "numpy")
     fig, ax = plt.subplots(figsize=(4.2, 3.2))
     ax.plot(grid, numeric(grid), color="#1e293b", lw=1.8, label=r"$y=f(x)$")
-    ax.scatter([p[0] for p in points], [p[1] for p in points], color="#dc2626", zorder=5)
     ax.axhline(0, color="#94a3b8", lw=0.8)
     ax.axvline(0, color="#94a3b8", lw=0.8)
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.set_title("Diagram not to scale", fontsize=8, color="#64748b", style="italic")
     ax.legend(frameon=True, fontsize=8)
+    ax.set_xticks([])
+    ax.set_yticks([])
     return fig
 
 

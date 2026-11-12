@@ -165,9 +165,12 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
     pool = _BANK
     if difficulty == "challenging":
-        pool = tuple(item for item in _BANK if item["trials"] >= 25)
-    if not pool:
-        pool = _BANK
+        longer = tuple(item for item in _BANK if item["trials"] >= 25)
+        identities = {
+            (item["mean"], item["spread"], item["cutoff"], item["trials"], item["at_least"])
+            for item in longer
+        }
+        pool = longer if len(identities) >= 4 else _BANK
     item = choice(pool)
     story = choice(_contexts())
     shown = item["shown"]

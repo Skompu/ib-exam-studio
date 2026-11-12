@@ -33,6 +33,8 @@ def _style(ax):
 
 
 def _plot_function(function, points, extra_lines=None, span=2.6):
+    """Draw the curve only. Marked points and the tangent are the answers."""
+    del extra_lines
     xs = [point[0] for point in points] or [0]
     lo = min(xs) - span
     hi = max(xs) + span
@@ -40,14 +42,9 @@ def _plot_function(function, points, extra_lines=None, span=2.6):
     numeric = sp.lambdify(x, function, "numpy")
     fig, ax = plt.subplots(figsize=(4.2, 3.2))
     ax.plot(grid, numeric(grid), color="#1e293b", lw=1.8, label=r"$y=f(x)$")
-    for expr, label in extra_lines or []:
-        line_numeric = sp.lambdify(x, expr, "numpy")
-        ax.plot(grid, line_numeric(grid), lw=1.2, ls="--", label=label)
-    if points:
-        ax.scatter([p[0] for p in points], [p[1] for p in points], color="#dc2626", zorder=5)
-        for px, py, label in points:
-            ax.annotate(label, xy=(px, py), xytext=(px + 0.15, py), fontsize=8, color="#1e293b")
     _style(ax)
+    ax.set_xticks([])
+    ax.set_yticks([])
     return fig
 
 
@@ -124,6 +121,9 @@ def _cubic_tangent(clean_integers, difficulty):
         fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Cubic polynomial, built from chosen stationary roots",
+        part_graph_id="calc_tangent_cubic",
+        cover_id="tangent" if not ask_normal else "normal",
+        numeric_id=f"x0={x0}|m={gradient}",
     )
 
 
@@ -292,6 +292,9 @@ def _cubic_stationary(clean_integers, difficulty):
         fig=fig, plot_type="illustrative",
         archetype="Stationary points and inflection",
         family="Cubic polynomial, built from chosen stationary roots",
+        part_graph_id="calc_stationary_cubic",
+        cover_id="cubic",
+        numeric_id=f"r1={r1}|r2={r2}",
     )
 
 
@@ -477,22 +480,15 @@ def _parameter_recovery(clean_integers, difficulty):
         fig=fig, plot_type="illustrative",
         archetype=archetype,
         family="Cubic with unknown coefficients, recovered from chosen critical points",
+        part_graph_id="calc_diff_parameter_cubic",
+        cover_id="plain",
+        numeric_id=f"r1={r1}|r2={r2}|f(0)={y_intercept}|f(r1)={y1}",
     )
 
 
-def gen_calculus_differential(clean_integers: bool, difficulty: str = "standard"):
-    """Three mechanics for one UI topic: tangent/normal, stationary points, or parameter recovery."""
-    archetype = random.choice(("tangent", "stationary", "inverse"))
-    if archetype == "tangent":
-        builder = random.choice((_cubic_tangent, _quartic_tangent, _exponential_tangent, _trig_tangent))
-        return builder(clean_integers, difficulty)
-    if archetype == "stationary":
-        if difficulty == "challenging":
-            return _quadratic_trap(clean_integers)
-        if random.random() < 0.5:
-            return _cubic_stationary(clean_integers, difficulty)
-        return _exponential_stationary(clean_integers)
-    return _parameter_recovery(clean_integers, difficulty)
+def gen_calculus_differential(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
+    """Parameter recovery only. Tangent and stationary points are separate keys."""
+    return gen_calc_recover_coeffs(clean_integers, difficulty, exclude_numeric_ids)
 
 
 _AREA_STARTS = (0, 1)
@@ -519,8 +515,9 @@ def gen_calculus_area(clean_integers: bool, difficulty: str = "standard", root1=
     ax.plot(grid, numeric(grid), color="#1e293b", lw=1.8, label=r"$y=f(x)$")
     fill = np.linspace(root1, root2, 100)
     ax.fill_between(fill, numeric(fill), color="#38bdf8", alpha=0.35, label="Enclosed area")
-    ax.scatter([root1, root2], [0, 0], color="#0284c7", zorder=5)
     _style(ax)
+    ax.set_xticks([])
+    ax.set_yticks([])
 
     if difficulty == "challenging":
         prompt_c = (
@@ -570,6 +567,27 @@ def gen_calculus_area(clean_integers: bool, difficulty: str = "standard", root1=
     )
 
 
-def gen_calculus_tangent(clean_integers: bool, difficulty: str = "standard"):
+def _fresh(builder, clean_integers, difficulty, exclude_numeric_ids, attempts=40):
+    banned = set(exclude_numeric_ids or ())
+    last = None
+    for _ in range(attempts):
+        last = builder(clean_integers, difficulty)
+        if last.numeric_id not in banned:
+            return last
+    if last is None:
+        raise RuntimeError("No calculus variant was built.")
+    return last
+
+
+def gen_calc_recover_coeffs(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
+    return _fresh(_parameter_recovery, clean_integers, difficulty, exclude_numeric_ids)
+
+
+def gen_calc_stationary(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
+    return _fresh(_cubic_stationary, clean_integers, difficulty, exclude_numeric_ids)
+
+
+def gen_calculus_tangent(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
     """Kept for callers that still want a tangent item specifically."""
-    return _cubic_tangent(clean_integers, difficulty)
+    task = _fresh(_cubic_tangent, clean_integers, difficulty, exclude_numeric_ids)
+    return task

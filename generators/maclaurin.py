@@ -15,14 +15,13 @@ _EXP_SIN_FREQUENCIES = (1, 2, 3, 4, 5)
 
 
 def _plot_series(function, polynomial):
+    """The polynomial is the answer, so the diagram shows only f."""
+    del polynomial
     grid = np.linspace(-1.4, 1.4, 240)
     f_num = sp.lambdify(x, function, "numpy")
-    p_num = sp.lambdify(x, polynomial, "numpy")
     curve = np.asarray(f_num(grid), dtype=float)
-    approx = np.asarray(p_num(grid), dtype=float)
     fig, ax = plt.subplots(figsize=(4.2, 3.2))
     ax.plot(grid, curve, color="#1e293b", lw=1.8, label=r"$y=f(x)$")
-    ax.plot(grid, approx, color="#dc2626", lw=1.2, ls="--", label="Maclaurin polynomial")
     ax.axhline(0, color="#94a3b8", lw=0.8)
     ax.axvline(0, color="#94a3b8", lw=0.8)
     low = float(np.min(curve))
@@ -32,6 +31,8 @@ def _plot_series(function, polynomial):
     ax.grid(True, linestyle=":", alpha=0.5)
     ax.set_title("Diagram not to scale", fontsize=8, color="#64748b", style="italic")
     ax.legend(frameon=True, fontsize=8)
+    ax.set_xticks([])
+    ax.set_yticks([])
     return fig
 
 

@@ -155,14 +155,16 @@ _DOUBLES = tuple(item for item in _BANK if item["changes"] == 2)
 
 
 def _figure(expression, upper, roots):
+    """The turning times are the answer, so they are not marked on the curve."""
+    del roots
     grid = np.linspace(0, upper, 300)
     numeric = sp.lambdify(t, expression, "numpy")
     fig, ax = plt.subplots(figsize=(4.4, 3.2))
     ax.plot(grid, numeric(grid), color="#1e293b", lw=1.8)
     ax.axhline(0, color="#94a3b8", lw=0.8)
-    for root in roots:
-        ax.axvline(root, color="#0284c7", lw=0.8, ls="--")
     ax.set_xlim(0, upper)
+    ax.set_xticks([])
+    ax.set_yticks([])
     ax.set_title("Diagram not to scale", fontsize=8, color="#64748b", style="italic")
     return fig
 

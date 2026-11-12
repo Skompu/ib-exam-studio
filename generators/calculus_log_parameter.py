@@ -38,14 +38,9 @@ def _figure(exponent):
     fig, ax = plt.subplots(figsize=(4.4, 3.2))
     ax.plot(grid, curve, color="#1e293b", lw=1.8)
     ax.fill_between(grid, curve, where=(grid >= 1) & (grid <= np.e), color="#38bdf8", alpha=0.35)
-    for place, label in (
-        (float(np.exp(1 - float(exponent))), "P"),
-        (float(np.exp(1.5 - float(exponent))), "Q"),
-    ):
-        height = np.log(numeric_k * place) / place
-        ax.scatter([place], [height], color="#dc2626", zorder=5)
-        ax.annotate(label, (place, height), textcoords="offset points", xytext=(4, 6), fontsize=9)
     ax.axhline(0, color="#94a3b8", lw=0.8)
+    ax.set_xticks([])
+    ax.set_yticks([])
     ax.set_title("Diagram not to scale", fontsize=8, color="#64748b", style="italic")
     return fig
 

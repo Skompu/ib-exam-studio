@@ -16,8 +16,8 @@ from core.task_contract import Task
 
 CohortMode = Literal["strict_parallel", "cognitive_twin"]
 COHORT_MODES = ("strict_parallel", "cognitive_twin")
-COHORT_ATTEMPTS = 15
-VARIANT_CHARS = ("A", "B", "C")
+COHORT_ATTEMPTS = 60
+VARIANT_CHARS = ("A", "B", "C", "D")
 
 
 @dataclass(frozen=True)
@@ -54,8 +54,14 @@ def candidate_allowed(
     pinned: CohortIds | None,
     used_numeric: set[str],
     used_cover: set[str],
+    *,
+    allow_same_cover: bool = False,
 ) -> bool:
-    """True when this draw may join the cohort set for one question."""
+    """True when this draw may join the cohort set for one question.
+
+    Cognitive Twin prefers a new story. A topic whose bank has only one story
+    may still join on a new number, so a Paper 1 mock is not abandoned.
+    """
     if pinned is None:
         if mode == "strict_parallel":
             return ids.numeric_id not in used_numeric
@@ -64,7 +70,9 @@ def candidate_allowed(
         return False
     if mode == "strict_parallel":
         return ids.cover_id == pinned.cover_id and ids.numeric_id not in used_numeric
-    return ids.cover_id not in used_cover
+    if ids.cover_id not in used_cover:
+        return True
+    return allow_same_cover and ids.numeric_id not in used_numeric
 
 
 def _release_figure(task: Task) -> None:
@@ -122,8 +130,22 @@ def assert_cohort_consistency(papers: list[dict], cohort_mode: CohortMode) -> No
             if len(set(numerics)) != len(numerics):
                 raise RuntimeError(f"Question {index + 1} repeated numeric_id in Strict Parallel.")
         elif cohort_mode == "cognitive_twin":
-            if len(set(covers)) != len(covers):
-                raise RuntimeError(f"Question {index + 1} repeated cover_id in Cognitive Twin.")
+            distinct_stories = len(set(covers)) == len(covers)
+            distinct_numbers = len(set(numerics)) == len(numerics)
+            if not distinct_stories and not distinct_numbers:
+                raise RuntimeError(
+                    f"Question {index + 1} repeated both the story and the numbers in Cognitive Twin."
+                )
+
+
+def _invoke_generator(generate, key, clean, difficulty, exclude):
+    """Pass the dealt numeric ids when the generator can take them."""
+    try:
+        return generate(key, clean, difficulty, exclude_numeric_ids=exclude)
+    except TypeError as exc:
+        if "exclude_numeric_ids" not in str(exc):
+            raise
+        return generate(key, clean, difficulty)
 
 
 def compose_papers(
@@ -135,11 +157,15 @@ def compose_papers(
     cohort_mode: CohortMode = "strict_parallel",
     draw: Callable[..., Task] | None = None,
 ) -> list[dict]:
-    """Build one paper per cohort. All cohorts share `difficulty`."""
+    """Build one paper per cohort. All cohorts share `difficulty` and this topic list.
+
+    The caller freezes the blueprint. Cohorts differ by the numbers drawn inside
+    each topic, not by which topics were dealt.
+    """
     if cohort_mode not in COHORT_MODES:
         raise ValueError(f"Unknown cohort_mode {cohort_mode!r}.")
-    if num_variants < 1 or num_variants > 3:
-        raise ValueError("num_variants must be 1, 2 or 3.")
+    if num_variants < 1 or num_variants > len(VARIANT_CHARS):
+        raise ValueError("num_variants must be 1, 2, 3 or 4.")
 
     from registry import TASK_REGISTRY, call_generator
 
@@ -163,19 +189,29 @@ def compose_papers(
                 random.seed(variant_seed)
                 rng_token = bind_rng(variant_seed)
                 try:
-                    candidate = generate(key, clean_integers, difficulty)
+                    candidate = _invoke_generator(
+                        generate,
+                        key,
+                        clean_integers,
+                        difficulty,
+                        used_numeric[key],
+                    )
                     if not isinstance(candidate, Task):
                         raise TypeError(
                             f"{key} returned {type(candidate).__name__}, expected Task."
                         )
                     saw_task = True
                     ids = resolve_cohort_ids(candidate, key)
+                    # The first draws look for another story. A one-story bank then
+                    # keeps that story and changes the numbers.
+                    same_story_fallback = cohort_mode == "cognitive_twin" and attempt >= 12
                     if not candidate_allowed(
                         cohort_mode,
                         ids,
                         pinned[key],
                         used_numeric[key],
                         used_cover[key],
+                        allow_same_cover=same_story_fallback,
                     ):
                         _release_figure(candidate)
                         continue
@@ -197,7 +233,7 @@ def compose_papers(
             if generated_data is None:
                 if saw_task:
                     raise RuntimeError(
-                        f"Bank too shallow for {key} in mode {cohort_mode} - cannot assemble 3 cohorts"
+                        f"Bank too shallow for {key} in mode {cohort_mode} - cannot assemble {num_variants} cohorts"
                     )
                 detail = (
                     f"{type(last_error).__name__}: {last_error}"

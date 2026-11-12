@@ -30,8 +30,9 @@ def _dot(left, right) -> int:
     return sum(left[i] * right[i] for i in range(3))
 
 
-def gen_vector_line_plane(clean_integers: bool, difficulty: str = "standard"):
+def gen_vector_line_plane(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None, gdc: bool = False):
     del difficulty
+    banned = set(exclude_numeric_ids or ())
     bank = _SHORT if clean_integers else _WIDE
     lam = sp.symbols("lam")
     built = None
@@ -55,7 +56,10 @@ def gen_vector_line_plane(clean_integers: bool, difficulty: str = "standard"):
         sine = sp.Rational(abs(dot), direction_length * normal_length)
         if not (0 < sine < 1):
             continue
-        built = (direction, normal, point, parameter, anchor, rhs, sine, direction_length, normal_length, dot)
+        numeric_id = f"P={point}|d={direction}|n={normal}|lam={parameter}"
+        if numeric_id in banned:
+            continue
+        built = (direction, normal, point, parameter, anchor, rhs, sine, direction_length, normal_length, dot, numeric_id)
         break
     if built is None:
         raise RuntimeError("Could not build a line that meets a plane at a clean angle.")
@@ -70,6 +74,7 @@ def gen_vector_line_plane(clean_integers: bool, difficulty: str = "standard"):
         direction_length,
         normal_length,
         dot,
+        numeric_id,
     ) = built
     return pack_task(
         title="Vectors: Line, Plane and the Angle between Them",
@@ -104,10 +109,17 @@ def gen_vector_line_plane(clean_integers: bool, difficulty: str = "standard"):
                 step(
                     r"For the acute angle between a line and a plane, $\sin\theta = |\mathbf{b}\cdot\mathbf{n}|/(|\mathbf{b}|\,|\mathbf{n}|)$:",
                     rf"\sin\theta = \frac{{{abs(dot)}}}{{{direction_length}\times {normal_length}}} = {sp.latex(sine)}",
-                    "M1 A1 A1",
+                    "M1 A1 A1" + (" (M1) for sketch / intersect" if gdc else ""),
                 ),
             ),
         ],
         archetype=f"Line meets plane at {point}, sine {sine}",
         family="Integer-length direction and normal, rational sine",
+        part_graph_id="vec_line_plane_angle",
+        cover_id="gdc" if gdc else "exact",
+        numeric_id=numeric_id,
     )
+
+
+def gen_vector_line_plane_gdc(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
+    return gen_vector_line_plane(clean_integers, difficulty, exclude_numeric_ids, gdc=True)
