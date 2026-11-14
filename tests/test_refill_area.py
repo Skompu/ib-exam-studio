@@ -10,7 +10,9 @@ from registry import (
     aa_hl_coverage,
     build_exam_blueprint,
     calculator_pool_areas,
+    coverage_swap_note,
     refill_missing_area,
+    stand_in_areas,
 )
 
 
@@ -30,6 +32,13 @@ def test_paper2_functions_sit_in_the_gdc_pool():
     assert "functions_gdc" not in dealt
     assert "vol_rev_gdc" not in dealt
     assert "gdc_gauss" not in dealt
+    assert stand_in_areas("gdc") == frozenset({"Functions"})
+    assert stand_in_areas("none") == frozenset()
+    missing = [area for area in AA_HL_AREAS if not aa_hl_coverage(dealt)[area]]
+    assert coverage_swap_note(missing, "gdc") == (
+        "Functions is a same-mark swap, not part of the automatic paper."
+    )
+    assert coverage_swap_note([], "gdc") == ""
 
 
 def test_every_topic_belongs_to_one_aa_hl_block():

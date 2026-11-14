@@ -1225,9 +1225,7 @@ def aa_hl_coverage(keys) -> dict[str, tuple[str, ...]]:
     return {area: tuple(items) for area, items in grouped.items()}
 
 
-def calculator_pool_areas(calculator: str) -> frozenset[str]:
-    """AA HL blocks that have at least one usable topic for this calculator policy."""
-    found = set()
+def _topics_for_calculator(calculator: str):
     for key, spec in TASK_REGISTRY.items():
         if spec.get("calculator", "none") != calculator:
             continue
@@ -1235,8 +1233,34 @@ def calculator_pool_areas(calculator: str) -> frozenset[str]:
             continue
         area = aa_hl_area(key)
         if area:
-            found.add(area)
-    return frozenset(found)
+            yield key, spec, area
+
+
+def calculator_pool_areas(calculator: str) -> frozenset[str]:
+    """AA HL blocks that have at least one usable topic for this calculator policy."""
+    return frozenset(area for _key, _spec, area in _topics_for_calculator(calculator))
+
+
+def stand_in_areas(calculator: str) -> frozenset[str]:
+    """Blocks whose every topic is a same-mark swap. A mock never deals them."""
+    dealt = set()
+    present = set()
+    for _key, spec, area in _topics_for_calculator(calculator):
+        present.add(area)
+        if spec.get("deal") is not False:
+            dealt.add(area)
+    return frozenset(present - dealt)
+
+
+def coverage_swap_note(missing, calculator: str) -> str:
+    """One sentence for a gap that exists only because the topic is a swap."""
+    swaps = [area for area in missing if area in stand_in_areas(calculator)]
+    if not swaps:
+        return ""
+    if len(swaps) == 1:
+        return f"{swaps[0]} is a same-mark swap, not part of the automatic paper."
+    listed = ", ".join(swaps[:-1]) + " and " + swaps[-1]
+    return f"{listed} are same-mark swaps, not part of the automatic paper."
 
 
 _FOCUS_AREAS = (

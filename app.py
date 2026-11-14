@@ -15,6 +15,7 @@ from registry import (
     advancement_band,
     build_exam_blueprint,
     calculator_pool_areas,
+    coverage_swap_note,
     order_task_keys,
     refill_missing_area,
 )
@@ -472,11 +473,11 @@ def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
     )
 
 
-def _coverage_line(keys, calculator_mode: str) -> str:
-    """Count only the blocks this calculator can actually deal.
+def _coverage_facts(keys, calculator_mode: str) -> tuple[str, str]:
+    """Count the blocks this calculator can fill, including same-mark swaps.
 
-    Paper 2 has no Functions topic, so a full GDC paper reads 5/5 instead of a
-    permanent gap the bank cannot fill.
+    A swap such as Functions on Paper 2 stays out of the automatic mock. The
+    line still names the gap, and the note says the topic is a same-mark swap.
     """
     coverage = aa_hl_coverage(keys)
     pool = calculator_pool_areas(calculator_mode)
@@ -484,13 +485,17 @@ def _coverage_line(keys, calculator_mode: str) -> str:
     missing = [area for area in tracked if not coverage[area]]
     present = len(tracked) - len(missing)
     if not missing:
-        return f"Syllabus coverage: {present}/{len(tracked)}"
-    return f"Coverage: {present}/{len(tracked)} · Missing: {', '.join(missing)}"
+        line = f"Syllabus coverage: {present}/{len(tracked)}"
+    else:
+        line = f"Coverage: {present}/{len(tracked)} · Missing: {', '.join(missing)}"
+    return line, coverage_swap_note(missing, calculator_mode)
 
 
 def _render_coverage(keys, calculator_mode, target, difficulty, num_variants, signature, override_key, nonce_key, flash_scope) -> None:
-    line = _coverage_line(keys, calculator_mode)
+    line, note = _coverage_facts(keys, calculator_mode)
     st.markdown(line)
+    if note:
+        st.caption(note)
     if line.startswith("Syllabus coverage:"):
         return
     nonce = int(st.session_state.get(nonce_key, 0))

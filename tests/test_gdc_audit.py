@@ -126,3 +126,22 @@ def test_gdc_paper2_pool_preset_membership():
     assert "ext_gdc_stat" in PRESETS["mock_p2"]["keys"]
     assert "ext_gdc_model" not in PRESETS["paper2plus"]["keys"]
     assert "ext_gdc_stat" not in PRESETS["paper2plus"]["keys"]
+
+
+def test_fractional_exponents_keep_x_squared_inside_the_power():
+    import sympy as sp
+    from matplotlib.mathtext import MathTextParser
+
+    from core.pdf_engine import _prepare_math
+    from generators.calculus_volumes_gdc import _curve
+    from generators.gdc_gauss import _power
+
+    parser = MathTextParser("agg")
+    formulas = (
+        rf"y = \mathrm{{e}}^{{-{_power(sp.Rational(1, 2))}}}\ln(1 + x)",
+        rf"y = {_curve(1)}, \quad 0 \le x \le 1",
+        rf"y = {_curve(3)}",
+    )
+    for formula in formulas:
+        assert r"\frac" not in formula
+        parser.parse(_prepare_math(formula), dpi=72)

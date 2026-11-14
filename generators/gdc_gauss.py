@@ -104,9 +104,15 @@ _BANK = _bank()
 
 
 def _power(rate) -> str:
+    """Coefficient written so a fraction does not close the exponent early.
+
+    Matplotlib mathtext ends ^{...} at the first brace of \\frac.
+    """
     if rate == 1:
         return "x^{2}"
-    return rf"{sp.latex(rate)}x^{{2}}"
+    if rate.is_Integer:
+        return rf"{int(rate)}x^{{2}}"
+    return rf"({int(rate.p)}/{int(rate.q)})x^{{2}}"
 
 
 def gen_gdc_gauss(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):

@@ -5,7 +5,6 @@ volume is the three-significant-figure value of a checked quadrature.
 """
 
 import mpmath as mp
-import sympy as sp
 
 from core.randomizer import pack_task, part, step
 from core.rng import choice
@@ -52,6 +51,19 @@ def _volume(coefficient: int, upper: int):
     return shown
 
 
+def _curve(coefficient: int) -> str:
+    """y = e^{-(c/2) x^2}. A fraction in the exponent is written with a slash.
+
+    Matplotlib mathtext ends ^{...} at the first brace of \\frac, so \\frac{1}{2}
+    would leave x^2 on the baseline.
+    """
+    if coefficient == 2:
+        return r"e^{-x^{2}}"
+    if coefficient % 2 == 0:
+        return rf"e^{{-{coefficient // 2} x^{{2}}}}"
+    return rf"e^{{-({coefficient}/2) x^{{2}}}}"
+
+
 def _bank():
     valid = []
     for coefficient, upper in _CANDIDATES:
@@ -77,8 +89,7 @@ def gen_volume_revolution_gdc(clean_integers: bool, difficulty: str = "standard"
     if not available:
         raise RuntimeError("No unused GDC volume remains.")
     coefficient, upper, shown = choice(available)
-    half = sp.Rational(coefficient, 2)
-    curve = rf"e^{{-{sp.latex(half)} x^{{2}}}}" if half != 1 else r"e^{-x^{2}}"
+    curve = _curve(coefficient)
     squared = rf"e^{{-{coefficient}x^{{2}}}}" if coefficient != 1 else r"e^{-x^{2}}"
     task = pack_task(
         title="Paper 2: Volume of Revolution",

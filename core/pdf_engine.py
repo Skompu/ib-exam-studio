@@ -203,6 +203,11 @@ def _prepare_math(code: str) -> str:
     text = text.replace(r"\dfrac", r"\frac").replace(r"\tfrac", r"\frac")
     text = text.replace(r"\displaystyle", "")
     text = re.sub(r"\\text\{([^{}]*)\}", r"\\mathrm{\1}", text)
+    text = re.sub(
+        r"\\mathrm\{([^{}]*)\}",
+        lambda match: r"\mathrm{" + match.group(1).replace(" ", r"\ ") + "}",
+        text,
+    )
     text = text.replace(r"\left", "").replace(r"\right", "")
     # matplotlib mathtext accepts \leq/\geq, not the shorter aliases.
     text = text.replace(r"\leqslant", r"\leq").replace(r"\geqslant", r"\geq")
@@ -235,7 +240,8 @@ def _simple_math(code: str):
         r"\ne": "≠", r"\neq": "≠", r"\infty": "∞", r"\ldots": "…",
         r"\,": "", r"\;": "", r"\:": "", r"\ ": " ",
     }
-    for source, target in symbols.items():
+    # Longer names first, so \neq is not eaten by \ne and \leq is not eaten by \le.
+    for source, target in sorted(symbols.items(), key=lambda item: len(item[0]), reverse=True):
         text = text.replace(source, target)
     if "\\" in text:
         return None
@@ -911,13 +917,19 @@ def build_multi_question_pdf(
                 for group in _scheme_groups(task):
                     letter = group.get("letter") or ""
                     marks = group.get("marks")
+                    header = None
                     if letter:
                         unit = "mark" if marks == 1 else "marks"
-                        story.append(
-                            Paragraph(f"({escape(letter)}) [{marks} {unit}]", part_head_style)
+                        header = Paragraph(
+                            f"({escape(letter)}) [{marks} {unit}]",
+                            part_head_style,
                         )
                     for step in group.get("steps") or []:
-                        _append_rich(story, f"• {step['desc']}", body_style, text_width)
+                        block = []
+                        if header is not None:
+                            block.append(header)
+                            header = None
+                        _append_rich(block, f"• {step['desc']}", body_style, text_width)
                         formula = render_math_to_image(step["tex"], fontsize=11, max_width=text_width)
                         code = Paragraph(_scheme_code_label(step), meta_style)
                         if formula is None:
@@ -931,11 +943,12 @@ def build_multi_question_pdf(
                             ("LEFTPADDING", (0, 0), (-1, -1), 8),
                             ("RIGHTPADDING", (0, 0), (-1, -1), 0),
                         ]))
-                        story.append(scheme_row)
+                        block.append(scheme_row)
                         if step.get("rounding"):
-                            story.append(Paragraph(escape(step["rounding"]), note_style))
+                            block.append(Paragraph(escape(step["rounding"]), note_style))
                         if step.get("alternative"):
-                            story.append(Paragraph(escape(step["alternative"]), note_style))
+                            block.append(Paragraph(escape(step["alternative"]), note_style))
+                        story.append(KeepTogether(block))
                 story.append(Spacer(1, 8))
 
     doc.build(story, canvasmaker=NumberedCanvas)

@@ -315,3 +315,14 @@ def test_exam_booklet_opens_with_ib_instructions():
     )
     scheme_cover = PdfReader(io.BytesIO(scheme)).pages[0].extract_text() or ""
     assert "Instructions to candidates" not in scheme_cover
+
+
+def test_inline_relations_keep_the_whole_command():
+    from core.pdf_engine import _simple_math
+
+    unequal = _simple_math(r"x \neq 25")
+    bounded = _simple_math(r"0 \leq x \leq 1")
+    assert unequal is not None and "q" not in unequal
+    assert "≠" in unequal and "25" in unequal
+    assert bounded is not None and "q" not in bounded
+    assert bounded.count("≤") == 2
