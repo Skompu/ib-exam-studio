@@ -41,10 +41,13 @@ from generators.core_skills import gen_geometric_sequence, gen_logarithms, gen_t
 from generators.differential_equations import gen_differential_equation
 from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
+from generators.functions_extended import gen_extended_rational
+from generators.functions_gdc import gen_functions_gdc
 from generators.functions_transformations import gen_transformations_modulus
 from generators.gdc_chi_squared import gen_gdc_chi_squared
 from generators.gdc_chi_gof import gen_gdc_chi_gof
 from generators.gdc_curve import gen_gdc_curve
+from generators.gdc_gauss import gen_gdc_gauss
 from generators.gdc_extended_model import gen_extended_gdc_model
 from generators.gdc_extended_stat import gen_extended_gdc_stat
 from generators.gdc_linear_system import gen_linear_system
@@ -56,6 +59,8 @@ from generators.probability_bayes import gen_bayes
 from generators.probability_exponential import gen_exponential_rv
 from generators.probability_conditional import gen_probability_conditional
 from generators.induction import gen_induction
+from generators.calculus_volumes_gdc import gen_volume_revolution_gdc
+from generators.kinematics import gen_kinematics_exact
 from generators.kinematics_gdc import gen_kinematics
 from generators.maclaurin import gen_maclaurin
 from generators.probability_rv import gen_binomial_rv, gen_poisson_rv, gen_random_variable
@@ -76,6 +81,7 @@ from generators.sequences_infinite_series import gen_infinite_geometric_series
 from generators.vectors_plane_intersection import gen_vector_line_plane, gen_vector_line_plane_gdc
 from generators.vectors_planes import gen_vectors_plane
 from generators.vectors_skew import gen_vec_lines_intersect, gen_vec_plane_cross, gen_vectors_skew
+from generators.vectors_two_planes import gen_two_planes
 
 TASK_REGISTRY = {
     "calc_diff": {
@@ -387,6 +393,38 @@ TASK_REGISTRY = {
         "section": "A",
         "search": "transformation stationary point modulus graph",
     },
+    # Not auto-dealt: a Paper 2 mock keeps its present shape. Refill can still
+    # swap these in, because each is Section A, GDC, and worth 6 marks.
+    "vol_rev_gdc": {
+        "name": "Paper 2: Volume of Revolution",
+        "func": gen_volume_revolution_gdc,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "volume of revolution Gaussian GDC three significant figures",
+    },
+    "functions_gdc": {
+        "name": "Paper 2: Logarithmic Function and its Inverse",
+        "func": gen_functions_gdc,
+        "marks": 6,
+        "category": "Functions",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "logarithm inverse domain GDC three significant figures",
+    },
+    "gdc_gauss": {
+        "name": "Paper 2: A Gaussian Curve on a GDC",
+        "func": gen_gdc_gauss,
+        "marks": 6,
+        "category": "Calculus",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "gaussian logarithm stationary point area GDC three significant figures",
+    },
     "gdc_intersect": {
         "name": "Paper 2: Transcendental Intersection",
         "func": gen_gdc_intersection,
@@ -394,6 +432,14 @@ TASK_REGISTRY = {
         "category": "Paper 2",
         "section": "A",
         "calculator": "gdc",
+    },
+    "kin_exact": {
+        "name": "Calculus: Kinematics in a Straight Line",
+        "func": gen_kinematics_exact,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "search": "kinematics displacement velocity distance travelled exact rests",
     },
     "kin_gdc": {
         "name": "Paper 2: Kinematics",
@@ -749,6 +795,14 @@ TASK_REGISTRY = {
         "section": "A",
         "search": "three linear equations parameter infinite solutions line",
     },
+    "vec_two_planes": {
+        "name": "Vectors: The Angle between Two Planes",
+        "func": gen_two_planes,
+        "marks": 7,
+        "category": "Vectors",
+        "section": "A",
+        "search": "two planes acute angle cosine line of intersection",
+    },
     "vec_line_plane_gdc": {
         "name": "Paper 2: Line, Plane and Angle",
         "func": gen_vector_line_plane_gdc,
@@ -773,6 +827,14 @@ TASK_REGISTRY = {
         "category": "Section B",
         "section": "B",
         "search": "logarithm stationary point exact area",
+    },
+    "ext_fn_rational": {
+        "name": "Section B: Rational Function, Asymptotes and Area",
+        "func": gen_extended_rational,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "search": "rational asymptote stationary point exact area logarithm",
     },
     "ext_cross_trig_gdc": {
         "name": "Section B: Trigonometry and a Geometric Series (GDC)",
@@ -1138,6 +1200,7 @@ _AA_HL_BY_KEY = {
     "ext_gdc_stat": "Stats & Prob",
     "ext_cross_trig_seq": "Trigonometry",
     "ext_cross_log_calc": "Calculus",
+    "ext_fn_rational": "Functions",
     "ext_cross_trig_gdc": "Trigonometry",
     "ext_cross_log_gdc": "Calculus",
     "paper3_geo": "Algebra & Complex",
@@ -1539,6 +1602,7 @@ _HL110_ONLY = frozenset({
     "vec_line_plane_gdc",
     "ext_cross_trig_seq",
     "ext_cross_log_calc",
+    "ext_fn_rational",
     "ext_cross_trig_gdc",
     "ext_cross_log_gdc",
 })
@@ -1548,7 +1612,7 @@ def _pools(calculator: str, min_cohort_depth: int, difficulty: str, *, relax: bo
     section_a = []
     section_b = []
     for key, spec in TASK_REGISTRY.items():
-        if spec.get("pool") is False:
+        if spec.get("pool") is False or spec.get("deal") is False:
             continue
         if spec.get("calculator", "none") != calculator:
             continue

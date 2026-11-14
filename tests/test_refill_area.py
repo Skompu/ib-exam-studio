@@ -5,6 +5,7 @@ import pytest
 from registry import (
     AA_HL_AREAS,
     TASK_REGISTRY,
+    _replacement_fits,
     aa_hl_area,
     aa_hl_coverage,
     build_exam_blueprint,
@@ -17,9 +18,18 @@ def _marks(keys) -> int:
     return sum(TASK_REGISTRY[key]["marks"] for key in keys)
 
 
-def test_paper2_functions_are_outside_the_gdc_pool():
-    assert "Functions" not in calculator_pool_areas("gdc")
-    assert "Functions" in calculator_pool_areas("none")
+def test_paper2_functions_sit_in_the_gdc_pool():
+    assert TASK_REGISTRY["functions_gdc"]["marks"] == 6
+    assert TASK_REGISTRY["functions_gdc"]["calculator"] == "gdc"
+    assert calculator_pool_areas("gdc") == frozenset(AA_HL_AREAS)
+    assert calculator_pool_areas("none") == frozenset(AA_HL_AREAS)
+    assert _replacement_fits("functions_gdc", "gdc", 110, "standard", 4, "A")
+    assert _replacement_fits("vol_rev_gdc", "gdc", 110, "standard", 4, "A")
+    assert _replacement_fits("gdc_gauss", "gdc", 110, "standard", 4, "A")
+    dealt = build_exam_blueprint("gdc", 110, 2026, min_cohort_depth=4)
+    assert "functions_gdc" not in dealt
+    assert "vol_rev_gdc" not in dealt
+    assert "gdc_gauss" not in dealt
 
 
 def test_every_topic_belongs_to_one_aa_hl_block():

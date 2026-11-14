@@ -49,14 +49,20 @@ def test_two_cohorts_reach_the_page_and_the_pdf():
     at.session_state["work-mode"] = "custom"
     at.session_state["cohort-count"] = 2
     at.session_state["box-none-induction"] = True
-    pdfs = _capture_pdfs(at)
+    at.run()
     assert not at.exception, at.exception
 
     text = _visible_text(at)
     assert "Cohort A" in text
     assert "Cohort B" in text
-    assert "Ta sama trudność, inne liczby, inne odpowiedzi." in text
+    assert "Same difficulty, different numbers, different answers." in text
+    assert "differs in" in text
     assert any(item.value == "A, B" for item in at.metric)
+    assert all("Student Paper" not in item.label for item in at.download_button)
+
+    next(item for item in at.button if "Build files" in item.label).click()
+    pdfs = _capture_pdfs(at)
+    assert not at.exception, at.exception
 
     student = pdfs["ib_advanced_exam_paper.pdf"]
     scheme = pdfs["ib_advanced_mark_scheme.pdf"]

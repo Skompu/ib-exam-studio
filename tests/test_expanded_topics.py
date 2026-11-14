@@ -424,6 +424,7 @@ def test_section_b_dependent_prompts_use_hence():
         "ext_vectors": ("b", "c", "d", "e"),
         "ext_model": ("b", "c", "d"),
         "ext_ln": ("b", "d"),
+        "ext_fn_rational": ("d", "e"),
     }
     for key, letters in expected.items():
         task = _one(key, "standard")

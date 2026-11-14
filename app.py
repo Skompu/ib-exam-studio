@@ -1,6 +1,8 @@
+import hashlib
 import io
 import random
 import threading
+from pathlib import Path
 from typing import Literal
 import matplotlib.pyplot as plt
 import streamlit as st
@@ -57,7 +59,7 @@ st.markdown(
 _PAPER_LOCK = threading.Lock()
 
 
-@st.cache_data(show_spinner="Składanie plików…")
+@st.cache_data(show_spinner="Composing files…")
 def cached_exam_files(
     papers: list,
     institution_name: str,
@@ -109,7 +111,7 @@ def fig_to_png_bytes(fig) -> bytes:
     return buf.getvalue()
 
 # --- CACHED DATA GENERATION ENGINE ---
-# Używamy tuple zamiast list, aby Streamlit idealnie haszował parametry wejściowe
+# Tuples hash cleanly as Streamlit cache keys; lists do not.
 @st.cache_data(show_spinner="Composing the paper…")
 def generate_all_papers(
     task_keys_tuple: tuple,
@@ -265,17 +267,17 @@ def _matching_topics(pool, query, categories, sections):
 
 
 _WORK_MODES = (
-    ("mock110", "Pełny mock 110"),
-    ("mid50", "Sprawdzian 50"),
-    ("topic", "Jedno zagadnienie"),
-    ("custom", "Własna lista"),
+    ("mock110", "Full mock 110"),
+    ("mid50", "50-mark paper"),
+    ("topic", "One topic"),
+    ("custom", "Custom list"),
 )
 _WORK_LABELS = dict(_WORK_MODES)
 _WORK_CAPTION = {
-    "mock110": "Dynamiczny blueprint 110 pkt, 120 min, Section A + B.",
-    "mid50": "Dynamiczny blueprint 50 pkt, ta sama polityka kalkulatora.",
-    "topic": "Jeden dział sylabusa i od 4 do 8 zadań.",
-    "custom": "Ręczny wybór tematów, stały preset albo zapisana lista klasy.",
+    "mock110": "Dynamic 110-mark blueprint, 120 min, Section A + B.",
+    "mid50": "Dynamic 50-mark blueprint, same calculator policy.",
+    "topic": "One syllabus area and 4 to 8 questions.",
+    "custom": "Hand-picked topics, a fixed preset, or a saved class list.",
 }
 _PAPER_LABELS = ("Paper 1 (Non-Calc)", "Paper 2 (GDC)")
 _PAPER_PDF = {
@@ -334,13 +336,40 @@ def _deal_one_area(area: str, calculator_mode: str, count: int, seed: int, easy_
     return order_task_keys(chosen)
 
 
-def _cohort_differ_line(papers: list[dict]) -> str:
+def _cohort_differ_summary(papers: list[dict]) -> str:
     parts = []
     for paper in papers[1:]:
         changed = _questions_that_differ(papers[0], paper)
-        listed = ", ".join(changed) if changed else "brak"
+        parts.append(f"{paper['variant']} differs in {len(changed)} of {len(paper['tasks'])}")
+    return ". ".join(parts) + "." if parts else ""
+
+
+def _cohort_differ_detail(papers: list[dict]) -> str:
+    parts = []
+    for paper in papers[1:]:
+        changed = _questions_that_differ(papers[0], paper)
+        listed = ", ".join(changed) if changed else "none"
         parts.append(f"{paper['variant']} — {listed}")
-    return "Numery zadań, które różnią się między grupami: " + "; ".join(parts) + "."
+    return "Question numbers: " + "; ".join(parts) + "."
+
+
+_MODE_FILE = Path.home() / ".stem-generator" / "last-work-mode"
+
+
+def _remembered_work_mode() -> str:
+    try:
+        stored = _MODE_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return "mock110"
+    return stored if stored in _WORK_LABELS else "mock110"
+
+
+def _store_work_mode(mode: str) -> None:
+    try:
+        _MODE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _MODE_FILE.write_text(mode, encoding="utf-8")
+    except OSError:
+        return
 
 
 def _cohort_letters(papers: list[dict]) -> list[str]:
@@ -393,13 +422,13 @@ def _stored_blueprint(signature: tuple, override_key: str, calculator_mode: str,
 
 def _source_label(key: str) -> str:
     if key == "manual":
-        return "Ręczny wybór"
+        return "Manual selection"
     return PRESETS[key]["label"]
 
 
 def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
     archive_id = st.session_state.get("membership_id")
-    st.subheader("Wydane")
+    st.subheader("Issued")
     if not archive_id:
         st.info("Unlock the studio with a license key. Saved papers are filed under that license.")
         return
@@ -413,7 +442,7 @@ def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
         f"{item['created_at']} — {item['title']} ({item['total_marks']} marks)": item["paper_id"]
         for item in archived
     }
-    chosen_archive = st.selectbox("Wydane", list(archive_labels), key="archive-pick")
+    chosen_archive = st.selectbox("Issued", list(archive_labels), key="archive-pick")
     snapshot = get_paper_snapshot(archive_labels[chosen_archive])
     snap_meta = snapshot["meta"]
     st.caption(f"{snapshot['paper_type']} · {snapshot['difficulty']} · {snapshot['total_marks']} marks")
@@ -444,24 +473,25 @@ def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
 
 
 def _coverage_line(keys, calculator_mode: str) -> str:
+    """Count only the blocks this calculator can actually deal.
+
+    Paper 2 has no Functions topic, so a full GDC paper reads 5/5 instead of a
+    permanent gap the bank cannot fill.
+    """
     coverage = aa_hl_coverage(keys)
-    missing = [area for area in AA_HL_AREAS if not coverage[area]]
-    if not missing:
-        return "Pokrycie sylabusa: 6/6"
     pool = calculator_pool_areas(calculator_mode)
-    parts = []
-    for area in missing:
-        if area not in pool and calculator_mode == "gdc":
-            parts.append(f"{area} (brak w puli GDC)")
-        else:
-            parts.append(area)
-    return f"Pokrycie: {len(AA_HL_AREAS) - len(missing)}/6 · Brak: {', '.join(parts)}"
+    tracked = [area for area in AA_HL_AREAS if area in pool] or list(AA_HL_AREAS)
+    missing = [area for area in tracked if not coverage[area]]
+    present = len(tracked) - len(missing)
+    if not missing:
+        return f"Syllabus coverage: {present}/{len(tracked)}"
+    return f"Coverage: {present}/{len(tracked)} · Missing: {', '.join(missing)}"
 
 
 def _render_coverage(keys, calculator_mode, target, difficulty, num_variants, signature, override_key, nonce_key, flash_scope) -> None:
     line = _coverage_line(keys, calculator_mode)
     st.markdown(line)
-    if line == "Pokrycie sylabusa: 6/6":
+    if line.startswith("Syllabus coverage:"):
         return
     nonce = int(st.session_state.get(nonce_key, 0))
     swapped = refill_missing_area(
@@ -475,9 +505,9 @@ def _render_coverage(keys, calculator_mode, target, difficulty, num_variants, si
     if swapped == tuple(keys):
         return
     if st.button(
-        "🔄 Przelosuj brakujący dział",
+        "🔄 Replace missing area",
         key=f"refill-{calculator_mode}-{target}",
-        help="Podmienia jedno zadanie z najliczniejszego działu na zadanie z pustego działu o tej samej punktacji. Suma punktów zostaje, a grupy liczą się od nowa.",
+        help="Replaces one question from the fullest area with a same-mark question from the empty area. The mark total stays, and every group is rebuilt.",
     ):
         removed = set(keys) - set(swapped)
         added = set(swapped) - set(keys)
@@ -485,7 +515,7 @@ def _render_coverage(keys, calculator_mode, target, difficulty, num_variants, si
         old_spec, new_spec = TASK_REGISTRY[old_key], TASK_REGISTRY[new_key]
         names = _group_names(int(num_variants))
         _remember_flash(
-            f"{old_spec['name']} ({old_spec['marks']} pkt) → {new_spec['name']}. Grupy {names} przeliczone.",
+            f"{old_spec['name']} ({old_spec['marks']} marks) → {new_spec['name']}. Groups {names} rebuilt.",
             flash_scope,
         )
         st.session_state[override_key] = {"signature": signature, "keys": list(swapped)}
@@ -516,11 +546,11 @@ def _render_arkusz(paper: dict, is_exam_mode: bool) -> None:
 
 def _render_schemat(paper: dict) -> None:
     open_col, close_col = st.columns(2)
-    if open_col.button("Rozwiń wszystkie", key="scheme-open-all"):
+    if open_col.button("Expand all", key="scheme-open-all"):
         st.session_state["scheme_fold"] = True
         st.session_state["scheme_fold_gen"] = int(st.session_state.get("scheme_fold_gen", 0)) + 1
         st.rerun()
-    if close_col.button("Zwiń wszystkie", key="scheme-close-all"):
+    if close_col.button("Collapse all", key="scheme-close-all"):
         st.session_state["scheme_fold"] = False
         st.session_state["scheme_fold_gen"] = int(st.session_state.get("scheme_fold_gen", 0)) + 1
         st.rerun()
@@ -529,7 +559,7 @@ def _render_schemat(paper: dict) -> None:
     for index, task in enumerate(paper["tasks"]):
         expanded = bool(fold) if fold is not None else index < 2
         with st.expander(
-            f"Question {task['q_number']}: {task['title']} · {task['marks']} pkt",
+            f"Question {task['q_number']}: {task['title']} · {task['marks']} marks",
             expanded=expanded,
             key=f"scheme-{paper['variant']}-{task['q_number']}-{generation}",
         ):
@@ -593,11 +623,34 @@ def _render_schemat(paper: dict) -> None:
                                 increment_tutor_uses(membership_id)
 
 
+def _export_signature(papers, institution_name, contact_info, syllabus, paper_type, time_allowed, logo_data, is_exam_mode, format_choice):
+    """Identity of the download bundle. The cohort on screen is not part of it."""
+    sheets = tuple(
+        (
+            paper.get("variant"),
+            tuple(_student_fingerprint(task) for task in paper["tasks"]),
+        )
+        for paper in papers
+    )
+    logo_mark = None if not logo_data else hashlib.sha256(logo_data).hexdigest()
+    return (
+        sheets,
+        institution_name,
+        contact_info,
+        syllabus,
+        paper_type,
+        time_allowed,
+        logo_mark,
+        bool(is_exam_mode),
+        format_choice,
+    )
+
+
 def _render_pdf(papers, institution_name, contact_info, syllabus, paper_type, time_allowed, logo_data, is_exam_mode, format_choice, difficulty) -> None:
     student_layout = "Exam Booklet" if format_choice == "exam_booklet" else "Worksheet"
     st.caption(
-        f"Arkusz ucznia: {student_layout}. "
-        "Klucz oceniania (Mark Scheme) jest zawsze w układzie Exam Booklet."
+        f"Student paper: {student_layout}. "
+        "The mark scheme is always Exam Booklet."
     )
     meta_dict = {
         "institution": institution_name,
@@ -606,7 +659,7 @@ def _render_pdf(papers, institution_name, contact_info, syllabus, paper_type, ti
         "paper_type": paper_type,
         "time_allowed": time_allowed,
     }
-    exam_pdf, scheme_pdf, exam_docx, exam_tex = cached_exam_files(
+    signature = _export_signature(
         papers,
         institution_name,
         contact_info,
@@ -617,38 +670,63 @@ def _render_pdf(papers, institution_name, contact_info, syllabus, paper_type, ti
         is_exam_mode,
         format_choice,
     )
-    col_pdf, col_scheme, col_docx, col_tex = st.columns(4)
-    with col_pdf:
-        st.download_button(
-            label="📄 Student Paper (.pdf)",
-            data=exam_pdf,
-            file_name="ib_advanced_exam_paper.pdf",
-            mime="application/pdf",
-            use_container_width=True,
+    ready = st.session_state.get("export_signature") == signature
+    if st.button(
+        "Rebuild files" if ready else "Build files",
+        key="build-files",
+        help="Composes the student PDF, the mark scheme, and the Word and TeX files for this header.",
+    ):
+        st.session_state["export_signature"] = signature
+        ready = True
+    if ready:
+        exam_pdf, scheme_pdf, exam_docx, exam_tex = cached_exam_files(
+            papers,
+            institution_name,
+            contact_info,
+            syllabus,
+            paper_type,
+            time_allowed,
+            logo_data,
+            is_exam_mode,
+            format_choice,
         )
-    with col_scheme:
-        st.download_button(
-            label="🔑 Mark Scheme (.pdf)",
-            data=scheme_pdf,
-            file_name="ib_advanced_mark_scheme.pdf",
-            mime="application/pdf",
-            use_container_width=True,
-        )
-    with col_docx:
-        st.download_button(
-            label="📝 Editable Paper (.docx)",
-            data=exam_docx,
-            file_name="ib_exam_paper.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True,
-        )
-    with col_tex:
-        st.download_button(
-            label="📐 Editable Paper (.tex)",
-            data=exam_tex,
-            file_name="ib_exam_paper.tex",
-            mime="text/x-tex",
-            use_container_width=True,
+        col_pdf, col_scheme, col_docx, col_tex = st.columns(4)
+        with col_pdf:
+            st.download_button(
+                label="📄 Student Paper (.pdf)",
+                data=exam_pdf,
+                file_name="ib_advanced_exam_paper.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        with col_scheme:
+            st.download_button(
+                label="🔑 Mark Scheme (.pdf)",
+                data=scheme_pdf,
+                file_name="ib_advanced_mark_scheme.pdf",
+                mime="application/pdf",
+                use_container_width=True,
+            )
+        with col_docx:
+            st.download_button(
+                label="📝 Editable Paper (.docx)",
+                data=exam_docx,
+                file_name="ib_exam_paper.docx",
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                use_container_width=True,
+            )
+        with col_tex:
+            st.download_button(
+                label="📐 Editable Paper (.tex)",
+                data=exam_tex,
+                file_name="ib_exam_paper.tex",
+                mime="text/x-tex",
+                use_container_width=True,
+            )
+    else:
+        st.caption(
+            "PDF, Word and TeX are composed when you press Build files. "
+            "Typing the school name does not rebuild them."
         )
     archive_title = st.text_input("Archive title", value=f"{institution_name} — {paper_type}")
     if st.button("Save paper to school archive"):
@@ -702,12 +780,12 @@ with title_col:
 with archive_col:
     st.write("")
     archive_open = bool(st.session_state.get("show_archive"))
-    if st.button("Wróć" if archive_open else "Wydane", key="toggle-archive", use_container_width=True):
+    if st.button("Back" if archive_open else "Issued", key="toggle-archive", use_container_width=True):
         st.session_state["show_archive"] = not archive_open
         st.rerun()
 
 if st.session_state.get("work-mode") not in _WORK_LABELS:
-    st.session_state["work-mode"] = "mock110"
+    st.session_state["work-mode"] = _remembered_work_mode()
 work_mode = st.session_state["work-mode"]
 tile_cols = st.columns(4)
 for column, (mode_key, mode_label) in zip(tile_cols, _WORK_MODES):
@@ -718,23 +796,24 @@ for column, (mode_key, mode_label) in zip(tile_cols, _WORK_MODES):
         use_container_width=True,
     ) and work_mode != mode_key:
         st.session_state["work-mode"] = mode_key
+        _store_work_mode(mode_key)
         st.rerun()
 st.caption(_WORK_CAPTION[work_mode])
 
 with st.container(border=True):
     paper_col, level_col, group_col = st.columns([1.5, 1.3, 1])
     with paper_col:
-        paper_label = st.radio("Arkusz", _PAPER_LABELS, horizontal=True, key="paper-policy")
+        paper_label = st.radio("Paper", _PAPER_LABELS, horizontal=True, key="paper-policy")
     with level_col:
         difficulty = st.radio(
-            "Trudność",
+            "Difficulty",
             options=["standard", "challenging"],
             format_func=lambda key: "Standard" if key == "standard" else "Challenging",
             horizontal=True,
             key="difficulty",
         )
     with group_col:
-        num_variants = int(st.slider("Grupy", min_value=1, max_value=4, value=1, key="cohort-count"))
+        num_variants = int(st.slider("Groups", min_value=1, max_value=4, value=1, key="cohort-count"))
     gdc_paper = paper_label == "Paper 2 (GDC)"
     calculator_mode = "gdc" if gdc_paper else "none"
     paper_type = _PAPER_PDF[paper_label]
@@ -749,13 +828,13 @@ with st.container(border=True):
     if number_col.button(
         "🎲 New Numbers",
         key=f"new-numbers-{calculator_mode}",
-        help="Zostawia tematy i losuje nowe liczby we wszystkich grupach.",
+        help="Keeps the topics and draws new numbers for every group.",
     ):
         st.session_state[numeric_state] = int(st.session_state[numeric_state]) + 1
         fresh = (
-            "Nowe liczby w grupie A. Tematy bez zmian."
+            "New numbers in group A. Topics unchanged."
             if num_variants == 1
-            else f"Grupy {group_label} dostały nowe liczby. Tematy bez zmian."
+            else f"Groups {group_label} have new numbers. Topics unchanged."
         )
         _remember_flash(
             fresh,
@@ -766,9 +845,9 @@ with st.container(border=True):
         )
         st.rerun()
     if mix_col.button(
-        "🔀 Ułóż arkusz",
+        "🔀 Compose paper",
         key=f"new-topics-{calculator_mode}",
-        help="W mocku i sprawdzianie rozdaje nowe tematy. W jednym zagadnieniu losuje inny zestaw z działu. Na własnej liście nie zmienia liczb.",
+        help="On a mock or a 50-mark paper, deals new topics. On one topic, draws another set from that area. On a custom list, leaves the numbers alone.",
     ):
         if work_mode in {"mock110", "mid50"}:
             st.session_state[topic_state] = int(st.session_state[topic_state]) + 1
@@ -777,7 +856,7 @@ with st.container(border=True):
                 st.session_state.pop(f"area-override-{calculator_mode}-{mode_name}", None)
                 st.session_state.pop(f"area-nonce-{calculator_mode}-{mode_name}", None)
             _remember_flash(
-                f"Nowe tematy i nowe liczby. Grupy {group_label} przeliczone.",
+                f"New topics and new numbers. Groups {group_label} rebuilt.",
                 _flash_scope(
                     work_mode, calculator_mode, difficulty, num_variants,
                     st.session_state[topic_state], st.session_state[numeric_state],
@@ -786,7 +865,7 @@ with st.container(border=True):
         elif work_mode == "topic":
             st.session_state[topic_state] = int(st.session_state[topic_state]) + 1
             _remember_flash(
-                "Nowy zestaw zadań z tego działu. Liczby bez zmian.",
+                "New set from this area. Numbers unchanged.",
                 _flash_scope(
                     work_mode, calculator_mode, difficulty, num_variants,
                     st.session_state[topic_state], st.session_state[numeric_state],
@@ -794,7 +873,7 @@ with st.container(border=True):
             )
         else:
             _remember_flash(
-                "Własna lista trzyma wybrane tematy. Nowe liczby: przycisk New Numbers.",
+                "The custom list keeps your topics. New numbers: use New Numbers.",
                 _flash_scope(
                     work_mode, calculator_mode, difficulty, num_variants,
                     st.session_state[topic_state], st.session_state[numeric_state],
@@ -802,7 +881,7 @@ with st.container(border=True):
             )
         st.rerun()
     if num_variants > 1:
-        note_col.caption("Ta sama trudność, inne liczby, inne odpowiedzi.")
+        note_col.caption("Same difficulty, different numbers, different answers.")
     live_scope = _flash_scope(
         work_mode, calculator_mode, difficulty, num_variants,
         st.session_state[topic_state], st.session_state[numeric_state],
@@ -810,9 +889,9 @@ with st.container(border=True):
     if st.session_state.get("flash_scope") == live_scope and st.session_state.get("action_flash"):
         st.caption(st.session_state["action_flash"])
     if gdc_paper:
-        st.caption("Paper 2 kończy się na GDC, do trzech cyfr znaczących.")
+        st.caption("Paper 2 finishes on the GDC, to three significant figures.")
     else:
-        st.caption("Paper 1: tylko zadania dokładne, bez kalkulatora.")
+        st.caption("Paper 1: exact questions only, no calculator.")
 
 topic_pool = _topic_pool(calculator_mode)
 custom_source = "manual"
@@ -824,11 +903,11 @@ easy_to_hard = True
 if work_mode == "topic":
     area_col, count_col, order_col = st.columns([1.5, 1, 1.6])
     with area_col:
-        focus_area = st.selectbox("Dział sylabusa", AA_HL_AREAS, key=f"topic-area-{calculator_mode}")
+        focus_area = st.selectbox("Syllabus area", AA_HL_AREAS, key=f"topic-area-{calculator_mode}")
     with count_col:
-        topic_count = int(st.slider("Liczba zadań", min_value=4, max_value=8, value=6, key="topic-count"))
+        topic_count = int(st.slider("Number of questions", min_value=4, max_value=8, value=6, key="topic-count"))
     with order_col:
-        easy_to_hard = st.toggle("Od łatwiejszego do trudniejszego", value=True, key="easy-to-hard")
+        easy_to_hard = st.toggle("Easy to hard", value=True, key="easy-to-hard")
 elif work_mode == "custom":
     pending_class = st.session_state.pop(f"pending-class-{calculator_mode}", None)
     pending_boxes = st.session_state.pop(f"pending-boxes-{calculator_mode}", None)
@@ -847,7 +926,7 @@ elif work_mode == "custom":
             st.session_state[f"box-{calculator_mode}-{key}"] = action == "add"
     source_ids = ["manual", *_fixed_preset_ids(calculator_mode)]
     custom_source = st.selectbox(
-        "Lista",
+        "Source",
         source_ids,
         format_func=_source_label,
         key=f"custom-source-{calculator_mode}",
@@ -859,14 +938,14 @@ elif work_mode == "custom":
         ]
         if custom_keys:
             picked = ", ".join(TASK_REGISTRY[key]["name"] for key in custom_keys)
-            st.caption(f"Na liście ({len(custom_keys)}): {picked}")
+            st.caption(f"On the list ({len(custom_keys)}): {picked}")
         else:
-            st.caption("Lista jest pusta. Dobierz tematy albo wczytaj zapis klasy.")
-        with st.expander("Dobierz tematy", expanded=False):
-            query = st.text_input("Szukaj", key=f"search-{calculator_mode}")
+            st.caption("The list is empty. Pick topics or load a class list.")
+        with st.expander("Pick topics", expanded=False):
+            query = st.text_input("Search", key=f"search-{calculator_mode}")
             area_filter = st.selectbox(
-                "Dział",
-                ["Wszystkie", *AA_HL_AREAS],
+                "Area",
+                ["All", *AA_HL_AREAS],
                 key=f"pick-area-{calculator_mode}",
             )
             section_options = sorted({TASK_REGISTRY[key].get("section", "A") for key in topic_pool})
@@ -877,17 +956,17 @@ elif work_mode == "custom":
                 key=f"sec-{calculator_mode}",
             )
             narrowed = _matching_topics(topic_pool, query, [], chosen_sections)
-            if area_filter != "Wszystkie":
+            if area_filter != "All":
                 narrowed = [key for key in narrowed if aa_hl_area(key) == area_filter]
-            browsing = bool(query.strip() or area_filter != "Wszystkie" or chosen_sections)
+            browsing = bool(query.strip() or area_filter != "All" or chosen_sections)
             if not browsing:
-                st.caption("Wpisz frazę albo wybierz dział, żeby zobaczyć tematy.")
+                st.caption("Type a phrase or choose an area to see the topics.")
             else:
                 add_col, remove_col = st.columns(2)
-                if add_col.button("Dodaj pokazane", key=f"add-{calculator_mode}"):
+                if add_col.button("Add shown", key=f"add-{calculator_mode}"):
                     st.session_state[f"pending-boxes-{calculator_mode}"] = ("add", list(narrowed))
                     st.rerun()
-                if remove_col.button("Usuń pokazane", key=f"remove-{calculator_mode}"):
+                if remove_col.button("Remove shown", key=f"remove-{calculator_mode}"):
                     st.session_state[f"pending-boxes-{calculator_mode}"] = ("remove", list(narrowed))
                     st.rerun()
                 for key in narrowed:
@@ -896,7 +975,7 @@ elif work_mode == "custom":
                         f"[Section {spec.get('section', 'A')} · {spec['marks']} marks] {spec['name']}",
                         key=f"box-{calculator_mode}-{key}",
                     )
-                st.caption(f"{len(narrowed)} tematów pasuje do filtra.")
+                st.caption(f"{len(narrowed)} topics match the filter.")
         custom_keys = [
             key for key in topic_pool
             if st.session_state.get(f"box-{calculator_mode}-{key}")
@@ -906,8 +985,8 @@ elif work_mode == "custom":
         st.caption(PRESETS[custom_source]["description"])
     membership_id = st.session_state.get("membership_id")
     if membership_id:
-        class_name = st.text_input("Nazwa klasy", key=f"class-name-{calculator_mode}")
-        if st.button("Zapisz listę klasy", key=f"save-class-{calculator_mode}"):
+        class_name = st.text_input("Class name", key=f"class-name-{calculator_mode}")
+        if st.button("Save class list", key=f"save-class-{calculator_mode}"):
             save_class_topics(membership_id, class_name, custom_keys)
             st.success("Class list saved.")
         saved_classes = list_classes(membership_id)
@@ -916,49 +995,49 @@ elif work_mode == "custom":
                 f"{item['class_name']} ({len(item['topics'])} topics, {item['class_id'][:4]})": item
                 for item in saved_classes
             }
-            chosen_class = st.selectbox("Zapisane listy", list(class_labels), key=f"class-pick-{calculator_mode}")
-            if st.button("Wczytaj listę klasy", key=f"load-class-{calculator_mode}"):
+            chosen_class = st.selectbox("Saved lists", list(class_labels), key=f"class-pick-{calculator_mode}")
+            if st.button("Load class list", key=f"load-class-{calculator_mode}"):
                 st.session_state[f"pending-class-{calculator_mode}"] = list(class_labels[chosen_class]["topics"])
                 st.rerun()
 
-with st.expander("Więcej"):
-    institution_name = st.text_input("Nazwa szkoły", value="International STEM Academy", key="institution-name")
-    contact_info = st.text_input("Kontakt / strona", value="www.stem-academy.edu", key="contact-info")
-    uploaded_logo = st.file_uploader("Logo szkoły (PNG/JPG)", type=["png", "jpg", "jpeg"])
+with st.expander("More"):
+    institution_name = st.text_input("School name", value="International STEM Academy", key="institution-name")
+    contact_info = st.text_input("Contact / website", value="www.stem-academy.edu", key="contact-info")
+    uploaded_logo = st.file_uploader("School logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
     default_time = _DEFAULT_TIME[work_mode]
     time_key = f"time-{work_mode}"
     if work_mode == "custom" and custom_source != "manual":
         default_time = PRESETS[custom_source]["time"]
         time_key = f"time-{work_mode}-{custom_source}"
-    time_allowed = st.text_input("Czas trwania", value=default_time, key=time_key)
+    time_allowed = st.text_input("Duration", value=default_time, key=time_key)
     format_choice = st.radio(
-        "Układ",
+        "Layout",
         options=["exam_booklet", "worksheet"],
         format_func=lambda key: "Exam Booklet" if key == "exam_booklet" else "Worksheet",
         index=0 if work_mode in {"mock110", "mid50"} else 1,
         key=f"deliverable-{work_mode}-{calculator_mode}",
     )
-    clean_integers_only = st.checkbox("Wymuszaj liczby całkowite", value=True)
+    clean_integers_only = st.checkbox("Force integer values", value=True)
     if gdc_paper:
-        st.caption("Paper 2 zaokrągla wynik z GDC do trzech cyfr znaczących.")
+        st.caption("Paper 2 rounds the GDC result to three significant figures.")
     elif clean_integers_only:
-        st.caption("Punkty krytyczne są wybierane najpierw, a funkcja całkowana w SymPy, więc Paper 1 zostaje dokładny.")
+        st.caption("Critical points are chosen first and the function is integrated in SymPy, so Paper 1 stays exact.")
     cohort_mode = st.radio(
-        "Tryb bliźniaczy okładek",
+        "Cover twin mode",
         options=list(COHORT_MODES),
         index=0,
         key=f"cohort-mode-{calculator_mode}",
         format_func=lambda key: (
-            "Strict Parallel — ta sama fabuła, inne liczby"
+            "Strict Parallel — same story, different numbers"
             if key == "strict_parallel"
-            else "Cognitive Twin — inna fabuła, inne odpowiedzi"
+            else "Cognitive Twin — different story, different answers"
         ),
     )
-    st.caption("Cognitive Twin zmienia historię, gdy temat ma drugą. Jedna historia zostaje, zmieniają się liczby.")
+    st.caption("Cognitive Twin changes the story when a topic has a second one. A single story stays; the numbers change.")
     st.number_input("topic_seed", min_value=0, step=1, key=topic_state)
     st.number_input("numeric_seed", min_value=0, step=1, key=numeric_state)
-    st.caption("topic_seed rozdaje tematy. numeric_seed losuje liczby w tych tematach.")
-    syllabus = st.selectbox("System maturalny", _SYLLABI, key="syllabus-system")
+    st.caption("topic_seed deals the topics. numeric_seed draws the numbers inside those topics.")
+    syllabus = st.selectbox("Exam system", _SYLLABI, key="syllabus-system")
 
 is_exam_mode = format_choice == "exam_booklet"
 numeric_seed = int(st.session_state[numeric_state])
@@ -1005,14 +1084,14 @@ elif work_mode == "topic":
         )
     )
     if len(selected_task_keys) < topic_count:
-        st.caption(f"W dziale {focus_area} na tym arkuszu jest {len(selected_task_keys)} zadań.")
+        st.caption(f"This paper has {len(selected_task_keys)} questions in {focus_area}.")
 else:
     selected_task_keys = list(custom_keys)
 
 st.session_state["dealt-keys"] = list(selected_task_keys)
 
 if not selected_task_keys:
-    st.warning("⚠️ Wybierz przynajmniej jedno zadanie.")
+    st.warning("⚠️ Select at least one question.")
     st.stop()
 
 _mismatched = [
@@ -1044,10 +1123,10 @@ st.divider()
 difficulty_label = "Standard" if difficulty == "standard" else "Challenging"
 group_letters = ", ".join(paper["variant"] for paper in generated_papers)
 mark_col, time_col, level_metric, group_metric = st.columns(4)
-mark_col.metric("Punkty", generated_papers[0]["total_marks"])
-time_col.metric("Czas", time_allowed)
-level_metric.metric("Trudność", difficulty_label)
-group_metric.metric("Grupy", group_letters)
+mark_col.metric("Marks", generated_papers[0]["total_marks"])
+time_col.metric("Time", time_allowed)
+level_metric.metric("Difficulty", difficulty_label)
+group_metric.metric("Groups", group_letters)
 
 if work_mode in {"mock110", "mid50"}:
     _render_coverage(
@@ -1073,10 +1152,12 @@ if len(generated_papers) > 1:
         format_func=lambda letter: f"Cohort {letter}",
         key="selected_cohort",
     )
-    st.caption(_cohort_differ_line(generated_papers))
+    st.caption(_cohort_differ_summary(generated_papers))
+    with st.expander("Question numbers"):
+        st.caption(_cohort_differ_detail(generated_papers))
 selected_paper = _paper_for_selected_cohort(generated_papers)
 
-tab_arkusz, tab_schemat, tab_pdf = st.tabs(["Arkusz", "Schemat", "PDF"])
+tab_arkusz, tab_schemat, tab_pdf = st.tabs(["Paper", "Mark scheme", "PDF"])
 with tab_arkusz:
     _render_arkusz(selected_paper, is_exam_mode)
 with tab_schemat:

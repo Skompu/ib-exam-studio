@@ -13,6 +13,7 @@ from generators.gdc_extended_model import _STANDARD as MODEL_STD
 from generators.gdc_extended_stat import _contexts
 from generators.gdc_statistics import COVERS_BINOMIAL, COVERS_NORMAL
 from generators.gdc_trigonometry import _BANK as TRIG_BANK
+from generators.gdc_trigonometry import _COS_BANK
 from generators.paper2_gdc import _CHALLENGING_LINES, _STANDARD_LINES
 from generators.statistics_bivariate import COVERS as BIVAR_COVERS
 from registry import call_generator
@@ -162,8 +163,22 @@ def test_numeric_banks_have_eight_items_per_graph():
     assert len({(item[0], item[1]) for item in _STANDARD_LINES}) >= 8
     assert len({(item[0], item[1]) for item in _CHALLENGING_LINES}) >= 8
     assert len({item[0] for item in TRIG_BANK}) >= 8
+    assert len(_COS_BANK) >= 8
     hard_rates = {item[0] for item in CURVE_HARD}
     assert all(rate >= 2 for rate in hard_rates)
+
+
+def test_challenging_trigonometry_uses_cosine_and_a_parallel_line():
+    sine = _draw("gdc_trig", "standard", 4)
+    cosine = _draw("gdc_trig", "challenging", 4)
+    assert {task.part_graph_id for task in sine} == {"gdc_trig_sin_three_roots"}
+    assert {task.part_graph_id for task in cosine} == {"gdc_trig_cos_three_roots"}
+    assert all(task.latex_main.startswith(r"\cos") for task in cosine)
+    meeting = _draw("vec_line_plane", "standard", 4)
+    parallel = _draw("vec_line_plane", "challenging", 4)
+    assert {task.part_graph_id for task in meeting} == {"vec_line_plane_angle"}
+    assert {task.part_graph_id for task in parallel} == {"vec_line_plane_parallel"}
+    assert all(task.marks == 7 for task in parallel)
 
 
 def test_challenging_curve_does_not_fall_back_to_standard_rates():

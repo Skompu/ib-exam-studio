@@ -13,10 +13,15 @@ _KEYS = (
     "prob_continuous_pdf",
     "calc_implicit_rates",
     "vec_line_plane",
+    "vec_two_planes",
+    "kin_exact",
+    "functions_gdc",
+    "gdc_gauss",
     "complex_poly_euler",
     "alg_sys3_param",
     "ext_cross_trig_seq",
     "ext_cross_log_calc",
+    "ext_fn_rational",
 )
 
 _SHOW_THAT = {
@@ -25,6 +30,7 @@ _SHOW_THAT = {
     "alg_sys3_param",
     "ext_cross_trig_seq",
     "ext_cross_log_calc",
+    "ext_fn_rational",
 }
 
 

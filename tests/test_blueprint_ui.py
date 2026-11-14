@@ -1,4 +1,4 @@
-"""New Numbers keeps the dealt topics. Ułóż arkusz deals again."""
+"""New Numbers keeps the dealt topics. Compose paper deals again."""
 
 from pathlib import Path
 
@@ -37,12 +37,12 @@ def test_number_and_topic_buttons_split_the_seeds():
     visible = "\n".join(item.value for item in at.markdown)
     missing = [area for area in AA_HL_AREAS if not aa_hl_coverage(topics)[area]]
     if not missing:
-        assert "Pokrycie sylabusa: 6/6" in visible
+        assert "Syllabus coverage: 6/6" in visible
     else:
-        assert f"Pokrycie: {6 - len(missing)}/6" in visible
+        assert f"Coverage: {6 - len(missing)}/6" in visible
         for area in missing:
             assert area in visible
-    assert any(item.label == "Wydane" for item in at.button)
+    assert any(item.label == "Issued" for item in at.button)
     assert all("Topic Ladder" not in item.label for item in at.button)
 
     _click(at, "New Numbers")
@@ -51,7 +51,7 @@ def test_number_and_topic_buttons_split_the_seeds():
     assert at.session_state["numeric-seed-none"] == 2027
     assert at.session_state["topic-seed-none"] == 2026
 
-    _click(at, "Ułóż arkusz")
+    _click(at, "Compose paper")
     assert not at.exception, at.exception
     assert at.session_state["topic-seed-none"] == 2027
     assert at.session_state["numeric-seed-none"] == 2028
