@@ -46,16 +46,16 @@ def test_two_cohorts_reach_the_page_and_the_pdf():
     app_path = Path(__file__).resolve().parents[1] / "app.py"
     at = AppTest.from_file(str(app_path), default_timeout=180)
     at.session_state["is_licensed"] = True
+    at.session_state["work-mode"] = "custom"
     at.session_state["cohort-count"] = 2
-    at.session_state["preset-none"] = "custom"
     at.session_state["box-none-induction"] = True
     pdfs = _capture_pdfs(at)
     assert not at.exception, at.exception
 
     text = _visible_text(at)
-    assert "Cohort / Variant: A" in text
-    assert "Cohort / Variant: B" in text
-    assert "same difficulty" in text
+    assert "Cohort A" in text
+    assert "Cohort B" in text
+    assert "Ta sama trudność, inne liczby, inne odpowiedzi." in text
     assert any(item.value == "A, B" for item in at.metric)
 
     student = pdfs["ib_advanced_exam_paper.pdf"]

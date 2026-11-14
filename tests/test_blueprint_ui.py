@@ -1,12 +1,9 @@
-"""New Numbers keeps the dealt topics. New Topic Mix deals again."""
+"""New Numbers keeps the dealt topics. Ułóż arkusz deals again."""
 
 from pathlib import Path
 
+from registry import AA_HL_AREAS, aa_hl_coverage
 from streamlit.testing.v1 import AppTest
-
-
-def _slot_lines(at) -> list[str]:
-    return [item.value for item in at.markdown if item.value.startswith("- Section")]
 
 
 def _click(at, label: str) -> None:
@@ -15,29 +12,47 @@ def _click(at, label: str) -> None:
     at.run()
 
 
+def _radio_options(at) -> str:
+    chunks = []
+    for radio in at.radio:
+        chunks.extend(str(option) for option in radio.options)
+    return "\n".join(chunks)
+
+
 def test_number_and_topic_buttons_split_the_seeds():
     app_path = Path(__file__).resolve().parents[1] / "app.py"
     at = AppTest.from_file(str(app_path), default_timeout=240)
     at.session_state["is_licensed"] = True
-    at.session_state["preset-none"] = "dynamic_mid"
+    at.session_state["work-mode"] = "mid50"
     at.session_state["cohort-count"] = 2
     at.session_state["topic-seed-none"] = 2026
     at.session_state["numeric-seed-none"] = 2026
     at.run()
     assert not at.exception, at.exception
-    topics = _slot_lines(at)
+    topics = list(at.session_state["dealt-keys"])
     assert len(topics) >= 4
-    assert any("Cohort / Variant: A" in item.value for item in at.markdown)
-    assert any("Cohort / Variant: B" in item.value for item in at.markdown)
+    options = _radio_options(at)
+    assert "Cohort A" in options
+    assert "Cohort B" in options
+    visible = "\n".join(item.value for item in at.markdown)
+    missing = [area for area in AA_HL_AREAS if not aa_hl_coverage(topics)[area]]
+    if not missing:
+        assert "Pokrycie sylabusa: 6/6" in visible
+    else:
+        assert f"Pokrycie: {6 - len(missing)}/6" in visible
+        for area in missing:
+            assert area in visible
+    assert any(item.label == "Wydane" for item in at.button)
+    assert all("Topic Ladder" not in item.label for item in at.button)
 
     _click(at, "New Numbers")
     assert not at.exception, at.exception
-    assert _slot_lines(at) == topics
+    assert list(at.session_state["dealt-keys"]) == topics
     assert at.session_state["numeric-seed-none"] == 2027
     assert at.session_state["topic-seed-none"] == 2026
 
-    _click(at, "New Topic Mix")
+    _click(at, "Ułóż arkusz")
     assert not at.exception, at.exception
     assert at.session_state["topic-seed-none"] == 2027
     assert at.session_state["numeric-seed-none"] == 2028
-    assert _slot_lines(at) != topics
+    assert list(at.session_state["dealt-keys"]) != topics

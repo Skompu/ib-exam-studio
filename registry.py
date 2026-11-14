@@ -1102,6 +1102,80 @@ def _syllabus_area(key: str) -> str:
     return category
 
 
+# The entry screen groups the bank into the six AA HL blocks a teacher scans.
+# Blueprint scoring still uses _syllabus_area, where Algebra and Complex Numbers stay apart.
+AA_HL_AREAS = (
+    "Algebra & Complex",
+    "Functions",
+    "Trigonometry",
+    "Vectors",
+    "Stats & Prob",
+    "Calculus",
+)
+
+_AA_HL_FROM_SYLLABUS = {
+    "Algebra": "Algebra & Complex",
+    "Complex Numbers": "Algebra & Complex",
+    "Sequences": "Algebra & Complex",
+    "Proof": "Algebra & Complex",
+    "Functions": "Functions",
+    "Trigonometry": "Trigonometry",
+    "Geometry": "Trigonometry",
+    "Vectors": "Vectors",
+    "Probability & Statistics": "Stats & Prob",
+    "Probability": "Stats & Prob",
+    "Statistics": "Stats & Prob",
+    "Calculus": "Calculus",
+}
+
+# Section B is stored as its own category. Coverage follows the question's spine.
+_AA_HL_BY_KEY = {
+    "ext_calculus": "Calculus",
+    "ext_vectors": "Vectors",
+    "ext_model": "Calculus",
+    "ext_ln": "Calculus",
+    "ext_gdc_model": "Calculus",
+    "ext_gdc_stat": "Stats & Prob",
+    "ext_cross_trig_seq": "Trigonometry",
+    "ext_cross_log_calc": "Calculus",
+    "ext_cross_trig_gdc": "Trigonometry",
+    "ext_cross_log_gdc": "Calculus",
+    "paper3_geo": "Algebra & Complex",
+    "paper3_mac": "Calculus",
+}
+
+
+def aa_hl_area(key: str) -> str | None:
+    """One of the six AA HL blocks, or None when a topic has no block."""
+    if key in _AA_HL_BY_KEY:
+        return _AA_HL_BY_KEY[key]
+    return _AA_HL_FROM_SYLLABUS.get(_syllabus_area(key))
+
+
+def aa_hl_coverage(keys) -> dict[str, tuple[str, ...]]:
+    """Questions already on the paper, split into the six blocks. Empty blocks stay."""
+    grouped = {area: [] for area in AA_HL_AREAS}
+    for key in keys:
+        area = aa_hl_area(key)
+        if area in grouped:
+            grouped[area].append(key)
+    return {area: tuple(items) for area, items in grouped.items()}
+
+
+def calculator_pool_areas(calculator: str) -> frozenset[str]:
+    """AA HL blocks that have at least one usable topic for this calculator policy."""
+    found = set()
+    for key, spec in TASK_REGISTRY.items():
+        if spec.get("calculator", "none") != calculator:
+            continue
+        if spec.get("pool") is False or spec.get("category") == "Paper 3":
+            continue
+        area = aa_hl_area(key)
+        if area:
+            found.add(area)
+    return frozenset(found)
+
+
 _FOCUS_AREAS = (
     "Algebra",
     "Functions",
@@ -1551,6 +1625,126 @@ def build_exam_blueprint(
             f"No slot blueprint within 2 marks of {target_marks} for calculator {calculator!r}."
         )
     return papers[int(topic_seed) % len(papers)]
+
+
+def _replacement_fits(
+    key: str,
+    calculator: str,
+    target_marks: int,
+    difficulty: str,
+    min_cohort_depth: int,
+    section: str,
+) -> bool:
+    """A stand-in must be legal for this paper: same section, same policy, deep enough."""
+    spec = TASK_REGISTRY[key]
+    if spec.get("pool") is False:
+        return False
+    if spec.get("calculator", "none") != calculator:
+        return False
+    if spec.get("section", "A") != section:
+        return False
+    if spec.get("category") == "Paper 3":
+        return False
+    if int(target_marks) < 105 and key in _HL110_ONLY:
+        return False
+    if int(target_marks) >= 105 and key == "vectors_3d":
+        return False
+    if _cohort_depth(key, difficulty) < int(min_cohort_depth):
+        return False
+    if section != "B" and advancement_band(spec) is None:
+        return False
+    return True
+
+
+def _order_swapped_paper(keys) -> tuple[str, ...]:
+    """Section A, then Section B. Inside A, warm-up still precedes the core."""
+    section_a = [key for key in keys if TASK_REGISTRY[key].get("section", "A") != "B"]
+    section_b = [key for key in keys if TASK_REGISTRY[key].get("section", "A") == "B"]
+    section_a.sort(
+        key=lambda key: (
+            advancement_band(TASK_REGISTRY[key]) or 9,
+            TASK_REGISTRY[key]["marks"],
+            key,
+        )
+    )
+    section_b.sort(key=lambda key: (TASK_REGISTRY[key]["marks"], key))
+    return tuple(section_a + section_b)
+
+
+def refill_missing_area(
+    keys,
+    calculator: str,
+    target_marks: int,
+    difficulty: str = "standard",
+    min_cohort_depth: int = 1,
+    nonce: int = 0,
+) -> tuple[str, ...]:
+    """Swap one question from the fullest block into an empty block.
+
+    The replacement carries the same mark value and the same section, so a
+    110-mark mock stays 110 and a 50-mark test stays 50. Every cohort is rebuilt
+    from the returned tuple. The original tuple comes back when no same-mark
+    stand-in exists.
+    """
+    if calculator not in {"none", "gdc"}:
+        raise ValueError(f"Unknown calculator policy {calculator!r}.")
+    if difficulty not in {"standard", "challenging"}:
+        raise ValueError(f"Unknown difficulty {difficulty!r}.")
+    if min_cohort_depth < 1:
+        raise ValueError("min_cohort_depth must be at least 1.")
+    paper = tuple(keys)
+    if len(paper) != len(set(paper)):
+        raise ValueError("A paper cannot list the same topic twice.")
+    coverage = aa_hl_coverage(paper)
+    empty = [area for area in AA_HL_AREAS if not coverage[area]]
+    if not empty:
+        return paper
+    fullest = sorted(
+        (
+            (
+                len(coverage[area]),
+                sum(TASK_REGISTRY[key]["marks"] for key in coverage[area]),
+                area,
+            )
+            for area in AA_HL_AREAS
+            if len(coverage[area]) >= 2
+        ),
+        key=lambda item: (-item[0], -item[1], AA_HL_AREAS.index(item[2])),
+    )
+    if not fullest:
+        return paper
+    present = set(paper)
+    for _count, _total, donor_area in fullest:
+        for missing in empty:
+            options = []
+            for donor in coverage[donor_area]:
+                spec = TASK_REGISTRY[donor]
+                section = spec.get("section", "A")
+                marks = spec["marks"]
+                for key in TASK_REGISTRY:
+                    if key in present or aa_hl_area(key) != missing:
+                        continue
+                    if TASK_REGISTRY[key]["marks"] != marks:
+                        continue
+                    if not _replacement_fits(
+                        key,
+                        calculator,
+                        target_marks,
+                        difficulty,
+                        min_cohort_depth,
+                        section,
+                    ):
+                        continue
+                    options.append((donor, key))
+            if not options:
+                continue
+            options.sort()
+            donor, replacement = options[int(nonce) % len(options)]
+            swapped = tuple(replacement if key == donor else key for key in paper)
+            if _marks_of(swapped) != _marks_of(paper):
+                return paper
+            return _order_swapped_paper(swapped)
+    return paper
 
 
 def _check_presets():
