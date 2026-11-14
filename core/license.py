@@ -1,18 +1,33 @@
 """Server-side Whop membership check.
 
-The API key stays in secrets or the environment. A long string is not a license.
+The API key stays in the environment or in Streamlit secrets. A long string
+is not a license. pytest can import this module without secrets.toml.
 """
 
 import hashlib
-import json
 import os
-import urllib.error
 import urllib.parse
-import urllib.request
 
+import requests
 import streamlit as st
 
 DEV_TEST_KEY = "DEV-TEST-2026"
+_GRANTING = frozenset({"active", "trialing"})
+_API_ROOT = "https://api.whop.com/api/v2/memberships/"
+
+
+def get_secret(key: str, default: str = "") -> str:
+    """Environment first, then Streamlit secrets. Missing config returns default."""
+    env = os.getenv(key)
+    if env is not None and env != "":
+        return env
+    try:
+        value = st.secrets.get(key)
+    except Exception:
+        return default
+    if value is None or value == "":
+        return default
+    return str(value)
 
 
 def membership_id_for(user_key: str) -> str:
@@ -22,8 +37,6 @@ def membership_id_for(user_key: str) -> str:
         return "dev_local"
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
     return f"whop_{digest}"
-_GRANTING = frozenset({"active", "trialing", "completed"})
-_API_ROOT = "https://api.whop.com/api/v1/memberships/"
 
 
 def access_from_status(status: str) -> tuple[bool, str]:
@@ -32,19 +45,16 @@ def access_from_status(status: str) -> tuple[bool, str]:
         return True, "License verified."
     if status == "past_due":
         return False, "This membership is past due. Update payment on Whop, then try again."
-    if status in {"canceled", "expired", "unresolved"}:
+    if status in {"canceled", "expired", "unresolved", "completed"}:
         return False, "This membership is no longer active."
     return False, "This membership does not grant access."
 
 
 def decide_license(user_key: str, debug: bool, api_key: str, fetch) -> tuple[bool, str]:
+    del debug
     key = (user_key or "").strip()
     if not key:
         return False, "Enter the license key from your Whop order."
-    if key == DEV_TEST_KEY:
-        if debug:
-            return True, "Developer license accepted."
-        return False, "The developer key is disabled on this server."
     if not api_key:
         return False, "License checks are not configured on this server."
     try:
@@ -58,51 +68,79 @@ def decide_license(user_key: str, debug: bool, api_key: str, fetch) -> tuple[boo
     return access_from_status(status)
 
 
-def _secret(name: str):
-    try:
-        return st.secrets.get(name)
-    except Exception:
-        return None
-
-
-def _debug_enabled() -> bool:
-    flag = _secret("DEBUG")
-    if isinstance(flag, str):
-        return flag.strip().lower() in {"1", "true", "yes"}
-    return bool(flag)
-
-
-def _api_key() -> str:
-    secret = _secret("WHOP_API_KEY")
-    if secret:
-        return str(secret).strip()
-    return os.environ.get("WHOP_API_KEY", "").strip()
-
-
 def fetch_membership_status(api_key: str, license_key: str) -> str:
     """Return the membership status. Raise LookupError when Whop has no such key."""
     url = _API_ROOT + urllib.parse.quote(license_key, safe="")
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Accept": "application/json",
-            "Api-Version-Date": "2026-11-07",
-        },
-        method="GET",
-    )
     try:
-        with urllib.request.urlopen(request, timeout=8) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            raise LookupError("unknown membership") from exc
-        raise
-    status = payload.get("status")
+        response = requests.get(
+            url,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Accept": "application/json",
+            },
+            timeout=8,
+        )
+    except requests.RequestException as exc:
+        raise OSError("Whop request failed") from exc
+    if response.status_code == 404:
+        raise LookupError("unknown membership")
+    try:
+        response.raise_for_status()
+        payload = response.json()
+    except requests.RequestException as exc:
+        raise OSError("Whop request failed") from exc
+    except ValueError as exc:
+        raise ValueError("Whop response did not include a membership status.") from exc
+    status = payload.get("status") if isinstance(payload, dict) else None
     if not isinstance(status, str) or not status:
         raise ValueError("Whop response did not include a membership status.")
     return status
 
 
+@st.cache_data(ttl=3600)
+def cached_membership_status(api_key: str, license_key: str) -> str:
+    """Whop status for one key, reused for an hour."""
+    return fetch_membership_status(api_key, license_key)
+
+
 def validate_whop_license(user_key: str) -> tuple[bool, str]:
-    return decide_license(user_key, _debug_enabled(), _api_key(), fetch_membership_status)
+    return decide_license(user_key, False, get_secret("WHOP_API_KEY"), cached_membership_status)
+
+
+def license_gate() -> None:
+    """Stop the script until a Whop key is active or trialing.
+
+    DEV_BYPASS_AUTH=true is the only way past this screen without a key.
+    A key accepted earlier in this session stays accepted until Log out.
+    """
+    if get_secret("DEV_BYPASS_AUTH") == "true":
+        st.session_state.is_licensed = True
+        if not st.session_state.get("membership_id"):
+            st.session_state.membership_id = "dev_local"
+        st.session_state.license_status = "developer"
+        return
+    if st.session_state.get("is_licensed"):
+        return
+    st.title("Access & License")
+    user_key = st.text_input("Enter your Whop License Key:", type="password")
+    if st.button("Unlock Studio", use_container_width=True):
+        is_valid, message = validate_whop_license(user_key)
+        if is_valid:
+            st.session_state.is_licensed = True
+            st.session_state.membership_id = membership_id_for(user_key)
+            st.session_state.license_status = "active"
+            st.success(message)
+            st.rerun()
+        else:
+            st.error(message)
+    st.info("Use the license key from your Whop order.")
+    st.stop()
+
+
+def log_out() -> None:
+    """Drop this session's license. The next run shows the key screen again."""
+    cached_membership_status.clear()
+    st.session_state.is_licensed = False
+    st.session_state.membership_id = ""
+    st.session_state.license_status = ""
+    st.rerun()

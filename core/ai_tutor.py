@@ -1,19 +1,12 @@
-import os
-
 TUTOR_NOTE_LIMIT = 12
 
 
 def get_gemini_client(api_key: str | None = None):
     """Client for live generation. Tests use build_prompt only."""
     if api_key is None:
-        try:
-            import streamlit as st
+        from core.license import get_secret
 
-            api_key = st.secrets.get("GEMINI_API_KEY")
-        except Exception:
-            api_key = None
-        if not api_key:
-            api_key = os.environ.get("GEMINI_API_KEY")
+        api_key = get_secret("GEMINI_API_KEY") or None
     if not api_key:
         return None
     from google import genai

@@ -10,6 +10,7 @@ from registry import (
     aa_hl_coverage,
     build_exam_blueprint,
     calculator_pool_areas,
+    call_generator,
     coverage_swap_note,
     refill_missing_area,
     stand_in_areas,
@@ -102,6 +103,17 @@ def test_swap_replaces_one_slot_and_leaves_the_others():
     assert TASK_REGISTRY[choices[0]].get("section", "A") == TASK_REGISTRY[keys[index]].get("section", "A")
     assert _marks(updated) == _marks(keys)
     assert all(TASK_REGISTRY[key].get("category") != "Paper 3" for key in choices)
+
+
+def test_a_four_mark_opener_can_swap_to_a_sequence():
+    keys = ("alg_quad",)
+    choices = set(swap_candidates(keys, 0, "none", "standard", 4, 110))
+    assert {"seq4_arith", "seq4_geom", "seq4_arith_terms", "seq4_geom_terms"} <= choices
+    for key in choices:
+        task = call_generator(key, True, "standard")
+        assert task.marks == 4
+    paper = build_exam_blueprint("none", 110, 2026, min_cohort_depth=1)
+    assert set(paper).isdisjoint(choices)
 
 
 def test_swap_can_offer_a_same_mark_stand_in():

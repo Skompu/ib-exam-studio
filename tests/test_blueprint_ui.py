@@ -86,7 +86,10 @@ def test_paper_radio_includes_paper3_and_deals_55_marks():
     paper.set_value("Paper 3")
     at.run()
     assert not at.exception, at.exception
-    assert at.session_state["work-mode"] == "paper3"
+    assert at.session_state["work-mode"] == "mock110"
+    labels = [item.label for item in at.button]
+    assert "Full exam" in labels
+    assert "Paper 3" not in labels
     keys = list(at.session_state["dealt-keys"])
     assert sum(TASK_REGISTRY[key]["marks"] for key in keys) == 55
     assert set(keys) == {"paper3_recur", "paper3_integral"}

@@ -78,6 +78,12 @@ from generators.trigonometry_inverse import gen_inverse_trig
 from generators.trigonometry_reciprocal import gen_reciprocal_trig
 from generators.trigonometry_rform import gen_r_form
 from generators.trigonometry_triangle import gen_triangle_sine_cosine
+from generators.sequence_warmup import (
+    gen_seq4_arithmetic,
+    gen_seq4_arithmetic_terms,
+    gen_seq4_geometric,
+    gen_seq4_geometric_terms,
+)
 from generators.sequences_infinite_series import gen_infinite_geometric_series
 from generators.vectors_plane_intersection import gen_vector_line_plane, gen_vector_line_plane_gdc
 from generators.vectors_planes import gen_vectors_plane
@@ -355,6 +361,43 @@ TASK_REGISTRY = {
         "category": "Sequences",
         "section": "A",
         "search": "infinite geometric convergence sum to infinity",
+    },
+    # Not auto-dealt. A 4-mark opener can swap to one of these warm-ups.
+    "seq4_arith": {
+        "name": "Sequences: Arithmetic term and sum",
+        "func": gen_seq4_arithmetic,
+        "marks": 4,
+        "category": "Sequences",
+        "section": "A",
+        "deal": False,
+        "search": "arithmetic sequence term sum four marks",
+    },
+    "seq4_geom": {
+        "name": "Sequences: Geometric term and sum",
+        "func": gen_seq4_geometric,
+        "marks": 4,
+        "category": "Sequences",
+        "section": "A",
+        "deal": False,
+        "search": "geometric sequence term sum four marks",
+    },
+    "seq4_arith_terms": {
+        "name": "Sequences: Arithmetic sequence from two terms",
+        "func": gen_seq4_arithmetic_terms,
+        "marks": 4,
+        "category": "Sequences",
+        "section": "A",
+        "deal": False,
+        "search": "arithmetic sequence two terms common difference four marks",
+    },
+    "seq4_geom_terms": {
+        "name": "Sequences: Geometric sequence from two terms",
+        "func": gen_seq4_geometric_terms,
+        "marks": 4,
+        "category": "Sequences",
+        "section": "A",
+        "deal": False,
+        "search": "geometric sequence two terms common ratio four marks",
     },
     "log_eq": {
         "name": "Algebra: Logarithmic Equations",

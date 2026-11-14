@@ -277,3 +277,121 @@ def tutor_uses_remaining(
     path: Path | None = None,
 ) -> int:
     return max(0, limit - get_tutor_uses(membership_id, path))
+
+
+def export_archive_json(membership_id: str, path: Path | None = None) -> str:
+    """Issued papers and class lists for one license, as a JSON document."""
+    init_db(path)
+    with _connection(path) as connection:
+        papers = connection.execute(
+            """
+            SELECT paper_id, title, created_at, paper_type, difficulty, total_marks, payload_json
+            FROM saved_papers
+            WHERE membership_id = ?
+            ORDER BY created_at
+            """,
+            (membership_id,),
+        ).fetchall()
+        classes = connection.execute(
+            """
+            SELECT class_id, class_name, completed_topics
+            FROM class_syllabi
+            WHERE membership_id = ?
+            ORDER BY class_name
+            """,
+            (membership_id,),
+        ).fetchall()
+    document = {
+        "format": "stem-issued-v1",
+        "papers": [
+            {
+                "paper_id": row["paper_id"],
+                "title": row["title"],
+                "created_at": row["created_at"],
+                "paper_type": row["paper_type"],
+                "difficulty": row["difficulty"],
+                "total_marks": row["total_marks"],
+                "payload": json.loads(row["payload_json"]),
+            }
+            for row in papers
+        ],
+        "classes": [
+            {
+                "class_id": row["class_id"],
+                "class_name": row["class_name"],
+                "topics": json.loads(row["completed_topics"]),
+            }
+            for row in classes
+        ],
+    }
+    return json.dumps(document, ensure_ascii=False)
+
+
+def import_archive_json(membership_id: str, raw: str, path: Path | None = None) -> int:
+    """Restore an export onto this license. Returns how many papers were added."""
+    if not membership_id:
+        raise ValueError("membership_id is required to import an archive.")
+    try:
+        document = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("The archive file is not JSON.") from exc
+    if not isinstance(document, dict) or document.get("format") != "stem-issued-v1":
+        raise ValueError("This file is not an Issued archive.")
+    papers = document.get("papers") or []
+    classes = document.get("classes") or []
+    if not isinstance(papers, list) or not isinstance(classes, list):
+        raise ValueError("This file is not an Issued archive.")
+    init_db(path)
+    added = 0
+    with _connection(path) as connection:
+        _touch_membership(connection, membership_id)
+        for item in papers:
+            if not isinstance(item, dict) or not item.get("paper_id"):
+                continue
+            existing = connection.execute(
+                "SELECT 1 FROM saved_papers WHERE paper_id = ?",
+                (item["paper_id"],),
+            ).fetchone()
+            if existing:
+                continue
+            connection.execute(
+                """
+                INSERT INTO saved_papers (
+                    paper_id, membership_id, title, created_at, paper_type,
+                    difficulty, total_marks, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item["paper_id"],
+                    membership_id,
+                    item.get("title") or "Untitled paper",
+                    item.get("created_at") or _now(),
+                    item.get("paper_type") or "",
+                    item.get("difficulty") or "",
+                    int(item.get("total_marks") or 0),
+                    json.dumps(item.get("payload") or {}, ensure_ascii=False),
+                ),
+            )
+            added += 1
+        for item in classes:
+            if not isinstance(item, dict) or not item.get("class_id"):
+                continue
+            existing = connection.execute(
+                "SELECT 1 FROM class_syllabi WHERE class_id = ?",
+                (item["class_id"],),
+            ).fetchone()
+            if existing:
+                continue
+            connection.execute(
+                """
+                INSERT INTO class_syllabi (class_id, membership_id, class_name, completed_topics)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    item["class_id"],
+                    membership_id,
+                    item.get("class_name") or "Class",
+                    json.dumps(list(item.get("topics") or [])),
+                ),
+            )
+    return added

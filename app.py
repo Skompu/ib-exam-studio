@@ -21,9 +21,11 @@ from registry import (
     refill_missing_area,
     swap_candidates,
 )
-from core.license import membership_id_for, validate_whop_license
+from core.license import license_gate, log_out
 from core.storage import (
+    export_archive_json,
     get_paper_snapshot,
+    import_archive_json,
     increment_tutor_uses,
     list_classes,
     list_saved_papers,
@@ -271,11 +273,10 @@ def _matching_topics(pool, query, categories, sections):
 
 
 _WORK_MODES = (
-    ("mock110", "Full mock 110"),
+    ("mock110", "Full exam"),
     ("mid50", "50-mark paper"),
     ("topic", "One topic"),
     ("custom", "Custom list"),
-    ("paper3", "Paper 3"),
 )
 _WORK_LABELS = dict(_WORK_MODES)
 _WORK_CAPTION = {
@@ -283,8 +284,8 @@ _WORK_CAPTION = {
     "mid50": "Dynamic 50-mark blueprint, same calculator policy.",
     "topic": "One syllabus area and 4 to 8 questions.",
     "custom": "Hand-picked topics, a fixed preset, or a saved class list.",
-    "paper3": "IB AA HL Paper 3, 55 marks, 75 min, two investigations, GDC.",
 }
+_PAPER3_CAPTION = "IB AA HL Paper 3, 55 marks, 75 min, two investigations, GDC."
 _PAPER_LABELS = ("Paper 1 (Non-Calc)", "Paper 2 (GDC)")
 _PAPER_3_LABEL = "Paper 3"
 _PAPER_PDF = {
@@ -297,7 +298,6 @@ _DEFAULT_TIME = {
     "mid50": "60 minutes",
     "topic": "45 minutes",
     "custom": "60 minutes",
-    "paper3": "75 minutes",
 }
 _SYLLABI = (
     "IB Mathematics AA / HL Past Papers",
@@ -488,6 +488,26 @@ def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
         return
     if st.session_state.get("last_saved"):
         st.success("The latest paper is in the school archive.")
+    archive_file = export_archive_json(archive_id)
+    st.download_button(
+        "Export Archive (JSON)",
+        data=archive_file,
+        file_name="issued-archive.json",
+        mime="application/json",
+        key="export-issued-archive",
+    )
+    incoming = st.file_uploader("Issued archive", type=["json"], key="issued-archive-file")
+    if st.button("Import Archive (JSON)", key="import-issued-archive"):
+        if incoming is None:
+            st.warning("Choose an Issued archive file first.")
+        else:
+            try:
+                added = import_archive_json(archive_id, incoming.getvalue().decode("utf-8"))
+            except (ValueError, UnicodeDecodeError) as exc:
+                st.error(str(exc))
+            else:
+                st.success(f"Imported {added} papers.")
+                st.rerun()
     archived = list_saved_papers(archive_id)
     if not archived:
         st.caption("No papers have been saved for this license yet.")
@@ -897,28 +917,7 @@ def _render_pdf(papers, institution_name, contact_info, syllabus, paper_type, ti
 if "is_licensed" not in st.session_state:
     st.session_state.is_licensed = False
 
-if not st.session_state.is_licensed:
-    st.title("🔐 Access & License")
-    user_key = st.text_input("Enter your Whop License Key:", type="password")
-    if st.button("Unlock Studio", use_container_width=True):
-        is_valid, msg = validate_whop_license(user_key)
-        if is_valid:
-            st.session_state.is_licensed = True
-            st.session_state.membership_id = membership_id_for(user_key)
-            st.success(msg)
-            st.rerun()
-        else:
-            st.error(msg)
-    is_debug = False
-    try:
-        is_debug = st.secrets.get("DEBUG", False)
-    except Exception:
-        is_debug = False
-    if is_debug:
-        st.info("Developer key: DEV-TEST-2026")
-    else:
-        st.info("Use the license key from your Whop order.")
-    st.stop()
+license_gate()
 
 level_for_label = st.session_state.get("aa-level", "hl")
 title_col, archive_col = st.columns([6, 1])
@@ -945,21 +944,13 @@ for column, (mode_key, mode_label) in zip(tile_cols, _WORK_MODES):
         type="primary" if work_mode == mode_key else "secondary",
         use_container_width=True,
     ) and work_mode != mode_key:
-        if mode_key == "paper3" and level_for_label == "sl":
-            st.session_state["paper3-sl-note"] = True
-            st.rerun()
-        if mode_key == "paper3":
-            st.session_state["work-mode-before-paper3"] = work_mode
-            st.session_state["paper3-entered-via-tile"] = True
-        elif work_mode == "paper3":
-            st.session_state["paper3-left-via-tile"] = True
         st.session_state["work-mode"] = mode_key
         _store_work_mode(mode_key)
         st.rerun()
-if st.session_state.pop("paper3-sl-note", False):
-    st.caption("Paper 3 is an AA HL paper. Switch the level to AA HL.")
 if work_mode == "mock110" and level_for_label == "sl":
     st.caption("AA SL mock, 80 marks, 90 min, Section A and Section B.")
+elif work_mode == "mock110" and st.session_state.get("paper-policy") == _PAPER_3_LABEL:
+    st.caption(_PAPER3_CAPTION)
 else:
     st.caption(_WORK_CAPTION[work_mode])
 
@@ -967,46 +958,13 @@ with st.container(border=True):
     paper_col, level_col, group_col = st.columns([1.5, 1.3, 1])
     with paper_col:
         paper_choices = list(_PAPER_LABELS)
-        if level_for_label != "sl":
+        if work_mode == "mock110" and level_for_label != "sl":
             paper_choices.append(_PAPER_3_LABEL)
-        if work_mode == "paper3" and level_for_label == "sl":
-            fallback = st.session_state.get("work-mode-before-paper3", "mock110")
-            if fallback not in _WORK_LABELS or fallback == "paper3":
-                fallback = "mock110"
-            restored = st.session_state.get("paper-policy-before-paper3", paper_choices[0])
-            if restored not in paper_choices:
-                restored = paper_choices[0]
-            st.session_state["work-mode"] = fallback
-            _store_work_mode(fallback)
-            st.session_state["paper-policy"] = restored
-            st.session_state["paper3-sl-note"] = True
-            st.rerun()
-        if st.session_state.pop("paper3-entered-via-tile", False):
-            st.session_state["paper-policy"] = _PAPER_3_LABEL
-        if st.session_state.pop("paper3-left-via-tile", False):
-            restored = st.session_state.get("paper-policy-before-paper3", paper_choices[0])
-            if restored not in paper_choices:
-                restored = paper_choices[0]
-            st.session_state["paper-policy"] = restored
         if st.session_state.get("paper-policy") not in paper_choices:
-            st.session_state["paper-policy"] = (
-                _PAPER_3_LABEL if work_mode == "paper3" and _PAPER_3_LABEL in paper_choices else paper_choices[0]
-            )
+            if st.session_state.get("paper-policy") == _PAPER_3_LABEL and level_for_label == "sl":
+                st.caption("Paper 3 is an AA HL paper. Switch the level to AA HL.")
+            st.session_state["paper-policy"] = paper_choices[0]
         paper_label = st.radio("Paper", paper_choices, horizontal=True, key="paper-policy")
-        if paper_label != _PAPER_3_LABEL:
-            st.session_state["paper-policy-before-paper3"] = paper_label
-        if paper_label == _PAPER_3_LABEL and work_mode != "paper3":
-            st.session_state["work-mode-before-paper3"] = work_mode
-            st.session_state["work-mode"] = "paper3"
-            _store_work_mode("paper3")
-            st.rerun()
-        if paper_label != _PAPER_3_LABEL and work_mode == "paper3":
-            fallback = st.session_state.get("work-mode-before-paper3", "mock110")
-            if fallback not in _WORK_LABELS or fallback == "paper3":
-                fallback = "mock110"
-            st.session_state["work-mode"] = fallback
-            _store_work_mode(fallback)
-            st.rerun()
         level = st.radio(
             "Level",
             options=["hl", "sl"],
@@ -1033,7 +991,8 @@ with st.container(border=True):
     paper_type = _PAPER_PDF[paper_label]
     topic_state = f"topic-seed-{calculator_mode}"
     numeric_state = f"numeric-seed-{calculator_mode}"
-    if work_mode == "paper3":
+    paper3_paper = paper_label == _PAPER_3_LABEL
+    if paper3_paper:
         gdc_paper = True
         calculator_mode = "gdc"
         paper_type = "Paper 3: GDC Allowed"
@@ -1069,7 +1028,18 @@ with st.container(border=True):
         key=f"new-topics-{calculator_mode}",
         help="On a mock or a 50-mark paper, deals new topics. On one topic, draws another set from that area. On a custom list, leaves the numbers alone.",
     ):
-        if work_mode in {"mock110", "mid50"}:
+        if paper3_paper:
+            st.session_state.pop(f"swap-store-{calculator_mode}-{work_mode}", None)
+            st.session_state[topic_state] = int(st.session_state[topic_state]) + 1
+            st.session_state[numeric_state] = int(st.session_state[numeric_state]) + 1
+            _remember_flash(
+                "New Paper 3 investigations and new numbers. Groups rebuilt.",
+                _flash_scope(
+                    work_mode, calculator_mode, difficulty, num_variants,
+                    st.session_state[topic_state], st.session_state[numeric_state],
+                ),
+            )
+        elif work_mode in {"mock110", "mid50"}:
             st.session_state[topic_state] = int(st.session_state[topic_state]) + 1
             st.session_state[numeric_state] = int(st.session_state[numeric_state]) + 1
             for mode_name in ("mock110", "mid50"):
@@ -1078,17 +1048,6 @@ with st.container(border=True):
                 st.session_state.pop(f"swap-store-{calculator_mode}-{mode_name}", None)
             _remember_flash(
                 f"New topics and new numbers. Groups {group_label} rebuilt.",
-                _flash_scope(
-                    work_mode, calculator_mode, difficulty, num_variants,
-                    st.session_state[topic_state], st.session_state[numeric_state],
-                ),
-            )
-        elif work_mode == "paper3":
-            st.session_state.pop(f"swap-store-{calculator_mode}-{work_mode}", None)
-            st.session_state[topic_state] = int(st.session_state[topic_state]) + 1
-            st.session_state[numeric_state] = int(st.session_state[numeric_state]) + 1
-            _remember_flash(
-                "New Paper 3 investigations and new numbers. Groups rebuilt.",
                 _flash_scope(
                     work_mode, calculator_mode, difficulty, num_variants,
                     st.session_state[topic_state], st.session_state[numeric_state],
@@ -1121,7 +1080,7 @@ with st.container(border=True):
     )
     if st.session_state.get("flash_scope") == live_scope and st.session_state.get("action_flash"):
         st.caption(st.session_state["action_flash"])
-    if work_mode == "paper3":
+    if paper3_paper:
         st.caption("Paper 3 allows a GDC. Numerical answers are to three significant figures.")
     elif gdc_paper:
         st.caption("Paper 2 finishes on the GDC, to three significant figures.")
@@ -1250,12 +1209,19 @@ elif work_mode == "custom":
                 st.rerun()
 
 with st.expander("More"):
+    license_status = st.session_state.get("license_status") or "active"
+    st.caption(f"License status: {license_status}")
+    if st.button("Log out", key="log-out"):
+        log_out()
     institution_name = st.text_input("School name", value="International STEM Academy", key="institution-name")
     contact_info = st.text_input("Contact / website", value="www.stem-academy.edu", key="contact-info")
     uploaded_logo = st.file_uploader("School logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
     default_time = _DEFAULT_TIME[work_mode]
     time_key = f"time-{work_mode}-{level}"
-    if level == "sl" and work_mode == "mock110":
+    if paper3_paper:
+        default_time = "75 minutes"
+        time_key = f"time-paper3-{level}"
+    elif level == "sl" and work_mode == "mock110":
         default_time = "90 minutes"
     if work_mode == "custom" and custom_source != "manual":
         default_time = PRESETS[custom_source]["time"]
@@ -1269,7 +1235,7 @@ with st.expander("More"):
         key=f"deliverable-{work_mode}-{calculator_mode}",
     )
     clean_integers_only = st.checkbox("Force integer values", value=True)
-    if work_mode == "paper3":
+    if paper3_paper:
         st.caption("Paper 3 rounds the GDC result to three significant figures.")
     elif gdc_paper:
         st.caption("Paper 2 rounds the GDC result to three significant figures.")
@@ -1301,7 +1267,14 @@ if archive_open:
     st.stop()
 
 selected_task_keys: list[str] = []
-if work_mode == "mock110":
+if paper3_paper:
+    if level == "sl":
+        st.error("Paper 3 is an AA HL paper. Switch the level to AA HL.")
+        st.stop()
+    partner = "paper3_recur" if int(st.session_state[topic_state]) % 2 == 0 else "paper3_circle"
+    selected_task_keys = [partner, "paper3_integral"]
+    target_marks = 55
+elif work_mode == "mock110":
     target_marks = 80 if level == "sl" else 110
 else:
     target_marks = 50
@@ -1315,7 +1288,9 @@ blueprint_signature = (
     int(num_variants),
     level,
 )
-if work_mode in {"mock110", "mid50"}:
+if paper3_paper:
+    pass
+elif work_mode in {"mock110", "mid50"}:
     try:
         dealt = build_exam_blueprint(
             calculator_mode,
@@ -1351,12 +1326,6 @@ elif work_mode == "topic":
     )
     if len(selected_task_keys) < topic_count:
         st.caption(f"This paper has {len(selected_task_keys)} questions in {focus_area}.")
-elif work_mode == "paper3":
-    if level == "sl":
-        st.error("Paper 3 is an AA HL paper. Switch the level to AA HL.")
-        st.stop()
-    partner = "paper3_recur" if int(st.session_state[topic_state]) % 2 == 0 else "paper3_circle"
-    selected_task_keys = [partner, "paper3_integral"]
 else:
     selected_task_keys = list(custom_keys)
 
@@ -1422,7 +1391,7 @@ time_col.metric("Time", time_allowed)
 level_metric.metric("Difficulty", difficulty_label)
 group_metric.metric("Groups", group_letters)
 
-if work_mode in {"mock110", "mid50"}:
+if work_mode in {"mock110", "mid50"} and not paper3_paper:
     _render_coverage(
         ordered_keys,
         calculator_mode,
