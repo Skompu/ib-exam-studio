@@ -949,6 +949,14 @@ def build_multi_question_pdf(
                         if step.get("alternative"):
                             block.append(Paragraph(escape(step["alternative"]), note_style))
                         story.append(KeepTogether(block))
+                if paper.get("calculator") == "gdc":
+                    from core.calculator_paths import paths_for_task
+
+                    routes = paths_for_task(task)
+                    if routes:
+                        story.append(Paragraph("Optional calculator paths", note_style))
+                        for line in routes:
+                            story.append(Paragraph(escape(line), note_style))
                 story.append(Spacer(1, 8))
 
     doc.build(story, canvasmaker=NumberedCanvas)

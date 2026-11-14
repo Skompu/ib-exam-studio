@@ -57,10 +57,11 @@ def build_prompt(
     task_latex: str,
     subquestions: list,
     markscheme: list[dict],
+    calculator_paths: str = "",
 ) -> str:
     scheme_block = _format_markscheme(markscheme)
     subquestions_text = "\n".join(f"- {item}" for item in (subquestions or []))
-    return f"""
+    prompt = f"""
 You are an expert IB Mathematics AA HL examiner preparing tutor-only guidance.
 
 STRICT LANGUAGE: Write the entire response in formal British English.
@@ -96,6 +97,14 @@ Produce:
 ### 4. Official IB Formula Booklet Alignment
 * Whether required formulae are in the booklet or must be recalled.
 """.strip()
+    if calculator_paths.strip():
+        prompt += (
+            "\n\n### 5. Calculator paths\n"
+            "When the note mentions a GDC operation, quote only these menu paths. "
+            "Do not invent a different button sequence.\n"
+            f"{calculator_paths.strip()}"
+        )
+    return prompt
 
 
 def stream_tutor_hints(
@@ -103,6 +112,7 @@ def stream_tutor_hints(
     task_latex: str,
     subquestions: list,
     markscheme: list[dict],
+    calculator_paths: str = "",
 ):
     """Stream pedagogical hints using gemini-3.5-flash-lite."""
     client = get_gemini_client()
@@ -110,7 +120,13 @@ def stream_tutor_hints(
         yield "⚠️ Configuration Error: GEMINI_API_KEY not found in `.streamlit/secrets.toml`."
         return
 
-    prompt = build_prompt(task_title, task_latex, subquestions, markscheme)
+    prompt = build_prompt(
+        task_title,
+        task_latex,
+        subquestions,
+        markscheme,
+        calculator_paths=calculator_paths,
+    )
 
     try:
         response_stream = client.models.generate_content_stream(

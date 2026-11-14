@@ -107,13 +107,26 @@ def gen_ambiguous_case(clean_integers: bool, difficulty: str = "standard"):
     case = choice(_READY_OBTUSE if difficulty == "challenging" else _READY_ACUTE)
     acute, obtuse = case["angles_b"]
     side_c_acute, side_c_obtuse = case["sides_c"]
-    task = pack_task(
-        title="Trigonometry: The Ambiguous Case",
-        intro=(
+    if choice((False, True)):
+        title = "Trigonometry: two possible positions"
+        intro = (
+            f"A surveyor at $A$ measures point $C$ and a point $B$. "
+            f"Angle $A = {case['angle_a']}^\\circ$, "
+            f"$BC = {sp.latex(case['side_a'])}$ cm and $AC = {sp.latex(case['side_b'])}$ cm. "
+            "The diagram shows the two positions of $B$ that fit these measurements."
+        )
+        cover_id = "survey"
+    else:
+        title = "Trigonometry: The Ambiguous Case"
+        intro = (
             f"In triangle $ABC$, angle $A = {case['angle_a']}^\\circ$, "
             f"$BC = {sp.latex(case['side_a'])}$ cm and $AC = {sp.latex(case['side_b'])}$ cm. "
             "The diagram shows that two triangles fit these data."
-        ),
+        )
+        cover_id = "triangle"
+    task = pack_task(
+        title=title,
+        intro=intro,
         latex_main=(
             rf"\angle A = {case['angle_a']}^\circ, \quad a = {sp.latex(case['side_a'])}, \quad "
             rf"b = {sp.latex(case['side_b'])}"
@@ -145,6 +158,8 @@ def gen_ambiguous_case(clean_integers: bool, difficulty: str = "standard"):
         plot_type="essential",
         archetype=f"Ambiguous sine rule angles {case['angles_b'][0]}/{case['angles_b'][1]}, a={sp.latex(case['side_a'])}",
         family="Acute given angle, opposite side between the height and the adjacent side",
+        part_graph_id="trig_amb",
+        cover_id=cover_id,
     )
     if task.marks != 6:
         raise RuntimeError("Ambiguous-case question must be worth 6 marks.")

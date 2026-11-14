@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from core.cohorts import compose_papers
 from core.rng import bind, release
 from matplotlib.mathtext import MathTextParser
 
@@ -436,6 +437,39 @@ def test_section_b_dependent_prompts_use_hence():
                 letter,
                 by_letter[letter],
             )
+
+
+def test_second_stories_share_the_part_graph():
+    expected = {
+        "ext_model": {"forging", "clearance"},
+        "trig_amb": {"triangle", "survey"},
+        "ext_vectors": {"lines", "cables"},
+    }
+    for key, covers in expected.items():
+        for difficulty in ("standard", "challenging"):
+            seen = set()
+            graphs = set()
+            vectors = set()
+            for index in range(12):
+                token = bind(f"story-{key}-{difficulty}-{index}")
+                try:
+                    task = call_generator(key, True, difficulty)
+                finally:
+                    release(token)
+                seen.add(task.cover_id)
+                graphs.add(task.part_graph_id)
+                vectors.add(tuple(part.marks for part in task.parts))
+                if task.fig is not None:
+                    plt.close(task.fig)
+            assert seen == covers, (key, difficulty, seen)
+            assert graphs == {key}, (key, difficulty, graphs)
+            assert len(vectors) == 1, (key, difficulty, vectors)
+        strict = compose_papers((key,), 2, True, 2026, "standard", "strict_parallel")
+        assert strict[0]["tasks"][0]["cover_id"] == strict[1]["tasks"][0]["cover_id"]
+        assert strict[0]["tasks"][0]["part_graph_id"] == key
+        twin = compose_papers((key,), 2, True, 2026, "standard", "cognitive_twin")
+        assert twin[0]["tasks"][0]["cover_id"] != twin[1]["tasks"][0]["cover_id"]
+        assert twin[0]["tasks"][0]["part_graph_id"] == twin[1]["tasks"][0]["part_graph_id"] == key
 
 
 def test_triangle_diagram_is_square_and_labelled():

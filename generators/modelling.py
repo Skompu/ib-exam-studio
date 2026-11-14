@@ -226,7 +226,18 @@ def newton_short(reading: Reading):
     return task
 
 
-def _extended(reading: Reading, symbol: str, title: str, intro: str, latex_main: str, prompts: dict, reasons: dict, archetype: str, family: str):
+def _extended(
+    reading: Reading,
+    symbol: str,
+    title: str,
+    intro: str,
+    latex_main: str,
+    prompts: dict,
+    reasons: dict,
+    archetype: str,
+    family: str,
+    cover_id: str = "forging",
+):
     _hide_equation(intro, latex_main)
     solution = _solution(symbol, reading)
     task = pack_task(
@@ -267,6 +278,12 @@ def _extended(reading: Reading, symbol: str, title: str, intro: str, latex_main:
         ],
         archetype=archetype,
         family=family,
+        part_graph_id="ext_model",
+        cover_id=cover_id,
+        numeric_id=(
+            f"{cover_id}|lim={reading.limit}|y0={reading.initial}"
+            f"|t={reading.elapsed}|f={reading.factor}"
+        ),
     )
     if task.marks != 12:
         raise RuntimeError("Extended model question must be worth 12 marks.")
@@ -327,6 +344,7 @@ def newton_extended(reading: Reading):
         },
         "Newton cooling: form the equation, find k, a later time, a rate, and the limit",
         "Exponential approach to a fixed bath temperature, with k a clean logarithm",
+        cover_id="forging",
     )
 
 
@@ -381,4 +399,5 @@ def clearance_extended(reading: Reading):
         },
         "Drug clearance: form the equation, find k, a later time, a rate, and the limit",
         "Exponential decay to zero concentration, with k a clean logarithm",
+        cover_id="clearance",
     )

@@ -19,6 +19,7 @@ from core.randomizer import (
     vlatex,
     x,
 )
+from core.rng import choice
 from generators.modelling import clearance_extended, newton_extended, sample_clearance, sample_newton
 
 
@@ -161,6 +162,7 @@ def gen_extended_calculus(clean_integers: bool, difficulty: str = "standard"):
 
 def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standard"):
     del clean_integers
+    cables = choice((False, True))
     item = sample_skew_lines()
     normal = item["n"]
     rhs = sum(normal[i] * item["a1"][i] for i in range(3))
@@ -171,12 +173,24 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
     note = ""
     if difficulty == "challenging":
         note = " Do not assume in advance that the lines fail to meet."
-    return pack_task(
-        title="Extended response: skew lines",
-        intro=(
+    if cables:
+        title = "Extended response: two cables"
+        intro = (
+            "Two straight cables, $L_1$ and $L_2$, run through a building. "
+            "Each cable is a straight line."
+            + note
+        )
+        cover_id = "cables"
+    else:
+        title = "Extended response: skew lines"
+        intro = (
             "Two lines in three-dimensional space have the vector equations below."
             + note
-        ),
+        )
+        cover_id = "lines"
+    return pack_task(
+        title=title,
+        intro=intro,
         latex_main=(
             rf"L_1:\ \mathbf{{r}} = {vlatex(item['a1'])} + \lambda {vlatex(item['d1'])}, \qquad "
             rf"L_2:\ \mathbf{{r}} = {vlatex(item['a2'])} + \mu {vlatex(item['d2'])}"
@@ -226,10 +240,13 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
         ],
         archetype="Skew lines: cross product, non-intersection, distance, and plane",
         family="Integer-distance skew lines",
+        part_graph_id="ext_vectors",
+        cover_id=cover_id,
     )
 
 
 def gen_extended_model(clean_integers: bool = True, difficulty: str = "standard"):
-    if difficulty == "challenging":
+    del difficulty
+    if choice((False, True)):
         return clearance_extended(sample_clearance(clean_integers))
     return newton_extended(sample_newton(clean_integers))

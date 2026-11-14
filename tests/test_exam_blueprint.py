@@ -2,7 +2,10 @@
 
 from collections import Counter
 
+import pytest
+
 from registry import (
+    SL_EXCLUDED,
     TASK_REGISTRY,
     _syllabus_area,
     advancement_band,
@@ -127,3 +130,36 @@ def test_paper2_mid_term_is_exactly_50_and_keeps_two_warmups():
         assert {"gdc_dist", "gdc_invnorm", "kin_gdc", "ext_gdc_stat"} <= set(paper)
         extended = [key for key in paper if TASK_REGISTRY[key].get("section") == "B"]
         assert extended == ["ext_gdc_stat"]
+
+
+def _section(keys, name: str) -> list[str]:
+    return [key for key in keys if TASK_REGISTRY[key].get("section", "A") == name]
+
+
+def test_sl_mock_is_80_and_the_hl_mock_stays_110():
+    hl = build_exam_blueprint("none", 110, 2026, min_cohort_depth=1)
+    assert hl == build_exam_blueprint("none", 110, 2026, min_cohort_depth=1, level="hl")
+    with pytest.raises(RuntimeError):
+        build_exam_blueprint("none", 110, 2026, min_cohort_depth=1, level="sl")
+    paper = build_exam_blueprint("none", 80, 2026, min_cohort_depth=1, level="sl")
+    short = build_exam_blueprint("none", 50, 2026, min_cohort_depth=1, level="sl")
+    gdc = build_exam_blueprint("gdc", 80, 2026, min_cohort_depth=1, level="sl")
+    gdc_mid = build_exam_blueprint("gdc", 50, 2026, min_cohort_depth=1, level="sl")
+    assert _marks(paper) == 80
+    assert _marks(short) == 50
+    assert _marks(gdc) == 80
+    assert _marks(gdc_mid) == 50
+    assert len(_section(paper, "B")) == 2
+    assert len(_section(short, "B")) == 1
+    assert 6 <= len(_section(paper, "A")) <= 10
+    for dealt in (paper, short, gdc, gdc_mid):
+        assert set(dealt).isdisjoint(SL_EXCLUDED)
+    another = build_exam_blueprint("none", 80, 2027, min_cohort_depth=4, level="sl")
+    assert _marks(another) == 80
+    assert another != paper
+    for key, spec in TASK_REGISTRY.items():
+        if spec.get("category") in {"Vectors", "Complex Numbers", "Paper 3"}:
+            assert key in SL_EXCLUDED, key
+    for key in ("induction", "diff_eq", "ext_model", "maclaurin", "ext_vectors"):
+        assert key in SL_EXCLUDED
+    assert "proof_direct" not in SL_EXCLUDED

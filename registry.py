@@ -71,6 +71,7 @@ from generators.trigonometry_ambiguous import gen_ambiguous_case
 from generators.trigonometry_compound import gen_compound_angle
 from generators.trigonometry_identities import gen_trig_double_angle_solve
 from generators.trigonometry_identity import gen_trig_identity
+from generators.paper3_full import gen_paper3_circle, gen_paper3_integral, gen_paper3_recurrence
 from generators.paper3_investigation import gen_paper3_investigation
 from generators.paper3_maclaurin import gen_paper3_maclaurin
 from generators.trigonometry_inverse import gen_inverse_trig
@@ -673,6 +674,36 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "search": "paper 3 maclaurin error investigation GDC",
     },
+    "paper3_recur": {
+        "name": "Paper 3: Recurrence and a closed form",
+        "func": gen_paper3_recurrence,
+        "marks": 28,
+        "category": "Paper 3",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "paper 3 recurrence conjecture induction closed form",
+    },
+    "paper3_integral": {
+        "name": "Paper 3: Sine-power reduction",
+        "func": gen_paper3_integral,
+        "marks": 27,
+        "category": "Paper 3",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "paper 3 integral reduction conjecture proof sine",
+    },
+    "paper3_circle": {
+        "name": "Paper 3: Powers on the unit circle",
+        "func": gen_paper3_circle,
+        "marks": 28,
+        "category": "Paper 3",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "paper 3 complex unit circle de moivre induction",
+    },
     "ext_calculus": {
         "name": "Section B: Extended Cubic Model",
         "func": gen_extended_calculus,
@@ -995,6 +1026,19 @@ PRESETS = {
         "calculator": "gdc",
         "keys": ("paper3_geo", "paper3_mac"),
     },
+    "paper3": {
+        "label": "Paper 3 (GDC, 75 min)",
+        "description": (
+            "Two investigations, 55 marks, 75 minutes. One question builds a closed form for a linear "
+            "recurrence, or the same mark total on the unit circle, and the other proves a reduction "
+            "formula for a sine-power integral. A GDC is required for the numerical steps. "
+            "This is a full IB AA HL Paper 3 length."
+        ),
+        "time": "75 minutes",
+        "marks": 55,
+        "calculator": "gdc",
+        "keys": ("paper3_recur", "paper3_integral"),
+    },
     "mock_p2": {
         "label": "Mock Paper 2 (GDC, 120 min)",
         "description": (
@@ -1205,6 +1249,9 @@ _AA_HL_BY_KEY = {
     "ext_cross_log_gdc": "Calculus",
     "paper3_geo": "Algebra & Complex",
     "paper3_mac": "Calculus",
+    "paper3_recur": "Algebra & Complex",
+    "paper3_integral": "Calculus",
+    "paper3_circle": "Algebra & Complex",
 }
 
 
@@ -1571,6 +1618,122 @@ def _cap_one_papers(grouped, remainder: int) -> list[tuple[str, ...]]:
     return []
 
 
+def _areas_present(grouped) -> list[str]:
+    areas = []
+    for band in (1, 2, 3):
+        for area in grouped[band]:
+            if area not in areas:
+                areas.append(area)
+    return areas
+
+
+def _exact_unique(lists: list[list[str]], remainder: int, ceiling: int) -> list[tuple[str, ...]]:
+    """Same as an exact fill, but one topic cannot occupy two slots."""
+    suffix_min = [0] * (len(lists) + 1)
+    suffix_max = [0] * (len(lists) + 1)
+    for index in range(len(lists) - 1, -1, -1):
+        marks = [TASK_REGISTRY[key]["marks"] for key in lists[index]] or [0]
+        suffix_min[index] = suffix_min[index + 1] + min(marks)
+        suffix_max[index] = suffix_max[index + 1] + max(marks)
+    found: list[tuple[str, ...]] = []
+
+    def walk(index: int, left: int, chosen: tuple[str, ...]) -> None:
+        if len(found) >= ceiling:
+            return
+        if left < suffix_min[index] or left > suffix_max[index]:
+            return
+        if index == len(lists):
+            found.append(chosen)
+            return
+        used = set(chosen)
+        for key in lists[index]:
+            if key in used:
+                continue
+            walk(index + 1, left - TASK_REGISTRY[key]["marks"], chosen + (key,))
+
+    walk(0, remainder, ())
+    return found
+
+
+def _sl_section_a(grouped, remainder: int) -> list[tuple[str, ...]]:
+    """Section A for an AA SL paper: every remaining area, then a repeat if the total needs it."""
+    areas = _areas_present(grouped)
+    if len(areas) < 5:
+        return []
+    lengths = (8, 9, 7, 6) if remainder >= 45 else (6, 5, 7, 8)
+    found: list[tuple[str, ...]] = []
+    rich = [
+        area
+        for area in areas
+        if sum(len(grouped[band].get(area, ())) for band in (1, 2, 3)) >= 2
+    ]
+    for length in lengths:
+        extra_n = length - len(areas)
+        if extra_n < 0:
+            plans = combinations(areas, length)
+        elif extra_n == 0:
+            plans = (tuple(areas),)
+        elif len(rich) < extra_n:
+            continue
+        else:
+            plans = (tuple(areas) + extra for extra in combinations(rich, extra_n))
+        for slots in plans:
+            options = []
+            usable = True
+            for area in slots:
+                bands = [band for band in (1, 2, 3) if grouped[band].get(area)]
+                if not bands:
+                    usable = False
+                    break
+                options.append(bands)
+            if not usable:
+                continue
+            wants_advanced = any(3 in choice for choice in options)
+            for assignment in product(*options):
+                used = Counter(assignment)
+                if used[1] == 0 or used[2] == 0:
+                    continue
+                if wants_advanced and used[3] == 0:
+                    continue
+                lists = [grouped[band][area] for area, band in zip(slots, assignment)]
+                found.extend(_exact_unique(lists, remainder, 8))
+                if len(found) >= 24:
+                    return _spread(list(dict.fromkeys(found)), 24)
+        if found:
+            return _spread(list(dict.fromkeys(found)), 24)
+    return _spread(list(dict.fromkeys(found)), 24)
+
+
+def _enumerate_sl(section_a, section_b, target: int, min_cohort_depth: int, difficulty: str):
+    """AA SL shape. Two extended questions on a full paper, one on a short paper.
+
+    The HL window wants seven areas and about 55 marks of Section B. SL has neither,
+    so this path is the only one that asks for 80.
+    """
+    grouped = _band_areas(section_a)
+    available = len(section_b)
+    ordered = tuple(sorted(section_b, key=lambda key: (TASK_REGISTRY[key]["marks"], key)))
+    if target >= 80 and available >= 2:
+        subsets = combinations(ordered, 2)
+    elif available >= 1 and target < 80:
+        subsets = ((key,) for key in ordered)
+    else:
+        subsets = ((),)
+    scored = []
+    for subset in subsets:
+        remainder = target - _marks_of(subset)
+        if remainder < 4:
+            continue
+        for picks in _sl_section_a(grouped, remainder):
+            scored.append(
+                (
+                    _score(picks, subset, target, min_cohort_depth, available, difficulty),
+                    _assemble(picks, subset),
+                )
+            )
+    return scored
+
+
 def _enumerate_small(section_a, section_b, target: int, min_cohort_depth: int, difficulty: str):
     scored = []
     available = len(section_b)
@@ -1631,12 +1794,48 @@ _HL110_ONLY = frozenset({
     "ext_cross_log_gdc",
 })
 
+# AA SL has none of these. The HL mock does not read this set.
+SL_EXCLUDED = frozenset({
+    "complex_num",
+    "complex_conj",
+    "complex_demoivre",
+    "complex_locus",
+    "complex_poly_euler",
+    "induction",
+    "diff_eq",
+    "ext_model",
+    "maclaurin",
+    "paper3_geo",
+    "paper3_mac",
+    "paper3_recur",
+    "paper3_integral",
+    "paper3_circle",
+    "vectors_3d",
+    "vectors_pl",
+    "vec_line_plane",
+    "vec_line_plane_gdc",
+    "vec_plane_cross",
+    "vec_lines_intersect",
+    "vec_two_planes",
+    "ext_vectors",
+})
 
-def _pools(calculator: str, min_cohort_depth: int, difficulty: str, *, relax: bool, target: int):
+
+def _pools(
+    calculator: str,
+    min_cohort_depth: int,
+    difficulty: str,
+    *,
+    relax: bool,
+    target: int,
+    level: str = "hl",
+):
     section_a = []
     section_b = []
     for key, spec in TASK_REGISTRY.items():
         if spec.get("pool") is False or spec.get("deal") is False:
+            continue
+        if level == "sl" and key in SL_EXCLUDED:
             continue
         if spec.get("calculator", "none") != calculator:
             continue
@@ -1663,11 +1862,19 @@ def _blueprint_shortlist(
     target: int,
     min_cohort_depth: int,
     difficulty: str,
+    level: str = "hl",
 ) -> tuple[tuple[str, ...], ...]:
     def collect(relax: bool):
         section_a, section_b = _pools(
-            calculator, min_cohort_depth, difficulty, relax=relax, target=target
+            calculator,
+            min_cohort_depth,
+            difficulty,
+            relax=relax,
+            target=target,
+            level=level,
         )
+        if level == "sl" and len(section_a) > 14:
+            return _enumerate_sl(section_a, section_b, target, min_cohort_depth, difficulty)
         if len(section_a) <= 14:
             return _enumerate_small(section_a, section_b, target, min_cohort_depth, difficulty)
         return _enumerate_large(section_a, section_b, target, min_cohort_depth, difficulty)
@@ -1690,6 +1897,7 @@ def build_exam_blueprint(
     topic_seed: int,
     min_cohort_depth: int = 1,
     difficulty: str = "standard",
+    level: str = "hl",
 ) -> tuple[str, ...]:
     """Deal one paper from topic slots. The same tuple is shared by every cohort.
 
@@ -1707,7 +1915,11 @@ def build_exam_blueprint(
         raise ValueError("min_cohort_depth must be at least 1.")
     if difficulty not in {"standard", "challenging"}:
         raise ValueError(f"Unknown difficulty {difficulty!r}.")
-    papers = _blueprint_shortlist(calculator, int(target_marks), int(min_cohort_depth), difficulty)
+    if level not in {"hl", "sl"}:
+        raise ValueError(f"Unknown level {level!r}.")
+    papers = _blueprint_shortlist(
+        calculator, int(target_marks), int(min_cohort_depth), difficulty, level
+    )
     if not papers:
         raise RuntimeError(
             f"No slot blueprint within 2 marks of {target_marks} for calculator {calculator!r}."
@@ -1722,9 +1934,12 @@ def _replacement_fits(
     difficulty: str,
     min_cohort_depth: int,
     section: str,
+    level: str = "hl",
 ) -> bool:
     """A stand-in must be legal for this paper: same section, same policy, deep enough."""
     spec = TASK_REGISTRY[key]
+    if level == "sl" and key in SL_EXCLUDED:
+        return False
     if spec.get("pool") is False:
         return False
     if spec.get("calculator", "none") != calculator:
@@ -1742,6 +1957,51 @@ def _replacement_fits(
     if section != "B" and advancement_band(spec) is None:
         return False
     return True
+
+
+def swap_candidates(
+    keys,
+    index: int,
+    calculator: str,
+    difficulty: str,
+    min_cohort_depth: int,
+    target_marks: int,
+    level: str = "hl",
+) -> tuple[str, ...]:
+    """Other topics that can sit in this slot: same marks, same section, not already on the paper.
+
+    The caller replaces that one index and leaves the rest of the order alone.
+    """
+    paper = tuple(keys)
+    if index < 0 or index >= len(paper):
+        return ()
+    if calculator not in {"none", "gdc"}:
+        return ()
+    if level not in {"hl", "sl"}:
+        return ()
+    spec = TASK_REGISTRY[paper[index]]
+    section = spec.get("section", "A")
+    marks = int(spec["marks"])
+    present = set(paper)
+    found = []
+    for key, other in TASK_REGISTRY.items():
+        if key in present or int(other["marks"]) != marks:
+            continue
+        if other.get("section", "A") != section:
+            continue
+        if not _replacement_fits(
+            key,
+            calculator,
+            target_marks,
+            difficulty,
+            min_cohort_depth,
+            section,
+            level,
+        ):
+            continue
+        found.append(key)
+    found.sort()
+    return tuple(found)
 
 
 def _order_swapped_paper(keys) -> tuple[str, ...]:
@@ -1766,6 +2026,7 @@ def refill_missing_area(
     difficulty: str = "standard",
     min_cohort_depth: int = 1,
     nonce: int = 0,
+    level: str = "hl",
 ) -> tuple[str, ...]:
     """Swap one question from the fullest block into an empty block.
 
@@ -1780,6 +2041,8 @@ def refill_missing_area(
         raise ValueError(f"Unknown difficulty {difficulty!r}.")
     if min_cohort_depth < 1:
         raise ValueError("min_cohort_depth must be at least 1.")
+    if level not in {"hl", "sl"}:
+        raise ValueError(f"Unknown level {level!r}.")
     paper = tuple(keys)
     if len(paper) != len(set(paper)):
         raise ValueError("A paper cannot list the same topic twice.")
@@ -1821,6 +2084,7 @@ def refill_missing_area(
                         difficulty,
                         min_cohort_depth,
                         section,
+                        level,
                     ):
                         continue
                     options.append((donor, key))

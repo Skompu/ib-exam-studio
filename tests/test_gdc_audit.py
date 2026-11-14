@@ -20,7 +20,13 @@ GDC_PAPER2_POOL = frozenset(
     }
 )
 
-GDC_PAPER3_ONLY = frozenset({"paper3_geo", "paper3_mac"})
+GDC_PAPER3_ONLY = frozenset({
+    "paper3_geo",
+    "paper3_mac",
+    "paper3_recur",
+    "paper3_integral",
+    "paper3_circle",
+})
 
 GDC_SECTION_B = frozenset({
     "ext_gdc_model",

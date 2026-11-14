@@ -13,6 +13,7 @@ from registry import (
     coverage_swap_note,
     refill_missing_area,
     stand_in_areas,
+    swap_candidates,
 )
 
 
@@ -82,3 +83,35 @@ def test_refill_rejects_a_bad_policy():
     paper = ("gdc_dist", "gdc_trig")
     with pytest.raises(ValueError):
         refill_missing_area(paper, "both", 12)
+
+
+def test_swap_replaces_one_slot_and_leaves_the_others():
+    keys = list(build_exam_blueprint("none", 50, 2026, min_cohort_depth=2))
+    index = next(
+        position
+        for position, key in enumerate(keys)
+        if swap_candidates(keys, position, "none", "standard", 2, 50)
+    )
+    choices = swap_candidates(keys, index, "none", "standard", 2, 50)
+    updated = list(keys)
+    updated[index] = choices[0]
+    assert updated[:index] == keys[:index]
+    assert updated[index + 1 :] == keys[index + 1 :]
+    assert choices[0] not in keys
+    assert TASK_REGISTRY[choices[0]]["marks"] == TASK_REGISTRY[keys[index]]["marks"]
+    assert TASK_REGISTRY[choices[0]].get("section", "A") == TASK_REGISTRY[keys[index]].get("section", "A")
+    assert _marks(updated) == _marks(keys)
+    assert all(TASK_REGISTRY[key].get("category") != "Paper 3" for key in choices)
+
+
+def test_swap_can_offer_a_same_mark_stand_in():
+    keys = list(build_exam_blueprint("gdc", 110, 2026, min_cohort_depth=1))
+    index = next(
+        position
+        for position, key in enumerate(keys)
+        if TASK_REGISTRY[key]["marks"] == 6 and TASK_REGISTRY[key].get("section", "A") != "B"
+    )
+    choices = swap_candidates(keys, index, "gdc", "standard", 1, 110)
+    assert {"functions_gdc", "vol_rev_gdc", "gdc_gauss"} & set(choices)
+    assert "paper3_geo" not in choices
+    assert "paper3_mac" not in choices
