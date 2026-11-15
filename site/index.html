@@ -3,155 +3,336 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>IB Exam Studio — papers you can print before the lesson</title>
+    <title>IB Exam Studio — print-ready IB Math exams in 30 seconds</title>
     <meta
       name="description"
-      content="A seat for one IB Mathematics: Analysis and Approaches teacher. Deal a paper, its mark scheme and tutor notes. First 30 days $4.99, then $29 every 30 days."
+      content="Print-ready IB Mathematics AA (HL & SL) papers, mark schemes, and parallel cohorts. $4.99 for the first 30 days, then $29 every 30 days."
     />
+    <meta name="theme-color" content="#F4F7FB" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Newsreader:opsz,wght@6..72,560;6..72,650&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
     <header class="bar">
-      <a class="brand" href="#top">IB Exam Studio</a>
-      <nav>
-        <a href="#papers">Papers</a>
-        <a href="#after">After checkout</a>
-        <a href="https://ib-exam-studio.streamlit.app">Open the studio</a>
-        <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">First month $4.99</a>
+      <a class="brand" href="#top">
+        <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
+          <rect width="64" height="64" rx="14" fill="#FFFFFF"/>
+          <path d="M40 12c7 2 9 7 6 14-4 9-5 13 3 20 2.4 2.2 1.6 6-2.2 7.4" fill="none" stroke="#2563EB" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="26" cy="16" r="6.5" fill="none" stroke="#0F172A" stroke-width="4"/>
+          <circle cx="26" cy="16" r="2.2" fill="#0F172A"/>
+          <path d="M23.5 21.5 14 50" fill="none" stroke="#0F172A" stroke-width="5" stroke-linecap="round"/>
+          <path d="M18 32h8" fill="none" stroke="#0F172A" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="20" cy="52" r="3.2" fill="#22B8CF"/>
+        </svg>
+        IB Exam Studio
+      </a>
+      <nav aria-label="Page">
+        <a href="#features">Features</a>
+        <a href="#papers">Exam Formats</a>
+        <a href="#after">How It Works</a>
+        <a href="https://ib-exam-studio.streamlit.app">Open Studio</a>
+        <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Try 30 Days for $4.99</a>
       </nav>
     </header>
 
     <main id="top">
-      <article class="sheet">
-        <p class="kicker">IB Mathematics: Analysis and Approaches</p>
-        <h1>A paper you can print before the lesson.</h1>
-        <p class="lede">
-          One seat for one teacher. You choose the level, the paper and the topics.
-          The studio deals the paper, a mark scheme written for that paper, and
-          tutor notes for the questions you want to unpack in class.
-        </p>
-        <div class="actions">
-          <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Start the first month</a>
-          <a class="text-link" href="https://ib-exam-studio.streamlit.app">I already have a key</a>
-        </div>
-        <p class="price-line">
-          <strong>$4.99</strong> for the first 30 days. Then <strong>$29</strong> every 30 days.
-        </p>
-
-        <figure class="specimen">
-          <figcaption>Layout sample. Not an examination question.</figcaption>
-          <div class="question">
-            <span class="number">1</span>
-            <p>
-              The function <em>f</em> is given by
-              <em>f</em>(<em>x</em>) = <em>x</em><sup>2</sup> − 6<em>x</em> + 5.
-              Write down the discriminant of <em>f</em>.
-            </p>
-            <span class="marks">[3]</span>
-          </div>
-        </figure>
-
-        <section id="papers">
-          <h2><span>1</span> The papers in this seat</h2>
-          <p>
-            Paper 1, Paper 2 and the HL Paper 3 sit in the same membership.
-            Paper 3 is for HL only.
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">IB Mathematics: Analysis &amp; Approaches (HL &amp; SL)</p>
+          <h1>Print-Ready IB Math Exams &amp; Mark Schemes in 30 Seconds.</h1>
+          <p class="lede">
+            Built for IB Math teachers, private tutors, and diploma students. Generate unlimited
+            Paper 1, Paper 2, and HL Paper 3 mock exams with step-by-step [M1]/[A1] mark schemes
+            and anti-cheating parallel cohorts — powered by a deterministic symbolic math engine
+            with zero AI hallucinations.
           </p>
+          <div class="actions">
+            <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Start First Month — $4.99</a>
+            <a class="text-link" href="https://ib-exam-studio.streamlit.app">Already have a key? Open Studio →</a>
+          </div>
+          <p class="price-line">$4.99 for the first 30 days, then $29 every 30 days. Cancel anytime in 1 click.</p>
+          <p class="sample-note">
+            No key yet? Open
+            <a href="https://ib-exam-studio.streamlit.app">the studio</a>
+            and download the free 7-page, 50-mark AA HL Paper 1 sample on the Access &amp; License screen, directly under the license-key box.
+          </p>
+        </div>
+
+        <figure class="preview" id="preview">
+          <figcaption>Interactive Engine Preview · Parameterized IB Math AA Problem</figcaption>
+          <div class="preview-toolbar">
+            <div class="cohorts" role="group" aria-label="Parallel cohort">
+              <button type="button" class="on" data-cohort="a" aria-pressed="true">Cohort A</button>
+              <button type="button" data-cohort="b" aria-pressed="false">Cohort B</button>
+            </div>
+            <p class="preview-note">Same syllabus point. New numbers. Same marks.</p>
+          </div>
+          <div class="paper" id="paper">
+            <div class="q-meta">
+              <span class="q-number">Question 6.</span>
+              <span class="q-topic">Calculus · Integration by parts</span>
+              <span class="q-marks">[7 marks]</span>
+            </div>
+            <p class="stem" id="stem"></p>
+            <ol class="parts" id="parts"></ol>
+          </div>
+          <details class="scheme" id="scheme">
+            <summary>
+              <span class="when-closed">Show [M1]/[A1] Solution</span>
+              <span class="when-open">Hide [M1]/[A1] Solution</span>
+            </summary>
+            <div id="scheme-body"></div>
+          </details>
+        </figure>
+      </section>
+
+      <section id="features" class="wrap">
+        <p class="eyebrow">Built for Educators &amp; Students</p>
+        <h2>One studio for the person who writes the paper and the person who sits it.</h2>
+        <div class="audiences">
+          <article class="card">
+            <h3>For IB Teachers &amp; Private Tutors</h3>
+            <ul>
+              <li>
+                <strong>Save 3+ Hours Per Test.</strong>
+                Stop formatting LaTeX from scratch on Sunday nights. Export print-ready student papers and matching mark schemes in seconds.
+              </li>
+              <li>
+                <strong>Anti-Cheating Parallel Cohorts (Groups A–D).</strong>
+                Generate up to 4 parallel versions of the same exam with identical difficulty and mark distribution, but different numbers.
+              </li>
+              <li>
+                <strong>1-Click Question Swap.</strong>
+                Don't like a specific question? Swap it instantly for another problem of the exact same mark weight.
+              </li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>For IB Diploma Students (AA HL &amp; SL)</h3>
+            <ul>
+              <li>
+                <strong>Unlimited Fresh Practice.</strong>
+                Never run out of Paper 1 (Non-Calc), Paper 2 (GDC), or HL Paper 3 style problems once you've exhausted official past papers.
+              </li>
+              <li>
+                <strong>Save Hard Problems &amp; Build Revision PDFs.</strong>
+                Bookmark a tricky instance with <em>Saved for later</em> — no messy screenshots — and compile a custom Revision PDF with full solutions.
+              </li>
+              <li>
+                <strong>Mute Mastered Topics.</strong>
+                Use <em>Blocked topics</em> to set aside question types you already know cold, so every practice session targets your weak spots.
+              </li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="papers" class="wrap">
+        <p class="eyebrow">Exam Formats</p>
+        <h2>Full IB blueprints, and a paper that fits the lesson.</h2>
+        <p class="section-lead">
+          Paper 1, Paper 2, and HL Paper 3 sit in the same membership. Paper 3 is for HL.
+          Covers core IB Mathematics AA (HL &amp; SL) topics across Algebra, Functions, Trigonometry, Calculus, Vectors, and Probability — with new question archetypes added weekly.
+        </p>
+        <div class="card table-card">
           <table>
             <thead>
               <tr>
-                <th>Paper</th>
+                <th>Format</th>
                 <th>Marks</th>
                 <th>Time</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>SL full mock</td>
-                <td>80</td>
+                <td>
+                  <strong>SL Full Mock Exam</strong>
+                  <span class="shape">Section A + Section B</span>
+                </td>
+                <td>80 marks</td>
                 <td>90 min</td>
               </tr>
               <tr>
-                <td>HL full mock</td>
-                <td>110</td>
+                <td>
+                  <strong>HL Full Mock Exam</strong>
+                  <span class="shape">Section A + Section B</span>
+                </td>
+                <td>110 marks</td>
                 <td>120 min</td>
               </tr>
               <tr>
-                <td>HL Paper 3</td>
-                <td>55</td>
+                <td>
+                  <strong>HL Paper 3 Investigation</strong>
+                  <span class="shape">Extended multi-part problem solving</span>
+                </td>
+                <td>55 marks</td>
                 <td>75 min</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong>Classroom Test / Custom Drill</strong>
+                  <span class="shape">50-mark paper, single-topic drill, or custom question list</span>
+                </td>
+                <td>Your list</td>
+                <td>Your lesson</td>
               </tr>
             </tbody>
           </table>
-          <p class="aside">
-            The studio deals these papers from the topics you pick. It does not
-            cover the whole syllabus.
+        </div>
+        <aside class="callout">
+          <p class="callout-title">100% Symbolic Math Engine — Zero LLM Hallucinations.</p>
+          <p>
+            Every derivative, integral, vector cross product, and coordinate graph is computed symbolically and rendered cleanly for print.
+            Step-by-step Tutor Notes &amp; Examiner Insights included to help unpack tricky derivations during lessons or self-study.
           </p>
-        </section>
+        </aside>
+      </section>
 
-        <section id="seat">
-          <h2><span>2</span> What you take into class</h2>
-          <ul class="takes">
-            <li>
-              <strong>The paper.</strong>
-              A full paper at the level and length above, ready to print.
-            </li>
-            <li>
-              <strong>The mark scheme.</strong>
-              Written for that paper, with the steps closed until you open them.
-            </li>
-            <li>
-              <strong>Tutor notes.</strong>
-              For the questions you want to unpack. The studio tells you when
-              the note limit for that paper is reached.
-            </li>
-          </ul>
-        </section>
-
-        <section id="after">
-          <h2><span>3</span> After you pay</h2>
-          <ol class="steps">
-            <li>Whop puts the license key on your order, not on the billing page.</li>
-            <li>
+      <section id="after" class="wrap">
+        <p class="eyebrow">How It Works</p>
+        <h2>Get started in 60 seconds.</h2>
+        <ol class="steps">
+          <li class="card">
+            <span class="step-no">1</span>
+            <h3>Claim your $4.99 trial month</h3>
+            <p>Complete checkout via Whop. Instant Access: copy your personal license key directly from your Whop order confirmation screen.</p>
+          </li>
+          <li class="card">
+            <span class="step-no">2</span>
+            <h3>Launch IB Exam Studio</h3>
+            <p>
               Open
-              <a href="https://ib-exam-studio.streamlit.app">the studio</a>
-              and paste that key. The first open can take a minute.
-            </li>
-            <li>Choose the level, the paper and the topics, then deal the paper.</li>
-            <li>
-              Download the Issued JSON if you want a copy of the papers you have
-              already dealt.
-            </li>
-          </ol>
-        </section>
+              <a href="https://ib-exam-studio.streamlit.app">ib-exam-studio.streamlit.app</a>.
+              The Access &amp; License screen lets you download the free 7-page sample PDF before you paste a key. With a key, paste it once to unlock the workspace.
+            </p>
+          </li>
+          <li class="card">
+            <span class="step-no">3</span>
+            <h3>Generate, customize &amp; export</h3>
+            <p>Pick HL or SL, choose Paper 1, 2, or 3, swap or save questions, and download print-ready PDFs and mark schemes. JSON archive backups are there whenever you want a copy.</p>
+          </li>
+        </ol>
+      </section>
 
-        <section id="terms">
-          <h2><span>4</span> Said plainly</h2>
-          <ul class="plain">
-            <li>One key is one seat, for one teacher.</li>
-            <li>The studio opens while the membership is active or in its first 30 days.</li>
-            <li>Cancel from your Whop order. Access runs to the end of the period you have already paid for.</li>
-            <li>A finished one-time purchase does not open the studio. This seat is a subscription.</li>
-          </ul>
-        </section>
+      <section id="faq" class="wrap">
+        <p class="eyebrow">FAQ</p>
+        <h2>The seat, the files, and how you leave.</h2>
+        <div class="faq">
+          <details class="card" open>
+            <summary>Who is one license for?</summary>
+            <p>A single-seat license for one teacher, one private tutor, or one diploma student. One key opens one workspace.</p>
+          </details>
+          <details class="card">
+            <summary>How does the first month and cancellation work?</summary>
+            <p>Flexible Monthly Access: start with a full-access 30-day trial month for $4.99, then $29 every 30 days. Cancel anytime in one click from your Whop dashboard. Access runs through the period you have already paid for.</p>
+          </details>
+          <details class="card">
+            <summary>Can I see a paper before I buy?</summary>
+            <p>
+              Yes. Open
+              <a href="https://ib-exam-studio.streamlit.app">ib-exam-studio.streamlit.app</a>.
+              On the Access &amp; License screen, under the key box, choose Download Free 7-Page Sample Exam (PDF). No license key is required.
+            </p>
+          </details>
+          <details class="card">
+            <summary>Are the downloads print-ready?</summary>
+            <p>Yes. You export a student paper and a matching mark scheme as PDFs, with the mathematics laid out for a printed booklet. The Issued archive keeps a JSON copy of papers you have already built.</p>
+          </details>
+          <details class="card">
+            <summary>Does the question bank stay still?</summary>
+            <p>New question archetypes are added weekly across the core AA topics, so a later paper is not a reprint of the one you dealt last month.</p>
+          </details>
+        </div>
+      </section>
 
-        <section class="close">
-          <p class="kicker">First month</p>
-          <p class="offer">$4.99, then $29 every 30 days.</p>
-          <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Start the first month</a>
-        </section>
-      </article>
+      <section class="wrap close-wrap">
+        <div class="close card">
+          <p class="eyebrow">Next paper</p>
+          <h2>Ready to build your next IB Math AA paper in 30 seconds?</h2>
+          <p class="price-line">$4.99 for the first 30 days, then $29 every 30 days.</p>
+          <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Start First Month for $4.99</a>
+        </div>
+      </section>
     </main>
 
     <footer>
-      <p>IB Exam Studio is not affiliated with the International Baccalaureate Organization.</p>
+      <p>IB Exam Studio is an independent teaching tool and is not affiliated with the International Baccalaureate Organization.</p>
     </footer>
+
+    <script>
+      const cohorts = {
+        a: {
+          k: "2",
+          k2: "4",
+          answer: "(e<sup>2</sup> + 1) / 4",
+          atOne: "(1/4) e<sup>2</sup>",
+        },
+        b: {
+          k: "3",
+          k2: "9",
+          answer: "(2e<sup>3</sup> + 1) / 9",
+          atOne: "(2/9) e<sup>3</sup>",
+        },
+      };
+
+      function math(value) {
+        return '<span class="math">' + value + "</span>";
+      }
+
+      function render(key) {
+        const item = cohorts[key];
+        const k = item.k;
+        document.getElementById("stem").innerHTML =
+          "Let " + math("f(x) = x e<sup>" + k + "x</sup>") + ".";
+        document.getElementById("parts").innerHTML =
+          "<li>Show that " +
+          math("f'(x) = e<sup>" + k + "x</sup>(1 + " + k + "x)") +
+          '. <span class="part-marks">[3]</span></li>' +
+          "<li>Hence find the exact value of " +
+          math("∫<sub>0</sub><sup>1</sup> x e<sup>" + k + "x</sup> dx") +
+          '. <span class="part-marks">[4]</span></li>';
+        document.getElementById("scheme-body").innerHTML =
+          '<p class="scheme-part">(a)</p>' +
+          '<div class="ms-line"><p>Product rule: ' +
+          math("f'(x) = e<sup>" + k + "x</sup> + " + k + "x e<sup>" + k + "x</sup>") +
+          '</p><span class="tag">M1</span></div>' +
+          '<div class="ms-line"><p>' +
+          math("= e<sup>" + k + "x</sup>(1 + " + k + "x)") +
+          '</p><span class="tag">A1</span></div>' +
+          '<p class="scheme-part">(b)</p>' +
+          '<div class="ms-line"><p>Integration by parts, ' +
+          math("u = x, dv/dx = e<sup>" + k + "x</sup>") +
+          '</p><span class="tag">M1</span></div>' +
+          '<div class="ms-line"><p>' +
+          math("∫ x e<sup>" + k + "x</sup> dx = (x/" + k + ")e<sup>" + k + "x</sup> − (1/" + item.k2 + ")e<sup>" + k + "x</sup>") +
+          '</p><span class="tag">A1</span></div>' +
+          '<div class="ms-line"><p>From 0 to 1: ' +
+          math(item.atOne + " − (−1/" + item.k2 + ") = " + item.answer) +
+          '</p><span class="tag">A1</span></div>';
+        const paper = document.getElementById("paper");
+        paper.classList.remove("flash");
+        void paper.offsetWidth;
+        paper.classList.add("flash");
+      }
+
+      document.querySelectorAll("[data-cohort]").forEach((button) => {
+        button.addEventListener("click", () => {
+          document.querySelectorAll("[data-cohort]").forEach((item) => {
+            const on = item === button;
+            item.classList.toggle("on", on);
+            item.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+          render(button.dataset.cohort);
+        });
+      });
+
+      render("a");
+    </script>
   </body>
 </html>

@@ -7,6 +7,7 @@ is not a license. pytest can import this module without secrets.toml.
 import hashlib
 import os
 import urllib.parse
+from pathlib import Path
 
 import requests
 import streamlit as st
@@ -107,6 +108,16 @@ def validate_whop_license(user_key: str) -> tuple[bool, str]:
     return decide_license(user_key, False, get_secret("WHOP_API_KEY"), cached_membership_status)
 
 
+def _sample_paper_bytes() -> bytes | None:
+    """Free Paper 1 sample, if the repo actually contains the file."""
+    path = Path(__file__).resolve().parent.parent / "ib_exam.pdf"
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    return data or None
+
+
 def license_gate() -> None:
     """Stop the script until a Whop key is active or trialing.
 
@@ -134,6 +145,29 @@ def license_gate() -> None:
         else:
             st.error(message)
     st.info("Use the license key from your Whop order.")
+    st.divider()
+    st.subheader("Free Sample Preview")
+    st.markdown(
+        "Anyone can download a free 7-page, 50-mark IB Math AA HL Paper 1 sample exam, "
+        "with programmatic diagrams and official-style formatting."
+    )
+    sample = _sample_paper_bytes()
+    if sample is not None:
+        st.download_button(
+            "Download Free 7-Page Sample Exam (PDF)",
+            data=sample,
+            file_name="IB_Exam_Studio_AA_HL_Paper1_Sample.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+        )
+    else:
+        st.caption("The sample PDF is not available on this server yet.")
+    st.link_button(
+        "Get a License Key — $4.99 First-Month Trial",
+        "https://ib-exam-studio.whop.site/",
+        use_container_width=True,
+    )
     st.stop()
 
 
