@@ -5,6 +5,7 @@ body,
 [data-testid="stAppViewContainer"],
 [data-testid="stMarkdownContainer"] p,
 [data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] p,
 .stButton > button,
 button[data-testid="stBaseButton-primary"],
 button[data-testid="stBaseButton-secondary"] {
@@ -19,6 +20,61 @@ h3,
   font-family: "Newsreader", Georgia, serif !important;
   color: #0f172a;
   letter-spacing: -0.02em;
+}
+
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] p {
+  font-size: 0.85rem !important;
+  color: #475569 !important;
+}
+
+.q-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.7rem;
+}
+
+.q-number {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.q-topic {
+  color: #475569;
+  font-weight: 500;
+}
+
+.q-marks {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.12rem 0.45rem;
+  border-radius: 6px;
+}
+
+.st-key-studio-header,
+[class*="st-key-q-head"] {
+  align-items: center;
+  width: 100%;
+}
+
+.st-key-studio-nav,
+[class*="st-key-q-actions"],
+.st-key-studio-nav [data-testid="stHorizontalBlock"],
+[class*="st-key-q-actions"] [data-testid="stHorizontalBlock"] {
+  gap: 0.5rem !important;
+  width: fit-content !important;
+  flex: 0 0 auto !important;
+  margin-left: auto;
+}
+
+.st-key-studio-nav button,
+[class*="st-key-q-actions"] button {
+  width: auto !important;
 }
 
 [data-testid="stMetricValue"],
@@ -127,42 +183,42 @@ button[data-testid="stBaseButton-secondary"]:disabled {
 }
 
 [data-testid="stTabs"] {
-  margin-top: 0.75rem;
+  margin-top: 0.85rem;
 }
 
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
-  gap: 8px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  padding: 6px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  gap: 0.35rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0;
+  box-shadow: none;
 }
 
 [data-testid="stTabs"] button[data-baseweb="tab"] {
   font-family: "Plus Jakarta Sans", sans-serif !important;
-  font-size: 1.15rem !important;
-  font-weight: 700 !important;
+  font-size: 0.98rem !important;
+  font-weight: 600 !important;
   height: auto !important;
-  padding: 0.85rem 1.35rem !important;
-  border-radius: 10px !important;
-  color: #0f172a !important;
+  padding: 0.55rem 1.1rem !important;
+  border-radius: 8px 8px 0 0 !important;
+  color: #475569 !important;
   background: transparent !important;
 }
 
 [data-testid="stTabs"] button[data-baseweb="tab"] [data-testid="stMarkdownContainer"] p {
-  font-size: 1.15rem !important;
-  font-weight: 700 !important;
+  font-size: 0.98rem !important;
+  font-weight: 600 !important;
 }
 
 [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
-  background: #2563eb !important;
-  color: #ffffff !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
 }
 
 [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] [data-testid="stMarkdownContainer"] p,
 [data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] span {
-  color: #ffffff !important;
+  color: #1d4ed8 !important;
 }
 
 [data-testid="stTabs"] [data-baseweb="tab-highlight"],

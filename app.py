@@ -866,16 +866,36 @@ def _render_arkusz(paper: dict, is_exam_mode: bool, ordered_keys=None, swap=None
             st.subheader(banner)
         with st.container(border=True):
             st.markdown('<span class="question-card-mark"></span>', unsafe_allow_html=True)
-            title_col, mute_col, save_col, action_col = st.columns([3.4, 0.9, 1.25, 0.95])
-            title_col.markdown(
-                f"**Question {task['q_number']}.** {task['title']} · {task['marks']} marks"
-            )
             topic_key = ordered[index] if index < len(ordered) else ""
             membership_id = st.session_state.get("membership_id")
             muted_now = set(st.session_state.get("muted_topics") or ())
+            mark_word = "mark" if int(task.get("marks") or 0) == 1 else "marks"
+            with st.container(
+                horizontal=True,
+                vertical_alignment="center",
+                key=f"q-head-{paper['variant']}-{task['q_number']}",
+            ):
+                st.markdown(
+                    (
+                        '<div class="q-head">'
+                        f'<span class="q-number">Question {task["q_number"]}.</span>'
+                        f'<span class="q-topic">{task["title"]}</span>'
+                        f'<span class="q-marks">[{task["marks"]} {mark_word}]</span>'
+                        "</div>"
+                    ),
+                    unsafe_allow_html=True,
+                    width="stretch",
+                )
+                actions = st.container(
+                    horizontal=True,
+                    width="content",
+                    gap="small",
+                    vertical_alignment="center",
+                    key=f"q-actions-{paper['variant']}-{task['q_number']}",
+                )
             if topic_key and topic_key in muted_now:
-                title_col.caption("Blocked for future papers")
-            elif topic_key and mute_col.button(
+                st.caption("Blocked for future papers")
+            elif topic_key and actions.button(
                 "Block",
                 key=f"block-{paper['variant']}-{task['q_number']}",
                 icon=":material/block:",
@@ -934,13 +954,13 @@ def _render_arkusz(paper: dict, is_exam_mode: bool, ordered_keys=None, swap=None
                 for item in st.session_state.get("saved_questions") or []
             )
             if already_saved:
-                save_col.button(
+                actions.button(
                     "Saved ✓",
                     key=f"saved-{paper['variant']}-{task['q_number']}",
                     icon=":material/bookmark:",
                     disabled=True,
                 )
-            elif save_col.button(
+            elif actions.button(
                 "Save",
                 key=f"save-{paper['variant']}-{task['q_number']}",
                 icon=":material/bookmark_border:",
@@ -974,7 +994,7 @@ def _render_arkusz(paper: dict, is_exam_mode: bool, ordered_keys=None, swap=None
                     level=swap["level"],
                     excluded=tuple(muted_now),
                 )
-                if choices and action_col.button(
+                if choices and actions.button(
                     "Swap",
                     key=f"swap-{paper['variant']}-{task['q_number']}",
                     icon=":material/swap_horiz:",
@@ -1256,31 +1276,33 @@ _sync_library()
 
 level_for_label = st.session_state.get("aa-level", "hl")
 saved_count = len(st.session_state.get("saved_questions") or [])
-title_col, saved_col, archive_col = st.columns([4.2, 1.7, 1])
-with title_col:
+with st.container(horizontal=True, vertical_alignment="center", key="studio-header"):
     st.markdown(
         f'<div class="studio-title-row">{_logo_markup()}'
         "<h1>Advanced STEM Examination Studio (IB AA HL &amp; SL)</h1></div>",
         unsafe_allow_html=True,
+        width="stretch",
     )
-with saved_col:
-    st.write("")
-    saved_open = bool(st.session_state.get("show_saved"))
-    if st.button(
-        "Back" if saved_open else f"Saved for later ({saved_count})",
-        key="toggle-saved",
-        use_container_width=True,
-    ):
-        st.session_state["show_saved"] = not saved_open
-        st.session_state["show_archive"] = False
-        st.rerun()
-with archive_col:
-    st.write("")
-    archive_open = bool(st.session_state.get("show_archive"))
-    if st.button("Back" if archive_open else "Issued", key="toggle-archive", use_container_width=True):
-        st.session_state["show_archive"] = not archive_open
-        st.session_state["show_saved"] = False
-        st.rerun()
+    nav = st.container(
+        horizontal=True,
+        width="content",
+        gap="small",
+        vertical_alignment="center",
+        key="studio-nav",
+    )
+saved_open = bool(st.session_state.get("show_saved"))
+if nav.button(
+    "Back" if saved_open else f"Saved for later ({saved_count})",
+    key="toggle-saved",
+):
+    st.session_state["show_saved"] = not saved_open
+    st.session_state["show_archive"] = False
+    st.rerun()
+archive_open = bool(st.session_state.get("show_archive"))
+if nav.button("Back" if archive_open else "Issued", key="toggle-archive"):
+    st.session_state["show_archive"] = not archive_open
+    st.session_state["show_saved"] = False
+    st.rerun()
 
 if st.session_state.get("work-mode") not in _WORK_LABELS:
     st.session_state["work-mode"] = _remembered_work_mode()
