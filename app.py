@@ -814,11 +814,11 @@ def _render_coverage(
     level: str = "hl",
 ) -> None:
     line, note = _coverage_facts(keys, calculator_mode)
+    if line.startswith("Syllabus coverage:"):
+        return
     st.markdown(line)
     if note:
         st.caption(note)
-    if line.startswith("Syllabus coverage:"):
-        return
     nonce = int(st.session_state.get(nonce_key, 0))
     swapped = refill_missing_area(
         keys,
@@ -1836,7 +1836,11 @@ if len(generated_papers) > 1:
         st.caption(_cohort_differ_detail(generated_papers))
 selected_paper = _paper_for_selected_cohort(generated_papers)
 
-tab_arkusz, tab_schemat, tab_pdf = st.tabs(["Paper", "Mark scheme", "PDF"])
+tab_arkusz, tab_schemat, tab_pdf = st.tabs([
+    ":material/article: Paper",
+    ":material/fact_check: Mark scheme",
+    ":material/picture_as_pdf: PDF",
+])
 with tab_arkusz:
     _render_arkusz(selected_paper, is_exam_mode, ordered_keys, swap_ctx)
 with tab_schemat:

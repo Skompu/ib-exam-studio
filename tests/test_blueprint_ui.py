@@ -37,7 +37,7 @@ def test_number_and_topic_buttons_split_the_seeds():
     visible = "\n".join(item.value for item in at.markdown)
     missing = [area for area in AA_HL_AREAS if not aa_hl_coverage(topics)[area]]
     if not missing:
-        assert "Syllabus coverage: 6/6" in visible
+        assert "Syllabus coverage:" not in visible
     else:
         assert f"Coverage: {6 - len(missing)}/6" in visible
         for area in missing:

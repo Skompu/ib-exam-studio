@@ -125,3 +125,47 @@ button[data-testid="stBaseButton-primary"]:disabled,
 button[data-testid="stBaseButton-secondary"]:disabled {
   box-shadow: none;
 }
+
+[data-testid="stTabs"] {
+  margin-top: 0.75rem;
+}
+
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+[data-testid="stTabs"] button[data-baseweb="tab"] {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  height: auto !important;
+  padding: 0.85rem 1.35rem !important;
+  border-radius: 10px !important;
+  color: #0f172a !important;
+  background: transparent !important;
+}
+
+[data-testid="stTabs"] button[data-baseweb="tab"] [data-testid="stMarkdownContainer"] p {
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+}
+
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] {
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stTabs"] button[data-baseweb="tab"][aria-selected="true"] span {
+  color: #ffffff !important;
+}
+
+[data-testid="stTabs"] [data-baseweb="tab-highlight"],
+[data-testid="stTabs"] [data-baseweb="tab-border"] {
+  display: none !important;
+}
