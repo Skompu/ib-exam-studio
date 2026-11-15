@@ -393,3 +393,9 @@ def gen_extended_model(clean_integers: bool = True, difficulty: str = "standard"
     if choice((False, True)):
         return clearance_extended(sample_clearance(clean_integers))
     return newton_extended(sample_newton(clean_integers))
+
+
+def gen_extended_clearance(clean_integers: bool = True, difficulty: str = "standard"):
+    """Same 12-mark structure as Newton's law, so a Paper 1 paper can swap to it."""
+    del difficulty
+    return clearance_extended(sample_clearance(clean_integers))

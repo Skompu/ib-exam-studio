@@ -12,7 +12,7 @@ def _dot(left, right) -> int:
 
 def gen_vectors_plane(clean_integers: bool, difficulty: str = "standard"):
     pool = (-2, -1, 0, 1, 2) if clean_integers else (-4, -3, -2, -1, 0, 1, 2, 3, 4)
-    lam = sp.symbols("lam")
+    lam = sp.symbols("lambda")
     built = None
     for _ in range(80):
         point = tuple(random.choice(pool) for _ in range(3))

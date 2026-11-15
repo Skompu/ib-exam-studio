@@ -64,7 +64,12 @@ from generators.kinematics import gen_kinematics_exact
 from generators.kinematics_gdc import gen_kinematics
 from generators.maclaurin import gen_maclaurin
 from generators.probability_rv import gen_binomial_rv, gen_poisson_rv, gen_random_variable
-from generators.section_b import gen_extended_calculus, gen_extended_model, gen_extended_vectors
+from generators.section_b import (
+    gen_extended_calculus,
+    gen_extended_clearance,
+    gen_extended_model,
+    gen_extended_vectors,
+)
 from generators.section_b_expanded import (
     gen_extended_exp,
     gen_extended_exp_gdc,
@@ -782,6 +787,15 @@ TASK_REGISTRY = {
         "category": "Section B",
         "section": "B",
     },
+    "ext_clearance": {
+        "name": "Section B: Drug Clearance",
+        "search": "drug clearance exponential decay concentration limit",
+        "func": gen_extended_clearance,
+        "marks": 12,
+        "category": "Section B",
+        "section": "B",
+        "deal": False,
+    },
     "ext_model_gdc": {
         "name": "Section B: Newton's Law of Cooling (GDC)",
         "search": "newton cooling GDC rate limiting temperature",
@@ -1232,8 +1246,19 @@ def call_generator(key: str, clean_integers: bool, difficulty: str, exclude_nume
     """Every registered generator takes the same two arguments and returns a Task.
 
     Generators that deal a finite bank also accept the numeric ids already used
-    by earlier cohorts.
+    by earlier cohorts. A question is accepted only after the SymPy self-check.
+    If that check fails, the question is discarded and drawn again, up to five
+    new seeds.
     """
+    from core.self_check import generate_until_consistent
+
+    def build():
+        return _call_generator_once(key, clean_integers, difficulty, exclude_numeric_ids)
+
+    return generate_until_consistent(build, retries=5)
+
+
+def _call_generator_once(key: str, clean_integers: bool, difficulty: str, exclude_numeric_ids=None) -> Task:
     spec = TASK_REGISTRY[key]
     func = spec["func"]
     if exclude_numeric_ids:
@@ -1400,6 +1425,7 @@ _AA_HL_BY_KEY = {
     "ext_calculus": "Calculus",
     "ext_vectors": "Vectors",
     "ext_model": "Calculus",
+    "ext_clearance": "Calculus",
     "ext_model_gdc": "Calculus",
     "ext_sine": "Trigonometry",
     "ext_sine_gdc": "Trigonometry",
@@ -1976,6 +2002,7 @@ SL_EXCLUDED = frozenset({
     "induction",
     "diff_eq",
     "ext_model",
+    "ext_clearance",
     "ext_model_gdc",
     "ext_lines_planes",
     "ext_lines_planes_gdc",

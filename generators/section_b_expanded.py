@@ -236,7 +236,7 @@ def _exp_task(gdc: bool):
                 3,
                 step(
                     "The exponential factor is never zero. As $x \\to \\infty$ the product tends to zero:",
-                    rf"(0,\\, {intercept}),\quad ({root},\\, 0),\quad y=0",
+                    rf"(0,\, {intercept}),\quad ({root},\, 0),\quad y=0",
                     "A1 A1 A1",
                 ),
             ),
@@ -590,7 +590,7 @@ def _one_lines_task(gdc: bool):
     latex = (
         rf"L_1:\ \mathbf{{r}} = {vlatex(start)} + \lambda {vlatex(d1)}, \qquad "
         rf"L_2:\ \mathbf{{r}} = {vlatex(other)} + \mu {vlatex(d2)}, \qquad "
-        rf"P({point_p[0]},\\, {point_p[1]},\\, {point_p[2]})"
+        rf"P({point_p[0]},\, {point_p[1]},\, {point_p[2]})"
     )
     if gdc:
         degrees = three_sf(math.degrees(math.asin(float(sine))))

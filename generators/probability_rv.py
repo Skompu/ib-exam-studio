@@ -135,7 +135,12 @@ def _discrete(clean_integers, difficulty, length=None):
                     "M1 A1",
                 ),
             ),
-            part("b", "Find $E(X)$.", 2, step(probability_list, f"E(X) = {sp.latex(mean)}", "M1 A1")),
+            part(
+                "b",
+                "Find $E(X)$.",
+                2,
+                step(f"${probability_list}$", f"E(X) = {sp.latex(mean)}", "M1 A1"),
+            ),
             part("c", prompt_c, 3, scheme_c),
         ],
         archetype=archetype,
