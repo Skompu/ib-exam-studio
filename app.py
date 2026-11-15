@@ -1,7 +1,9 @@
+import base64
 import hashlib
 import io
 import random
 import threading
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 import matplotlib.pyplot as plt
@@ -16,22 +18,35 @@ from registry import (
     build_exam_blueprint,
     calculator_pool_areas,
     coverage_swap_note,
+    empty_block_message,
     order_task_keys,
+    place_muted_in_full_exam,
+    settle_blocked,
     SL_EXCLUDED,
     refill_missing_area,
     swap_candidates,
 )
 from core.license import license_gate, log_out
 from core.storage import (
+    block_topic,
+    clear_blocked_topics,
+    clear_saved_questions,
+    delete_saved_question,
     export_archive_json,
     get_paper_snapshot,
     import_archive_json,
     increment_tutor_uses,
+    list_blocked_topics,
     list_classes,
+    list_muted_topics,
     list_saved_papers,
+    list_saved_questions,
+    question_instance_key,
     save_class_topics,
     save_paper_snapshot,
+    save_question_instance,
     tutor_uses_remaining,
+    unblock_topic,
 )
 from core.cohorts import COHORT_MODES, compose_papers
 from core.pdf_engine import build_multi_question_pdf, figure_visible
@@ -40,27 +55,36 @@ from core.ai_tutor import TUTOR_NOTE_LIMIT, stream_tutor_hints
 from core.calculator_paths import paths_for_task
 
 # --- PAGE CONFIGURATION ---
+_ROOT = Path(__file__).resolve().parent
+_LOGO_PATH = _ROOT / "logo.png"
+_STYLE_PATH = _ROOT / "assets" / "style.css"
 st.set_page_config(
     page_title="STEM Examination Studio",
-    page_icon="📐",
+    page_icon="logo.png" if _LOGO_PATH.is_file() else "📐",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
-st.markdown(
-    """
-    <style>
-    [data-testid="stSidebar"],
-    [data-testid="stSidebarCollapsedControl"] { display: none; }
-    [data-testid="stMain"] h1,
-    [data-testid="stMain"] h2,
-    [data-testid="stMain"] h3 {
-        font-family: "Palatino Linotype", Palatino, Georgia, serif;
-        letter-spacing: -0.015em;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+if _STYLE_PATH.is_file():
+    st.html(f"<style>{_STYLE_PATH.read_text(encoding='utf-8')}</style>")
+
+
+def _logo_markup() -> str:
+    if not _LOGO_PATH.is_file():
+        return ""
+    encoded = base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
+    return (
+        f'<img src="data:image/png;base64,{encoded}" alt="" '
+        'style="width: 44px; height: 44px; border-radius: 10px; background: #FFFFFF; '
+        'padding: 4px; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08); vertical-align: middle;">'
+    )
+
+
+def _saved_stamp(raw: str) -> str:
+    try:
+        moment = datetime.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return raw or ""
+    return f"Saved {moment.day} {moment.strftime('%b %Y')}"
 
 _PAPER_LOCK = threading.Lock()
 
@@ -331,11 +355,14 @@ def _deal_one_area(
     seed: int,
     easy_to_hard: bool,
     level: str = "hl",
+    skip=(),
 ) -> tuple:
     """Draw up to `count` topics from one syllabus block. The topic seed redraws the draw."""
+    blocked = set(skip or ())
     pool = [
         key for key in _topic_pool(calculator_mode, level)
-        if TASK_REGISTRY[key].get("pool", True) is not False
+        if key not in blocked
+        and TASK_REGISTRY[key].get("pool", True) is not False
         and TASK_REGISTRY[key].get("category") != "Paper 3"
         and aa_hl_area(key) == area
     ]
@@ -480,6 +507,215 @@ def _source_label(key: str) -> str:
     return PRESETS[key]["label"]
 
 
+def _sync_library() -> None:
+    membership_id = st.session_state.get("membership_id") or ""
+    if st.session_state.get("library_for") == membership_id and "muted_topics" in st.session_state:
+        return
+    st.session_state["blocked_records"] = list_blocked_topics(membership_id)
+    st.session_state["muted_topics"] = list_muted_topics(membership_id)
+    st.session_state["saved_questions"] = list_saved_questions(membership_id)
+    st.session_state["library_for"] = membership_id
+
+
+def _refresh_library() -> None:
+    st.session_state.pop("library_for", None)
+    _sync_library()
+
+
+def _blocked_label(record: dict) -> str:
+    spec = TASK_REGISTRY.get(record.get("topic_key") or record.get("archetype_key") or "", {})
+    name = record.get("name") or spec.get("name") or record.get("topic_key") or "Topic"
+    level = {"hl": "AA HL", "sl": "AA SL"}.get(record.get("level") or "", "")
+    paper = record.get("paper") or ""
+    section = record.get("section") or spec.get("section") or ""
+    marks = record.get("marks")
+    if marks is None:
+        marks = spec.get("marks")
+    bits = [name]
+    if level:
+        bits.append(level)
+    if paper:
+        bits.append(paper)
+    if section:
+        bits.append(f"Section {section}")
+    if marks:
+        bits.append(f"{marks} marks")
+    return " · ".join(bits)
+
+
+def _render_blocked_topics() -> None:
+    records = list(st.session_state.get("blocked_records") or [])
+    membership_id = st.session_state.get("membership_id")
+    if st.button("Clear Blocked", key="clear-blocked"):
+        if not membership_id:
+            st.warning("Unlock the studio with a license key before changing blocked topics.")
+        else:
+            clear_blocked_topics(membership_id)
+            _refresh_library()
+            st.rerun()
+    if not records:
+        st.caption("No topics are blocked. Block on a question leaves that type out of the next draw.")
+        return
+    for record in records:
+        topic_key = record["topic_key"]
+        name_col, button_col = st.columns([4, 1.6])
+        name_col.write(_blocked_label(record))
+        if button_col.button("Unblock", icon=":material/lock_open:", key=f"unblock-{topic_key}"):
+            if not membership_id:
+                st.warning("Unlock the studio with a license key before changing blocked topics.")
+            else:
+                unblock_topic(membership_id, topic_key)
+                _refresh_library()
+                st.rerun()
+
+
+def _render_saved_steps(task: dict, scope: str) -> None:
+    rows = [
+        (group, step)
+        for group in task.get("markscheme") or []
+        for step in (group.get("steps") or [])
+    ]
+    reveal_key = f"saved-step-{scope}"
+    shown = max(0, min(int(st.session_state.get(reveal_key, 0)), len(rows)))
+    if rows and shown < len(rows) and st.button("Show next step", key=f"saved-next-{scope}"):
+        st.session_state[reveal_key] = shown + 1
+        st.rerun()
+    if rows:
+        st.caption(f"{shown} of {len(rows)} steps")
+    seen_letters = set()
+    for group, step in rows[:shown]:
+        letter = group.get("letter")
+        if letter and letter not in seen_letters:
+            seen_letters.add(letter)
+            unit = "mark" if group.get("marks") == 1 else "marks"
+            st.markdown(f"**({letter}) [{group.get('marks')} {unit}]**")
+        c_s, c_c = st.columns([5, 1])
+        c_s.write(f"• {step['desc']}")
+        c_s.latex(step["tex"])
+        code = step["code"]
+        if step.get("ft"):
+            code = f"{code} [FT]"
+        c_c.markdown(f"`[{code}]`")
+        if step.get("rounding"):
+            c_s.caption(step["rounding"])
+        if step.get("alternative"):
+            c_s.caption(step["alternative"])
+
+
+def _render_library_backup(membership_id: str) -> None:
+    with st.expander("Backup & Restore (JSON)", expanded=False):
+        archive_file = export_archive_json(membership_id)
+        st.download_button(
+            "Export Archive (JSON)",
+            data=archive_file,
+            file_name="issued-archive.json",
+            mime="application/json",
+            key="export-saved-archive",
+        )
+        incoming = st.file_uploader("Issued archive", type=["json"], key="saved-archive-file")
+        if st.button("Import Archive (JSON)", key="import-saved-archive"):
+            if incoming is None:
+                st.warning("Choose an Issued archive file first.")
+            else:
+                try:
+                    added = import_archive_json(membership_id, incoming.getvalue().decode("utf-8"))
+                except (ValueError, UnicodeDecodeError) as exc:
+                    st.error(str(exc))
+                else:
+                    _refresh_library()
+                    st.success(f"Imported {added} papers. Saved questions and blocked topics in the file were restored.")
+                    st.rerun()
+
+
+def _render_saved_library(is_exam_mode: bool, format_choice: str) -> None:
+    membership_id = st.session_state.get("membership_id")
+    view = st.radio(
+        "Library",
+        ["Saved", "Blocked"],
+        horizontal=True,
+        index=0 if st.session_state.get("saved_later_view", "Saved") == "Saved" else 1,
+        key="saved_later_view",
+        label_visibility="collapsed",
+    )
+    if not membership_id:
+        st.info("Unlock the studio with a license key. Saved questions are filed under that license.")
+        return
+    if view == "Blocked":
+        _render_blocked_topics()
+        _render_library_backup(membership_id)
+        return
+    saved = list(st.session_state.get("saved_questions") or [])
+    build_col, clear_col = st.columns([2, 1])
+    if build_col.button(
+        "Build Revision PDF",
+        key="build-revision-pdf",
+        type="primary",
+        icon=":material/picture_as_pdf:",
+    ):
+        st.session_state["revision_ready"] = True
+    if clear_col.button("Clear Saved", key="clear-saved"):
+        clear_saved_questions(membership_id)
+        st.session_state["revision_ready"] = False
+        _refresh_library()
+        st.rerun()
+    if not saved:
+        st.caption("No questions have been saved for this license yet.")
+        _render_library_backup(membership_id)
+        return
+    if st.session_state.get("revision_ready"):
+        papers = [{
+            "variant": "A",
+            "tasks": [],
+            "total_marks": 0,
+            "difficulty": "standard",
+            "calculator": "none",
+        }]
+        for number, item in enumerate(saved, start=1):
+            task = dict(item["task"])
+            task["q_number"] = number
+            papers[0]["tasks"].append(task)
+            papers[0]["total_marks"] += int(task.get("marks") or 0)
+        student = build_multi_question_pdf(
+            papers, "", "", "IB Mathematics AA", "Revision", "",
+            None, is_markscheme=False, exam_mode=is_exam_mode, paper_format=format_choice,
+        )
+        scheme = build_multi_question_pdf(
+            papers, "", "", "IB Mathematics AA", "Revision", "",
+            None, is_markscheme=True, exam_mode=False, paper_format="exam_booklet",
+        )
+        paper_col, scheme_col = st.columns(2)
+        paper_col.download_button(
+            "Revision paper (.pdf)",
+            data=student,
+            file_name="revision_paper.pdf",
+            mime="application/pdf",
+            key="download-revision-paper",
+        )
+        scheme_col.download_button(
+            "Revision mark scheme (.pdf)",
+            data=scheme,
+            file_name="revision_mark_scheme.pdf",
+            mime="application/pdf",
+            key="download-revision-scheme",
+        )
+    for item in saved:
+        task = item["task"]
+        with st.container(border=True):
+            st.markdown('<span class="question-card-mark"></span>', unsafe_allow_html=True)
+            st.markdown(f"**{task.get('title', 'Question')}** · {task.get('marks', 0)} marks")
+            st.caption(_saved_stamp(item.get("created_at") or ""))
+            render_question_body(task, center_figure=True)
+            _render_saved_steps(task, item["question_id"])
+            if item.get("tutor_notes"):
+                with st.expander("Tutor notes", expanded=False):
+                    st.write(item["tutor_notes"])
+            if st.button("Remove", key=f"remove-saved-{item['question_id']}"):
+                delete_saved_question(membership_id, item["question_id"])
+                _refresh_library()
+                st.rerun()
+    _render_library_backup(membership_id)
+
+
 def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
     archive_id = st.session_state.get("membership_id")
     st.subheader("Issued")
@@ -506,7 +742,8 @@ def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
             except (ValueError, UnicodeDecodeError) as exc:
                 st.error(str(exc))
             else:
-                st.success(f"Imported {added} papers.")
+                _refresh_library()
+                st.success(f"Imported {added} papers. Saved questions and blocked topics in the file were restored.")
                 st.rerun()
     archived = list_saved_papers(archive_id)
     if not archived:
@@ -628,10 +865,104 @@ def _render_arkusz(paper: dict, is_exam_mode: bool, ordered_keys=None, swap=None
                 banner = "Section B — Extended response"
             st.subheader(banner)
         with st.container(border=True):
-            title_col, action_col = st.columns([5, 1])
+            st.markdown('<span class="question-card-mark"></span>', unsafe_allow_html=True)
+            title_col, mute_col, save_col, action_col = st.columns([3.4, 0.9, 1.25, 0.95])
             title_col.markdown(
                 f"**Question {task['q_number']}.** {task['title']} · {task['marks']} marks"
             )
+            topic_key = ordered[index] if index < len(ordered) else ""
+            membership_id = st.session_state.get("membership_id")
+            muted_now = set(st.session_state.get("muted_topics") or ())
+            if topic_key and topic_key in muted_now:
+                title_col.caption("Blocked for future papers")
+            elif topic_key and mute_col.button(
+                "Block",
+                key=f"block-{paper['variant']}-{task['q_number']}",
+                icon=":material/block:",
+                help="Leave this type of question out of later draws. A saved copy of this question stays.",
+            ):
+                if not membership_id:
+                    st.warning("Unlock the studio with a license key before blocking a topic.")
+                else:
+                    spec = TASK_REGISTRY.get(topic_key, {})
+                    block_topic(
+                        membership_id,
+                        topic_key,
+                        topic_name=spec.get("name") or topic_key,
+                        section=spec.get("section") or "",
+                        marks=int(spec.get("marks") or task.get("marks") or 0),
+                        level=(swap or {}).get("level") or "",
+                        paper=(swap or {}).get("paper_label") or "",
+                    )
+                    name = spec.get("name") or topic_key
+                    message = f"{name} is blocked for future papers."
+                    if swap and index < len(ordered):
+                        blocked = set(muted_now)
+                        blocked.add(topic_key)
+                        if swap.get("paper3"):
+                            partner = "paper3_recur" if topic_key == "paper3_circle" else "paper3_circle"
+                            if topic_key in {"paper3_recur", "paper3_circle"} and partner not in blocked:
+                                message = f"{name} left this paper."
+                        else:
+                            placer = (
+                                place_muted_in_full_exam
+                                if swap.get("work_mode") == "mock110"
+                                else settle_blocked
+                            )
+                            placed, notes = placer(
+                                ordered,
+                                blocked,
+                                swap["calculator"],
+                                swap["target"],
+                                swap["difficulty"],
+                                swap["depth"],
+                                swap["level"],
+                            )
+                            if list(placed)[index] != topic_key:
+                                message = (
+                                    f"Question {task['q_number']}: {name} → "
+                                    f"{TASK_REGISTRY[list(placed)[index]]['name']}."
+                                )
+                            elif notes:
+                                message = notes[0]
+                    _remember_flash(message, swap["flash"] if swap else "block")
+                    _refresh_library()
+                    st.rerun()
+            instance_key = question_instance_key(task)
+            already_saved = any(
+                item.get("instance_key") == instance_key
+                for item in st.session_state.get("saved_questions") or []
+            )
+            if already_saved:
+                save_col.button(
+                    "Saved ✓",
+                    key=f"saved-{paper['variant']}-{task['q_number']}",
+                    icon=":material/bookmark:",
+                    disabled=True,
+                )
+            elif save_col.button(
+                "Save",
+                key=f"save-{paper['variant']}-{task['q_number']}",
+                icon=":material/bookmark_border:",
+                help="Keep this exact question, its mark scheme and any tutor notes already generated.",
+            ):
+                if not membership_id:
+                    st.warning("Unlock the studio with a license key before saving a question.")
+                else:
+                    tutor_text = st.session_state.get(
+                        f"ai_tutor_{paper['variant']}_{task['q_number']}_text",
+                        "",
+                    )
+                    save_question_instance(
+                        membership_id,
+                        topic_key,
+                        task,
+                        tutor_text or "",
+                        level=(swap or {}).get("level") or "",
+                        paper=(swap or {}).get("paper_label") or "",
+                    )
+                    _refresh_library()
+                    st.rerun()
             if swap and index < len(ordered):
                 choices = swap_candidates(
                     ordered,
@@ -641,10 +972,12 @@ def _render_arkusz(paper: dict, is_exam_mode: bool, ordered_keys=None, swap=None
                     swap["depth"],
                     swap["target"],
                     level=swap["level"],
+                    excluded=tuple(muted_now),
                 )
                 if choices and action_col.button(
                     "Swap",
                     key=f"swap-{paper['variant']}-{task['q_number']}",
+                    icon=":material/swap_horiz:",
                     help=(
                         "Replaces this question with another of the same marks and section. "
                         "The total stays, and every group is rebuilt."
@@ -840,6 +1173,7 @@ def _render_pdf(papers, institution_name, contact_info, syllabus, paper_type, ti
     if st.button(
         "Rebuild files" if ready else "Build files",
         key="build-files",
+        type="primary",
         help="Composes the student PDF, the mark scheme, and the Word and TeX files for this header.",
     ):
         st.session_state["export_signature"] = signature
@@ -918,17 +1252,34 @@ if "is_licensed" not in st.session_state:
     st.session_state.is_licensed = False
 
 license_gate()
+_sync_library()
 
 level_for_label = st.session_state.get("aa-level", "hl")
-title_col, archive_col = st.columns([6, 1])
+saved_count = len(st.session_state.get("saved_questions") or [])
+title_col, saved_col, archive_col = st.columns([4.2, 1.7, 1])
 with title_col:
-    edition = "SL" if level_for_label == "sl" else "HL"
-    st.title(f"📐 Advanced STEM Examination Studio (IB {edition} Edition)")
+    st.markdown(
+        f'<div class="studio-title-row">{_logo_markup()}'
+        "<h1>Advanced STEM Examination Studio (IB AA HL &amp; SL)</h1></div>",
+        unsafe_allow_html=True,
+    )
+with saved_col:
+    st.write("")
+    saved_open = bool(st.session_state.get("show_saved"))
+    if st.button(
+        "Back" if saved_open else f"Saved for later ({saved_count})",
+        key="toggle-saved",
+        use_container_width=True,
+    ):
+        st.session_state["show_saved"] = not saved_open
+        st.session_state["show_archive"] = False
+        st.rerun()
 with archive_col:
     st.write("")
     archive_open = bool(st.session_state.get("show_archive"))
     if st.button("Back" if archive_open else "Issued", key="toggle-archive", use_container_width=True):
         st.session_state["show_archive"] = not archive_open
+        st.session_state["show_saved"] = False
         st.rerun()
 
 if st.session_state.get("work-mode") not in _WORK_LABELS:
@@ -1024,8 +1375,10 @@ with st.container(border=True):
         )
         st.rerun()
     if mix_col.button(
-        "🔀 Compose paper",
+        "Compose paper",
         key=f"new-topics-{calculator_mode}",
+        type="primary",
+        icon=":material/auto_awesome:",
         help="On a mock or a 50-mark paper, deals new topics. On one topic, draws another set from that area. On a custom list, leaves the numbers alone.",
     ):
         if paper3_paper:
@@ -1087,10 +1440,12 @@ with st.container(border=True):
     else:
         st.caption("Paper 1: exact questions only, no calculator.")
 
-topic_pool = _topic_pool(calculator_mode, level)
+muted_topics = tuple(st.session_state.get("muted_topics") or ())
+full_pool = list(_topic_pool(calculator_mode, level))
+topic_pool = [key for key in full_pool if key not in set(muted_topics)]
 live_areas = [
     area for area in AA_HL_AREAS
-    if any(aa_hl_area(key) == area for key in topic_pool)
+    if any(aa_hl_area(key) == area for key in full_pool)
 ]
 custom_source = "manual"
 custom_keys: list[str] = []
@@ -1102,9 +1457,13 @@ if work_mode == "topic":
     area_col, count_col, order_col = st.columns([1.5, 1, 1.6])
     with area_col:
         area_key = f"topic-area-{calculator_mode}"
-        if st.session_state.get(area_key) not in live_areas:
-            st.session_state[area_key] = live_areas[0]
-        focus_area = st.selectbox("Syllabus area", live_areas, key=area_key)
+        if not live_areas:
+            focus_area = None
+            st.warning("No topics are available for this paper.")
+        else:
+            if st.session_state.get(area_key) not in live_areas:
+                st.session_state[area_key] = live_areas[0]
+            focus_area = st.selectbox("Syllabus area", live_areas, key=area_key)
     with count_col:
         topic_count = int(st.slider("Number of questions", min_value=4, max_value=8, value=6, key="topic-count"))
     with order_col:
@@ -1185,7 +1544,7 @@ elif work_mode == "custom":
                     )
                 st.caption(f"{len(narrowed)} topics match the filter.")
         custom_keys = [
-            key for key in topic_pool
+            key for key in full_pool
             if st.session_state.get(f"box-{calculator_mode}-{key}")
         ]
     else:
@@ -1262,17 +1621,39 @@ is_exam_mode = format_choice == "exam_booklet"
 numeric_seed = int(st.session_state[numeric_state])
 logo_data = uploaded_logo.getvalue() if uploaded_logo is not None else None
 
+if st.session_state.get("show_saved"):
+    _render_saved_library(is_exam_mode, format_choice)
+    st.stop()
+
 if archive_open:
     _render_archive(is_exam_mode, format_choice)
     st.stop()
 
 selected_task_keys: list[str] = []
+mute_notes: tuple[str, ...] = ()
+pool_for_block_message: tuple[str, ...] = tuple(full_pool)
 if paper3_paper:
     if level == "sl":
         st.error("Paper 3 is an AA HL paper. Switch the level to AA HL.")
         st.stop()
     partner = "paper3_recur" if int(st.session_state[topic_state]) % 2 == 0 else "paper3_circle"
+    if partner in muted_topics:
+        other = "paper3_circle" if partner == "paper3_recur" else "paper3_recur"
+        if other not in muted_topics:
+            partner = other
+        else:
+            area = aa_hl_area(partner) or "Paper 3"
+            mute_notes = (
+                f"{TASK_REGISTRY[partner]['name']} stayed in the full paper. "
+                f"It is the only question covering {area}.",
+            )
     selected_task_keys = [partner, "paper3_integral"]
+    if "paper3_integral" in muted_topics:
+        area = aa_hl_area("paper3_integral") or "Paper 3"
+        mute_notes = mute_notes + (
+            f"{TASK_REGISTRY['paper3_integral']['name']} stayed in the full paper. "
+            f"It is the only question covering {area}.",
+        )
     target_marks = 55
 elif work_mode == "mock110":
     target_marks = 80 if level == "sl" else 110
@@ -1310,27 +1691,41 @@ elif work_mode in {"mock110", "mid50"}:
         else:
             st.error(f"❌ {err}")
         st.stop()
-    selected_task_keys = list(
-        _stored_blueprint(blueprint_signature, override_key, calculator_mode, target_marks) or dealt
-    )
+    stored_keys = _stored_blueprint(blueprint_signature, override_key, calculator_mode, target_marks)
+    selected_task_keys = list(stored_keys or dealt)
 elif work_mode == "topic":
-    selected_task_keys = list(
-        _deal_one_area(
-            focus_area,
-            calculator_mode,
-            topic_count,
-            int(st.session_state[topic_state]),
-            easy_to_hard,
-            level,
+    if focus_area is None:
+        selected_task_keys = []
+        pool_for_block_message = ()
+    else:
+        pool_for_block_message = tuple(
+            key for key in full_pool
+            if TASK_REGISTRY[key].get("pool", True) is not False
+            and TASK_REGISTRY[key].get("category") != "Paper 3"
+            and aa_hl_area(key) == focus_area
         )
-    )
-    if len(selected_task_keys) < topic_count:
-        st.caption(f"This paper has {len(selected_task_keys)} questions in {focus_area}.")
+        selected_task_keys = list(
+            _deal_one_area(
+                focus_area,
+                calculator_mode,
+                topic_count,
+                int(st.session_state[topic_state]),
+                easy_to_hard,
+                level,
+            )
+        )
+        if len(selected_task_keys) < topic_count:
+            st.caption(f"This paper has {len(selected_task_keys)} questions in {focus_area}.")
 else:
     selected_task_keys = list(custom_keys)
+    pool_for_block_message = tuple(full_pool)
 
 if not selected_task_keys:
-    st.warning("⚠️ Select at least one question.")
+    blocked_out = empty_block_message(full_pool, muted_topics)
+    if blocked_out and work_mode in {"topic", "custom", "mid50"}:
+        st.warning(blocked_out)
+    else:
+        st.warning("⚠️ Select at least one question.")
     st.stop()
 
 _mismatched = [
@@ -1353,6 +1748,21 @@ swap_signature = (
 )
 saved_swap = _saved_swap(swap_signature, swap_store, calculator_mode, base_ordered)
 ordered_keys = saved_swap if saved_swap is not None else base_ordered
+if not paper3_paper and muted_topics:
+    placer = place_muted_in_full_exam if work_mode == "mock110" else settle_blocked
+    ordered_keys, mute_notes = placer(
+        ordered_keys,
+        muted_topics,
+        calculator_mode,
+        target_marks,
+        difficulty,
+        int(num_variants),
+        level,
+    )
+    ordered_keys = list(ordered_keys)
+blocked_out = empty_block_message(pool_for_block_message, muted_topics)
+if blocked_out and ordered_keys and set(ordered_keys) <= set(muted_topics):
+    st.warning(blocked_out)
 st.session_state["dealt-keys"] = list(base_ordered)
 swap_ctx = {
     "calculator": calculator_mode,
@@ -1360,6 +1770,9 @@ swap_ctx = {
     "depth": int(num_variants),
     "target": sum(TASK_REGISTRY[key]["marks"] for key in ordered_keys),
     "level": level,
+    "paper_label": paper_label,
+    "paper3": paper3_paper,
+    "work_mode": work_mode,
     "store": swap_store,
     "signature": swap_signature,
     "flash": live_scope,
@@ -1387,7 +1800,7 @@ difficulty_label = "Standard" if difficulty == "standard" else "Challenging"
 group_letters = ", ".join(paper["variant"] for paper in generated_papers)
 mark_col, time_col, level_metric, group_metric = st.columns(4)
 mark_col.metric("Marks", generated_papers[0]["total_marks"])
-time_col.metric("Time", time_allowed)
+time_col.metric("Time", time_allowed.replace(" minutes", " min").replace(" minute", " min"))
 level_metric.metric("Difficulty", difficulty_label)
 group_metric.metric("Groups", group_letters)
 
@@ -1404,6 +1817,8 @@ if work_mode in {"mock110", "mid50"} and not paper3_paper:
         live_scope,
         level,
     )
+for note in mute_notes:
+    st.caption(note)
 
 cohort_letters = _cohort_letters(generated_papers)
 if st.session_state.get("selected_cohort") not in cohort_letters:

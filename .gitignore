@@ -11,7 +11,23 @@ storage/*.db
 
 # Environment & local OS files
 .env
+.env.*
+!.env.example
 venv/
 .venv/
 .DS_Store
 Thumbs.db
+
+# Local issued archives and test dumps
+storage/*.json
+issued-archive.json
+
+# Promotional site build
+site/node_modules/
+site/dist/
+site/.wrangler/
+
+# These ship with the Cloud app
+!logo.png
+!assets/style.css
+!.streamlit/config.toml

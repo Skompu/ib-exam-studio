@@ -1,0 +1,10 @@
+{
+  "name": "ib-exam-studio",
+  "compatibility_date": "2026-11-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./server/index.js",
+  "assets": {
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
+}

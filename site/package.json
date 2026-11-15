@@ -1,0 +1,19 @@
+{
+  "name": "ib-exam-studio-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "deploy": "whop apps deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.69.1",
+    "@types/node": "^26.6.6",
+    "@whop/cli": "^1.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "wrangler": "^4.162.0"
+  }
+}

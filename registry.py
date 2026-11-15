@@ -1872,11 +1872,14 @@ def _pools(
     relax: bool,
     target: int,
     level: str = "hl",
+    excluded: frozenset = frozenset(),
 ):
     section_a = []
     section_b = []
     for key, spec in TASK_REGISTRY.items():
         if spec.get("pool") is False or spec.get("deal") is False:
+            continue
+        if key in excluded:
             continue
         if level == "sl" and key in SL_EXCLUDED:
             continue
@@ -1906,7 +1909,10 @@ def _blueprint_shortlist(
     min_cohort_depth: int,
     difficulty: str,
     level: str = "hl",
+    excluded: tuple = (),
 ) -> tuple[tuple[str, ...], ...]:
+    blocked = frozenset(excluded)
+
     def collect(relax: bool):
         section_a, section_b = _pools(
             calculator,
@@ -1915,6 +1921,7 @@ def _blueprint_shortlist(
             relax=relax,
             target=target,
             level=level,
+            excluded=blocked,
         )
         if level == "sl" and len(section_a) > 14:
             return _enumerate_sl(section_a, section_b, target, min_cohort_depth, difficulty)
@@ -1941,6 +1948,7 @@ def build_exam_blueprint(
     min_cohort_depth: int = 1,
     difficulty: str = "standard",
     level: str = "hl",
+    excluded: tuple = (),
 ) -> tuple[str, ...]:
     """Deal one paper from topic slots. The same tuple is shared by every cohort.
 
@@ -1961,7 +1969,12 @@ def build_exam_blueprint(
     if level not in {"hl", "sl"}:
         raise ValueError(f"Unknown level {level!r}.")
     papers = _blueprint_shortlist(
-        calculator, int(target_marks), int(min_cohort_depth), difficulty, level
+        calculator,
+        int(target_marks),
+        int(min_cohort_depth),
+        difficulty,
+        level,
+        tuple(excluded),
     )
     if not papers:
         raise RuntimeError(
@@ -2010,6 +2023,7 @@ def swap_candidates(
     min_cohort_depth: int,
     target_marks: int,
     level: str = "hl",
+    excluded: tuple = (),
 ) -> tuple[str, ...]:
     """Other topics that can sit in this slot: same marks, same section, not already on the paper.
 
@@ -2026,9 +2040,10 @@ def swap_candidates(
     section = spec.get("section", "A")
     marks = int(spec["marks"])
     present = set(paper)
+    blocked = set(excluded)
     found = []
     for key, other in TASK_REGISTRY.items():
-        if key in present or int(other["marks"]) != marks:
+        if key in present or key in blocked or int(other["marks"]) != marks:
             continue
         if other.get("section", "A") != section:
             continue
@@ -2045,6 +2060,138 @@ def swap_candidates(
         found.append(key)
     found.sort()
     return tuple(found)
+
+
+def omit_muted(keys, muted) -> tuple:
+    """Drop muted topic keys. An empty mute list returns the same topics in the same order."""
+    blocked = set(muted or ())
+    if not blocked:
+        return tuple(keys)
+    return tuple(key for key in keys if key not in blocked)
+
+
+def empty_block_message(available, blocked) -> str | None:
+    """Explain an empty draw when every matching topic is blocked.
+
+    An empty block list returns no message, so the usual empty-picker warning stays.
+    A pool that was already empty is not blamed on the block list.
+    """
+    if not blocked or not available:
+        return None
+    if omit_muted(available, blocked):
+        return None
+    return "Every matching topic is blocked. Unblock one under Saved for later."
+
+
+def place_muted_in_full_exam(
+    keys,
+    muted,
+    calculator: str,
+    target_marks: int,
+    difficulty: str = "standard",
+    min_cohort_depth: int = 1,
+    level: str = "hl",
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Keep a full paper's mark total when some topics are muted.
+
+    A muted topic with a free question of the same marks and section is replaced.
+    A muted topic that is the only question covering its syllabus block stays, and
+    the note says so. An empty mute list returns the paper unchanged.
+    """
+    paper = tuple(keys)
+    blocked = set(muted or ())
+    if not blocked:
+        return paper, ()
+    result = list(paper)
+    notes = []
+    for index, key in enumerate(paper):
+        if key not in blocked or result[index] != key:
+            continue
+        spec = TASK_REGISTRY[key]
+        area = aa_hl_area(key)
+        options = tuple(
+            candidate
+            for candidate in swap_candidates(
+                result,
+                index,
+                calculator,
+                difficulty,
+                min_cohort_depth,
+                target_marks,
+                level=level,
+                excluded=tuple(blocked),
+            )
+            if TASK_REGISTRY[candidate].get("deal") is not False
+        )
+        same_area = tuple(
+            candidate for candidate in options if area and aa_hl_area(candidate) == area
+        )
+        others = [
+            other
+            for other in result
+            if other != key and area and aa_hl_area(other) == area
+        ]
+        if same_area:
+            result[index] = same_area[0]
+            continue
+        if area and not others:
+            notes.append(
+                f"{spec['name']} stayed in the full paper. It is the only question covering {area}."
+            )
+            continue
+        if options:
+            result[index] = options[0]
+            continue
+        notes.append(
+            f"{spec['name']} stayed in the full paper. No same-mark replacement is free."
+        )
+    return tuple(result), tuple(notes)
+
+
+def settle_blocked(
+    keys,
+    blocked,
+    calculator: str,
+    target_marks: int,
+    difficulty: str = "standard",
+    min_cohort_depth: int = 1,
+    level: str = "hl",
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """Replace blocked topics on a flexible paper when a same-mark question is free.
+
+    An empty block list returns the paper unchanged. A blocked topic with no free
+    question of the same marks stays, so the mark total does not change.
+    """
+    paper = tuple(keys)
+    held = set(blocked or ())
+    if not held:
+        return paper, ()
+    result = list(paper)
+    notes = []
+    for index, key in enumerate(paper):
+        if key not in held or result[index] != key:
+            continue
+        options = [
+            candidate
+            for candidate in swap_candidates(
+                result,
+                index,
+                calculator,
+                difficulty,
+                min_cohort_depth,
+                target_marks,
+                level=level,
+                excluded=tuple(held),
+            )
+            if TASK_REGISTRY[candidate].get("deal") is not False
+        ]
+        if options:
+            result[index] = options[0]
+            continue
+        notes.append(
+            f"{TASK_REGISTRY[key]['name']} stayed on this paper. No same-mark replacement is free."
+        )
+    return tuple(result), tuple(notes)
 
 
 def _order_swapped_paper(keys) -> tuple[str, ...]:

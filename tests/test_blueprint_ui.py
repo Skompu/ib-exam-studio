@@ -114,4 +114,6 @@ def test_sl_full_mock_deals_80_marks_in_90_minutes():
     assert sum(TASK_REGISTRY[key]["marks"] for key in keys) == 80
     assert "Full mock 80" in [item.label for item in at.button]
     assert any(item.value == "90 minutes" for item in at.text_input)
-    assert any("IB SL Edition" in item.value for item in at.title)
+    headings = [item.value for item in at.title]
+    headings.extend(item.value for item in at.markdown)
+    assert any("IB AA HL" in value for value in headings)
