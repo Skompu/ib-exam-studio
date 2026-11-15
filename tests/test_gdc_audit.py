@@ -33,6 +33,12 @@ GDC_SECTION_B = frozenset({
     "ext_gdc_stat",
     "ext_cross_trig_gdc",
     "ext_cross_log_gdc",
+    "ext_model_gdc",
+    "ext_sine_gdc",
+    "ext_exp_lin_gdc",
+    "ext_pdf_b_gdc",
+    "ext_linked_seq_gdc",
+    "ext_lines_planes_gdc",
 })
 
 GDC_HL_SECTION_A = frozenset({

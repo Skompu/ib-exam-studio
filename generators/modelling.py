@@ -5,6 +5,11 @@ whose constant of proportionality is a clean logarithm, then checks the
 solution, the asymptote and the rejection of a negative time.
 """
 
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step
@@ -18,15 +23,17 @@ class Reading:
         self.limit = int(limit)
         self.initial = int(initial)
         self.elapsed = int(elapsed)
-        self.factor = int(factor)
+        self.factor = sp.Rational(factor)
         excess = self.initial - self.limit
-        if self.factor < 2 or self.elapsed < 1 or excess <= 0:
+        if self.factor <= 1 or self.elapsed < 1 or excess <= 0:
             raise RuntimeError("A model reading needs a fall towards its limit.")
-        if excess % (self.factor * self.factor) != 0:
+        first = sp.Rational(excess, self.factor)
+        second = sp.Rational(excess, self.factor ** 2)
+        if first.q != 1 or second.q != 1:
             raise RuntimeError("The excess does not produce two exact later readings.")
-        self.measured = self.limit + excess // self.factor
+        self.measured = self.limit + int(first)
         self.later_time = 2 * self.elapsed
-        self.later_value = self.limit + excess // (self.factor * self.factor)
+        self.later_value = self.limit + int(second)
         self.forbidden = self.limit - 5
         self._check()
 
@@ -89,13 +96,36 @@ def _coeff_ln(coeff, argument: int) -> str:
     return f"{sign}{body}{log}"
 
 
+def _ln_factor(factor) -> str:
+    number = sp.Rational(factor)
+    if number.q == 1:
+        return rf"\ln {int(number)}"
+    return rf"\ln\dfrac{{{int(number.p)}}}{{{int(number.q)}}}"
+
+
+def _times_ln(coeff, factor) -> str:
+    number = sp.together(sp.sympify(coeff))
+    log = _ln_factor(factor)
+    if number == 0:
+        raise RuntimeError("A model rate coefficient vanished.")
+    if number == 1:
+        return log
+    if number == -1:
+        return f"-{log}"
+    numerator, denominator = sp.fraction(number)
+    numerator, denominator = int(numerator), int(denominator)
+    sign = "-" if numerator < 0 else ""
+    body = str(abs(numerator)) if denominator == 1 else rf"\dfrac{{{abs(numerator)}}}{{{denominator}}}"
+    return f"{sign}{body}{log}"
+
+
 def _k_tex(reading: Reading) -> str:
-    return _coeff_ln(sp.Rational(1, reading.elapsed), reading.factor)
+    return _times_ln(sp.Rational(1, reading.elapsed), reading.factor)
 
 
 def _rate_tex(reading: Reading) -> str:
     coeff = -sp.Rational(reading.excess(), reading.elapsed * reading.factor)
-    return _coeff_ln(coeff, reading.factor)
+    return _times_ln(coeff, reading.factor)
 
 
 def _hide_equation(intro: str, latex_main: str):
@@ -110,7 +140,10 @@ def _candidate_tuples(limit, factors, elapsed_values, multiples, low, high):
     for factor in factors:
         for elapsed in elapsed_values:
             for multiple in multiples:
-                excess = factor * factor * multiple
+                excess = sp.Rational(factor) ** 2 * multiple
+                if sp.fraction(sp.together(excess))[1] != 1:
+                    continue
+                excess = int(excess)
                 initial = limit + excess
                 if not low <= initial <= high:
                     continue
@@ -132,7 +165,7 @@ def _one_reading(pools) -> Reading:
 
 
 def sample_newton(clean_integers: bool) -> Reading:
-    factors = (2, 3) if clean_integers else (2, 3, 4)
+    factors = (2, 3, sp.Rational(3, 2)) if clean_integers else (2, 3, 4, sp.Rational(3, 2))
     elapsed_values = (4, 5, 6) if clean_integers else (3, 4, 5, 6, 8)
     limits = (15, 20, 25) if clean_integers else (10, 15, 20, 25, 30)
     multiples = (10, 20, 40) if clean_integers else (5, 8, 10, 16, 20, 40)
@@ -237,6 +270,7 @@ def _extended(
     archetype: str,
     family: str,
     cover_id: str = "forging",
+    fig=None,
 ):
     _hide_equation(intro, latex_main)
     solution = _solution(symbol, reading)
@@ -278,6 +312,8 @@ def _extended(
         ],
         archetype=archetype,
         family=family,
+        fig=fig,
+        plot_type="illustrative" if fig is not None else "none",
         part_graph_id="ext_model",
         cover_id=cover_id,
         numeric_id=(
@@ -288,6 +324,31 @@ def _extended(
     if task.marks != 12:
         raise RuntimeError("Extended model question must be worth 12 marks.")
     return task
+
+
+def _cooling_figure(reading: Reading):
+    rate = float(sp.log(reading.factor) / reading.elapsed)
+    tmax = reading.later_time * 1.35
+    times = np.linspace(0, tmax, 240)
+    temperatures = reading.limit + reading.excess() * np.exp(-rate * times)
+    fig, ax = plt.subplots(figsize=(4.4, 3.2))
+    ax.plot(times, temperatures, color="#1e293b", lw=1.8, label=r"$T(t)$")
+    ax.axhline(reading.limit, color="#2563eb", lw=0.9, ls="--", label="limiting temperature")
+    marks = (
+        (0, reading.initial),
+        (reading.elapsed, reading.measured),
+        (reading.later_time, reading.later_value),
+    )
+    ax.scatter([item[0] for item in marks], [item[1] for item in marks], color="#2563eb", s=18, zorder=3)
+    pad = 0.1 * max(reading.initial - reading.limit, 1)
+    ax.set_xlim(-0.04 * tmax, tmax * 1.04)
+    ax.set_ylim(reading.limit - pad, reading.initial + pad)
+    ax.set_xlabel("$t$ (min)")
+    ax.set_ylabel("$T$ (°C)")
+    ax.grid(True, linestyle=":", alpha=0.5)
+    ax.set_title("Diagram not to scale", fontsize=8, color="#64748b", style="italic")
+    ax.legend(frameon=True, fontsize=8)
+    return fig
 
 
 def newton_extended(reading: Reading):
@@ -345,6 +406,7 @@ def newton_extended(reading: Reading):
         "Newton cooling: form the equation, find k, a later time, a rate, and the limit",
         "Exponential approach to a fixed bath temperature, with k a clean logarithm",
         cover_id="forging",
+        fig=_cooling_figure(reading),
     )
 
 
