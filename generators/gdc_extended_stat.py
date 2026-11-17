@@ -285,3 +285,131 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
     if task.marks != 19:
         raise RuntimeError("The extended GDC statistics question must be worth 19 marks.")
     return task
+
+
+def _poisson_tail(rate, at_least):
+    total = mp.mpf(0)
+    for count in range(at_least):
+        total += mp.exp(-rate) * rate**count / mp.factorial(count)
+    return float(1 - total)
+
+
+def gen_extended_gdc_poisson(clean_integers: bool, difficulty: str = "standard"):
+    """Same 19-mark normal opening, then a Poisson count instead of a binomial batch."""
+    del clean_integers
+    last_error = None
+    for _ in range(12):
+        try:
+            return _one_poisson(difficulty)
+        except RuntimeError as exc:
+            last_error = exc
+    raise RuntimeError(f"Could not build a Poisson Section B item. {last_error}")
+
+
+def _one_poisson(difficulty: str):
+    item = choice(_BANK)
+    story = choice(_contexts())
+    shown = item["shown"]
+    mean = item["mean"]
+    spread = item["spread"]
+    cutoff = item["cutoff"]
+    rate = choice((2, 3, 4, 5)) if difficulty == "standard" else choice((4, 5, 6))
+    at_least = choice((2, 3))
+    gain = choice((4, 5, 8))
+    tail = _poisson_tail(rate, at_least)
+    if _fourth_digit_is_five(tail):
+        raise RuntimeError("Poisson tail sits on a rounding boundary.")
+    tail_tex = three_sf(tail)
+    profit = rate * gain
+    task = pack_task(
+        title="Section B: Normal model and a Poisson count",
+        intro=(
+            "A graphic display calculator is required. "
+            "Give every numerical answer to three significant figures. "
+            f"The {story['measure']} of {story['item']} from a production line may be modelled by "
+            rf"the continuous random variable $X \sim N({mean},\, {spread}^2)$, "
+            f"where measurements are in {story['unit']}."
+        ),
+        latex_main=rf"X \sim N({mean},\, {spread}^2), \qquad Y \sim \mathrm{{Po}}({rate})",
+        parts=[
+            part(
+                "a",
+                (
+                    f"Find the probability that a randomly chosen item has {story['measure']} "
+                    f"less than {cutoff} {story['unit']}."
+                ),
+                3,
+                step(
+                    r"Use the GDC normal cumulative distribution:",
+                    rf"P(X < {cutoff}) = {shown['p']}",
+                    "M1 A1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
+            ),
+            part(
+                "b",
+                (
+                    f"Find the threshold $k$ such that the greatest 8% of "
+                    f"{story['measure']} values exceed $k$. "
+                    "Write a probability statement for $k$, then find $k$."
+                ),
+                4,
+                step(
+                    rf"$P(X > k) = 0.08$, so $k = \operatorname{{invNorm}}(0.92,\, {mean},\, {spread})$:",
+                    rf"k = {shown['k']}",
+                    "M1 A1 A1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
+            ),
+            part(
+                "c",
+                (
+                    "It is also known that "
+                    f"P(X < {shown['a']}) = 0.2 and P(X > {shown['b']}) = 0.1. "
+                    r"Using these two conditions only, find the mean, $\mu$, and standard deviation, $\sigma$."
+                ),
+                4,
+                step(
+                    r"Use $z=\operatorname{invNorm}$ for each cumulative probability, then solve "
+                    r"the linear system for $\mu$ and $\sigma$:",
+                    rf"\mu = {shown['mu']},\ \sigma = {shown['sigma']}",
+                    "M1 A1 A1 A1",
+                ),
+            ),
+            part(
+                "d",
+                (
+                    f"Independently, the number of defects in one hour is modelled by "
+                    f"$Y \\sim \\mathrm{{Po}}({rate})$. Hence find $P(Y \\ge {at_least})$."
+                ),
+                4,
+                step(
+                    "Use the GDC Poisson cumulative function:",
+                    rf"P(Y \ge {at_least}) = {tail_tex}",
+                    "M1 A1 A1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
+            ),
+            part(
+                "e",
+                (
+                    f"Each defect costs ${gain}$ currency units. "
+                    "Hence find the expected cost of the defects in one hour."
+                ),
+                4,
+                step(
+                    rf"$E(Y) = \mathrm{{Var}}(Y) = {rate}$. Expected cost $= {rate}\times {gain}$:",
+                    rf"{profit}",
+                    "M1 A1 A1 A1",
+                ),
+            ),
+        ],
+        archetype=f"Normal quality control then Poisson Po({rate}) cost {gain}",
+        family="Normal cdf and invNorm, then a Poisson count with expected cost",
+        part_graph_id="ext_gdc_stat_normal_poisson",
+        cover_id=story["id"],
+        numeric_id=f"N({mean},{spread}^2)|cut{cutoff}|Po({rate})|r>={at_least}|cost={gain}",
+    )
+    if task.marks != 19:
+        raise RuntimeError("The Poisson Section B question must be worth 19 marks.")
+    return task

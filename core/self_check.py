@@ -84,7 +84,7 @@ def verify_task(task: Task) -> None:
         _check_skew(task)
     elif graph == "ext_model":
         _check_model(task, rounded=False)
-    elif graph == "ext_model_gdc":
+    elif graph in {"ext_model_gdc", "ext_clearance_gdc"}:
         _check_model(task, rounded=True)
     elif graph == "ext_lines_planes":
         _check_meeting_lines(task)

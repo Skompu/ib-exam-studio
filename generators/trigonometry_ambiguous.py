@@ -28,7 +28,7 @@ _OBTUSE = tuple(
         "angles_b": (45, 135),
         "angles_c": (105, 15),
     }
-    for scale in (4, 5, 6)
+    for scale in (4, 5, 6, 8)
 )
 
 
@@ -160,6 +160,7 @@ def gen_ambiguous_case(clean_integers: bool, difficulty: str = "standard"):
         family="Acute given angle, opposite side between the height and the adjacent side",
         part_graph_id="trig_amb",
         cover_id=cover_id,
+        numeric_id=f"A={case['angle_a']}|a={sp.sstr(case['side_a'])}|b={sp.sstr(case['side_b'])}",
     )
     if task.marks != 6:
         raise RuntimeError("Ambiguous-case question must be worth 6 marks.")

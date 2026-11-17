@@ -4,10 +4,14 @@ Both normals have integer length, so the cosine is a rational number.
 The line passes through a chosen point and follows the cross product.
 """
 
+import math
+
 import sympy as sp
 
 from core.randomizer import pack_task, part, step, vlatex
 from core.rng import choice
+from core.rounding import three_sf
+from core.task_contract import ROUNDING_3SF
 
 _PAIRS = (
     ((1, 2, 2), (2, 1, 2)),
@@ -136,3 +140,81 @@ def gen_two_planes(clean_integers: bool, difficulty: str = "standard", exclude_n
     if task.marks != 7:
         raise RuntimeError("Two-plane question must be worth 7 marks.")
     return task
+
+
+def gen_two_planes_gdc(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
+    """Same planes, with the acute angle in degrees to 3 s.f."""
+    del clean_integers, difficulty
+    banned = set(exclude_numeric_ids or ())
+    available = [item for item in _BANK if f"deg|{item[-1]}" not in banned]
+    if not available:
+        raise RuntimeError("No unused pair of planes remains.")
+    last_error = None
+    for _ in range(12):
+        (
+            first,
+            second,
+            point,
+            first_level,
+            second_level,
+            direction,
+            cosine,
+            left_length,
+            right_length,
+            dot,
+            numeric_id,
+        ) = choice(available)
+        try:
+            degrees = three_sf(math.degrees(math.acos(float(cosine))))
+        except RuntimeError as exc:
+            last_error = exc
+            continue
+        task = pack_task(
+            title="Vectors: The Angle between Two Planes",
+            intro=(
+                r"The planes $\Pi_1$ and $\Pi_2$ are given below. "
+                r"A graphic display calculator is required. "
+                r"Give the angle in degrees, to three significant figures."
+            ),
+            latex_main=(
+                rf"\Pi_1:\; \mathbf{{r}}\cdot {vlatex(first)} = {first_level}, \qquad "
+                rf"\Pi_2:\; \mathbf{{r}}\cdot {vlatex(second)} = {second_level}"
+            ),
+            parts=[
+                part(
+                    "a",
+                    r"Find the acute angle $\theta$ between the planes.",
+                    3,
+                    step(
+                        r"$\cos\theta = |\mathbf{n}_1\cdot\mathbf{n}_2|/(|\mathbf{n}_1|\,|\mathbf{n}_2|)$, then read $\theta$ from a GDC:",
+                        rf"\cos\theta = {sp.latex(cosine)}, \quad \theta = {degrees}^{{\circ}}",
+                        "M1 A1 A1",
+                        rounding=ROUNDING_3SF,
+                    ),
+                ),
+                part(
+                    "b",
+                    r"Find a vector equation of the line of intersection of $\Pi_1$ and $\Pi_2$.",
+                    4,
+                    step(
+                        r"A direction of the line is $\mathbf{n}_1 \times \mathbf{n}_2$:",
+                        vlatex(direction),
+                        "M1 A1",
+                    ),
+                    step(
+                        rf"The point $({point[0]},\, {point[1]},\, {point[2]})$ lies on both planes:",
+                        rf"\mathbf{{r}} = {vlatex(point)} + \lambda {vlatex(direction)}",
+                        "M1 A1",
+                    ),
+                ),
+            ],
+            archetype=f"Planes through {point}, angle {degrees} degrees",
+            family="Integer-length normals, angle read from a GDC",
+            part_graph_id="vec_two_planes_angle_line",
+            cover_id="degrees",
+            numeric_id=f"deg|{numeric_id}",
+        )
+        if task.marks != 7:
+            raise RuntimeError("Two-plane GDC question must be worth 7 marks.")
+        return task
+    raise RuntimeError(f"No two-plane angle survived three-significant-figure rounding. {last_error}")

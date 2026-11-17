@@ -76,10 +76,43 @@ _BANK = (
         "Linear expression in arcsin",
         "Rearranged arcsine equation",
     ),
+    _entry(
+        r"\arcsin x = \dfrac{\pi}{3}",
+        r"-\dfrac{\pi}{2} \le \arcsin x \le \dfrac{\pi}{2}",
+        r"The range of $\arcsin x$ is $\left[-\dfrac{\pi}{2},\, \dfrac{\pi}{2}\right]$.",
+        r"Hence solve $\arcsin x = \dfrac{\pi}{3}$.",
+        sp.asin(x) - sp.pi / 3,
+        sp.sqrt(3) / 2,
+        "Arcsine equals pi/3",
+        "Principal arcsine equation",
+    ),
+    _entry(
+        r"\arccos x = \dfrac{\pi}{6}",
+        r"0 \le \arccos x \le \pi",
+        r"The range of $\arccos x$ is $[0,\, \pi]$.",
+        r"Hence solve $\arccos x = \dfrac{\pi}{6}$.",
+        sp.acos(x) - sp.pi / 6,
+        sp.sqrt(3) / 2,
+        "Arccosine equals pi/6",
+        "Principal arccosine equation",
+    ),
+    _entry(
+        r"\arcsin\left(\dfrac{x}{2}\right) = \dfrac{\pi}{6}",
+        r"-2 \le x \le 2",
+        r"For $\arcsin(x/2)$ to be defined, require $|x/2| \le 1$.",
+        r"Hence solve $\arcsin\left(\dfrac{x}{2}\right) = \dfrac{\pi}{6}$.",
+        sp.asin(x / 2) - sp.pi / 6,
+        1,
+        "Arcsine of x/2 equals pi/6",
+        "Scaled arcsine equation",
+    ),
 )
 
-_STANDARD = _BANK[:2]
-_CHALLENGING = _BANK[2:]
+_STANDARD = _BANK[:2] + _BANK[5:7]
+_CHALLENGING = _BANK[2:5] + _BANK[7:]
+
+if len(_STANDARD) < 4 or len(_CHALLENGING) < 4:
+    raise RuntimeError("Each inverse-trigonometry difficulty needs four equations.")
 
 
 def gen_inverse_trig(clean_integers: bool, difficulty: str = "standard"):

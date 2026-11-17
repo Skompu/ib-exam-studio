@@ -993,13 +993,14 @@ def _render_arkusz(paper: dict, is_exam_mode: bool, ordered_keys=None, swap=None
                     swap["target"],
                     level=swap["level"],
                     excluded=tuple(muted_now),
+                    same_topic=True,
                 )
                 if choices and actions.button(
                     "Swap",
                     key=f"swap-{paper['variant']}-{task['q_number']}",
                     icon=":material/swap_horiz:",
                     help=(
-                        "Replaces this question with another of the same marks and section. "
+                        "Replaces this question with another of the same marks, section and syllabus block. "
                         "The total stays, and every group is rebuilt."
                     ),
                 ):

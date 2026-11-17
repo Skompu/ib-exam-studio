@@ -37,18 +37,26 @@ def _item(sine_coeff, cosine_coeff, right_hand, amplitude, shift, form):
     }
 
 
-_BANK = (
+_STANDARD_BANK = (
     _item(1, 1, 1, sp.sqrt(2), sp.pi / 4, r"\sqrt{2}\sin\left(x + \frac{\pi}{4}\right)"),
     _item(1, -1, 1, sp.sqrt(2), -sp.pi / 4, r"\sqrt{2}\sin\left(x - \frac{\pi}{4}\right)"),
+    _item(1, 1, sp.sqrt(2), sp.sqrt(2), sp.pi / 4, r"\sqrt{2}\sin\left(x + \frac{\pi}{4}\right)"),
+    _item(-1, 1, 1, sp.sqrt(2), 3 * sp.pi / 4, r"\sqrt{2}\sin\left(x + \frac{3\pi}{4}\right)"),
+)
+_CHALLENGING_BANK = (
     _item(sp.sqrt(3), 1, 1, 2, sp.pi / 6, r"2\sin\left(x + \frac{\pi}{6}\right)"),
     _item(1, sp.sqrt(3), sp.sqrt(3), 2, sp.pi / 3, r"2\sin\left(x + \frac{\pi}{3}\right)"),
     _item(sp.sqrt(3), -1, sp.sqrt(3), 2, -sp.pi / 6, r"2\sin\left(x - \frac{\pi}{6}\right)"),
+    _item(1, sp.sqrt(3), 2, 2, sp.pi / 3, r"2\sin\left(x + \frac{\pi}{3}\right)"),
 )
+
+if len(_STANDARD_BANK) < 4 or len(_CHALLENGING_BANK) < 4:
+    raise RuntimeError("Each R-form difficulty needs four equations.")
 
 
 def gen_r_form(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    pool = _BANK[2:] if difficulty == "challenging" else _BANK[:2]
+    pool = _CHALLENGING_BANK if difficulty == "challenging" else _STANDARD_BANK
     item = choice(pool)
     solutions = ", ".join(sp.latex(value) for value in item["solutions"])
     task = pack_task(
@@ -79,6 +87,9 @@ def gen_r_form(clean_integers: bool, difficulty: str = "standard"):
         ],
         archetype=f"{sp.latex(item['left'])} = {sp.latex(item['right'])}",
         family="Harmonic form with an exact phase, then an exact solution set",
+        part_graph_id="trig_rform",
+        cover_id="plain",
+        numeric_id=f"{sp.sstr(item['left'])}={sp.sstr(item['right'])}",
     )
     if task.marks != 6:
         raise RuntimeError("R-form question must be worth 6 marks.")

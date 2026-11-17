@@ -192,8 +192,61 @@ def _sine_product():
     )
 
 
-_STANDARD = (_tangent_from_cosine, _tangent_from_sine, _square_sum)
-_CHALLENGING = (_cosine_sum, _sine_sum, _sine_product)
+def _double_cosine():
+    _check(sp.cos(2 * theta) - (sp.cos(theta) ** 2 - sp.sin(theta) ** 2))
+    return _task(
+        r"In this question, $\theta$ is any angle for which the expressions are defined.",
+        r"\cos 2\theta = \cos^{2}\theta - \sin^{2}\theta",
+        (
+            r"Expand $\cos(\theta + \theta)$.",
+            2,
+            step(
+                "Use the compound-angle formula:",
+                r"\cos^{2}\theta - \sin^{2}\theta",
+                "M1 A1",
+            ),
+        ),
+        (
+            r"Hence show that $\cos 2\theta = \cos^{2}\theta - \sin^{2}\theta$.",
+            4,
+            step(
+                r"The expansion is already the right-hand side:",
+                r"\cos 2\theta = \cos^{2}\theta - \sin^{2}\theta",
+                "M1 A1 M1 A1",
+            ),
+        ),
+        "Show that cos 2θ = cos^2 θ - sin^2 θ",
+        "Compound-angle expansion of a double angle",
+    )
+
+
+def _sine_difference():
+    left = sp.sin(angle_a + angle_b) - sp.sin(angle_a - angle_b)
+    _check(left - 2 * sp.cos(angle_a) * sp.sin(angle_b))
+    return _task(
+        "Angles $A$ and $B$ are such that every expression below is defined.",
+        r"\sin(A + B) - \sin(A - B) = 2\cos A\sin B",
+        (
+            r"Expand $\sin(A + B)$ and $\sin(A - B)$.",
+            3,
+            step(
+                "Use the compound-angle formulae:",
+                r"(\sin A\cos B + \cos A\sin B) - (\sin A\cos B - \cos A\sin B)",
+                "M1 A1 A1",
+            ),
+        ),
+        (
+            "Hence prove the identity.",
+            3,
+            step("The cosine terms cancel:", r"2\cos A\sin B", "M1 A1 A1"),
+        ),
+        "Show that sin(A+B)-sin(A-B) = 2 cos A sin B",
+        "Compound-angle expansions, then cancel",
+    )
+
+
+_STANDARD = (_tangent_from_cosine, _tangent_from_sine, _square_sum, _double_cosine)
+_CHALLENGING = (_cosine_sum, _sine_sum, _sine_product, _sine_difference)
 
 
 def gen_trig_identity(clean_integers: bool, difficulty: str = "standard"):

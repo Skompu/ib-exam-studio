@@ -39,6 +39,13 @@ GDC_SECTION_B = frozenset({
     "ext_pdf_b_gdc",
     "ext_linked_seq_gdc",
     "ext_lines_planes_gdc",
+    "ext_clearance_gdc",
+    "ext_phase_gdc",
+    "ext_triangle_gdc",
+    "ext_gdc_poisson",
+    "ext_solid_opt_gdc",
+    "ext_norm_binom",
+    "ext_logistic_gdc",
 })
 
 GDC_HL_SECTION_A = frozenset({
@@ -47,6 +54,11 @@ GDC_HL_SECTION_A = frozenset({
     "functions_gdc",
     "vol_rev_gdc",
     "gdc_gauss",
+    "gdc_tangent",
+    "gdc_log",
+    "vec_planes_gdc",
+    "kin_velocity_gdc",
+    "stat_regress_gdc",
 })
 
 # Split off the inverse-normal family so a preset can pin binomial.
@@ -61,6 +73,10 @@ SECTION_B_NON_GDC = frozenset({
     "ext_cross_trig_seq",
     "ext_cross_log_calc",
     "ext_fn_rational",
+    "ext_phase",
+    "ext_clearance",
+    "ext_solid_opt",
+    "ext_logistic",
 })
 
 

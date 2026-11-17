@@ -9,6 +9,7 @@ from registry import (
     TASK_REGISTRY,
     _syllabus_area,
     advancement_band,
+    _cohort_depth,
     build_exam_blueprint,
 )
 
@@ -118,7 +119,7 @@ def test_two_cohorts_leave_out_a_one_variant_bank():
             min_cohort_depth=2,
             difficulty="challenging",
         )
-        assert "trig_compound" not in paper
+        assert all(_cohort_depth(key, "challenging") >= 2 for key in paper)
         assert "proof_direct" not in paper
 
 

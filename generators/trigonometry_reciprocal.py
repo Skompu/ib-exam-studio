@@ -129,8 +129,88 @@ def _cot_value():
     )
 
 
-_STANDARD = (_sec_tangent, _csc_cot)
-_CHALLENGING = (_sec_negative, _cot_value)
+def _sec_two():
+    return _identity_task(
+        r"\sec^{2}\theta = 1 + \tan^{2}\theta",
+        r"1 + \tan^{2}\theta = \sec^{2}\theta",
+        sp.sec(theta) ** 2 - (1 + sp.tan(theta) ** 2),
+        r"Show that $\sec^{2}\theta = 1 + \tan^{2}\theta$.",
+        r"Solve $\sec x = 2$ for $0 \le x \le 2\pi$.",
+        sp.sec(x),
+        2,
+        sp.Interval(0, 2 * sp.pi),
+        "Identity sec-tan then sec x = 2",
+        "Secant from tangent identity",
+    )
+
+
+def _csc_surd():
+    return _identity_task(
+        r"\csc^{2}\theta = 1 + \cot^{2}\theta",
+        r"1 + \cot^{2}\theta = \csc^{2}\theta",
+        sp.csc(theta) ** 2 - (1 + sp.cot(theta) ** 2),
+        r"Show that $\csc^{2}\theta = 1 + \cot^{2}\theta$.",
+        r"Solve $\csc x = \sqrt{2}$ for $0 < x < 2\pi$.",
+        sp.csc(x),
+        sp.sqrt(2),
+        sp.Interval(0, 2 * sp.pi, left_open=True, right_open=True),
+        "Identity csc-cot then csc x = sqrt 2",
+        "Cosecant from cotangent identity",
+    )
+
+
+def _sec_negative_surd():
+    return _identity_task(
+        r"\sec^{2}\theta - \tan^{2}\theta = 1",
+        r"\sec^{2}\theta - \tan^{2}\theta = 1",
+        sp.sec(theta) ** 2 - sp.tan(theta) ** 2 - 1,
+        r"Show that $\sec^{2}\theta - \tan^{2}\theta = 1$.",
+        r"Solve $\sec x = -\sqrt{2}$ for $0 \le x \le 2\pi$.",
+        sp.sec(x),
+        -sp.sqrt(2),
+        sp.Interval(0, 2 * sp.pi),
+        "Identity sec-tan difference then sec x = -sqrt 2",
+        "Secant with a negative value",
+    )
+
+
+def _cot_one():
+    solutions, _ordered = _solutions_tex(
+        sp.cot(x), 1, sp.Interval(0, 2 * sp.pi, left_open=True, right_open=True)
+    )
+    return pack_task(
+        title="Trigonometry: Secant, Cosecant and Cotangent",
+        intro="Give exact answers in radians.",
+        latex_main=r"\cot x = 1",
+        parts=[
+            part(
+                "a",
+                r"Express $\cot x$ in terms of $\sin x$ and $\cos x$.",
+                2,
+                step(
+                    "Definition of cotangent:",
+                    r"\cot x = \frac{\cos x}{\sin x}",
+                    "M1 A1",
+                ),
+            ),
+            part(
+                "b",
+                r"Hence solve $\cot x = 1$ for $0 < x < 2\pi$.",
+                4,
+                step(
+                    r"Solve $\cos x = \sin x$ on the interval:",
+                    rf"x = {solutions}",
+                    "M1 A1 A1 A1",
+                ),
+            ),
+        ],
+        archetype="Cotangent equation cot x = 1",
+        family="Cotangent solved through sine and cosine",
+    )
+
+
+_STANDARD = (_sec_tangent, _csc_cot, _sec_two, _csc_surd)
+_CHALLENGING = (_sec_negative, _cot_value, _sec_negative_surd, _cot_one)
 
 
 def gen_reciprocal_trig(clean_integers: bool, difficulty: str = "standard"):

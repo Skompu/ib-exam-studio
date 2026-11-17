@@ -555,17 +555,17 @@ def _place_point(*offsets):
     return tuple(point)
 
 
-def _lines_task(gdc: bool):
+def _lines_task(gdc: bool, triangle: bool = False):
     last_error = None
     for _ in range(40):
         try:
-            return _one_lines_task(gdc)
+            return _one_lines_task(gdc, triangle)
         except RuntimeError as exc:
             last_error = exc
     raise RuntimeError(f"Could not build an intersecting line-and-plane item. {last_error}")
 
 
-def _one_lines_task(gdc: bool):
+def _one_lines_task(gdc: bool, triangle: bool = False):
     order = choice(((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)))
     signs = (choice((-1, 1)), choice((-1, 1)), choice((-1, 1)))
     base_d1, base_d2, base_k = choice(_LINE_PLANE)
@@ -585,6 +585,7 @@ def _one_lines_task(gdc: bool):
     if sine == 0 or sine_sq.q > 4:
         raise RuntimeError("The angle between the line and the plane is not a clean value.")
     area = sp.simplify(sp.sqrt(_dot(normal, normal)))
+    shown_area = sp.simplify(area / 2) if triangle else area
     equation = plane_expr(normal, _dot(normal, start))
     meeting = f"({start[0]},\\, {start[1]},\\, {start[2]})"
     latex = (
@@ -608,7 +609,11 @@ def _one_lines_task(gdc: bool):
             "giving $\\sin\\theta$ in exact form."
         )
     task = pack_task(
-        title="Extended response: intersecting lines and a plane",
+        title=(
+            "Extended response: a triangle on intersecting lines"
+            if triangle
+            else "Extended response: intersecting lines and a plane"
+        ),
         intro=(
             "The lines $L_1$ and $L_2$ intersect. The point $P$ does not lie on $L_1$. "
             "The vector equations are given below."
@@ -644,20 +649,32 @@ def _one_lines_task(gdc: bool):
             ),
             part(
                 "d",
-                "Hence find the area of the parallelogram determined by the direction of $L_1$ and $\\overrightarrow{AP}$.",
+                (
+                    "Hence find the area of the triangle determined by the direction of $L_1$ and $\\overrightarrow{AP}$."
+                    if triangle
+                    else "Hence find the area of the parallelogram determined by the direction of $L_1$ and $\\overrightarrow{AP}$."
+                ),
                 3,
                 step(
-                    "The area is the magnitude of the normal from (b):",
-                    rf"\text{{Area}} = {sp.latex(area)}",
+                    (
+                        "The triangle is half the parallelogram spanned by those two vectors:"
+                        if triangle
+                        else "The area is the magnitude of the normal from (b):"
+                    ),
+                    rf"\text{{Area}} = {sp.latex(shown_area)}",
                     "M1 A1 A1",
                 ),
             ),
         ],
-        archetype="Intersecting lines, the angle between a line and a plane, and a parallelogram",
+        archetype=(
+            "Intersecting lines, the angle between a line and a plane, and a triangle"
+            if triangle
+            else "Intersecting lines, the angle between a line and a plane, and a parallelogram"
+        ),
         family="Two intersecting integer lines and a point off the first line",
-        part_graph_id="ext_lines_planes",
-        cover_id="meet",
-        numeric_id=f"meet|{start}|{d1}|{d2}|{offset}|{sine}",
+        part_graph_id="ext_triangle_plane" if triangle else "ext_lines_planes",
+        cover_id="triangle" if triangle else "meet",
+        numeric_id=f"{'triangle' if triangle else 'meet'}|{start}|{d1}|{d2}|{offset}|{sine}",
     )
     if task.marks != 13:
         raise RuntimeError("Line Section B item must be worth 13 marks.")
@@ -672,6 +689,12 @@ def gen_extended_lines(clean_integers: bool = True, difficulty: str = "standard"
 def gen_extended_lines_gdc(clean_integers: bool = True, difficulty: str = "standard"):
     del clean_integers, difficulty
     return _lines_task(True)
+
+
+def gen_extended_triangle_gdc(clean_integers: bool = True, difficulty: str = "standard"):
+    """Same 13-mark line-and-plane graph, with the triangle area instead of the parallelogram."""
+    del clean_integers, difficulty
+    return _lines_task(True, triangle=True)
 
 
 def gen_extended_model_gdc(clean_integers: bool = True, difficulty: str = "standard"):
@@ -768,4 +791,246 @@ def gen_extended_model_gdc(clean_integers: bool = True, difficulty: str = "stand
     )
     if task.marks != 12:
         raise RuntimeError("GDC cooling item must be worth 12 marks.")
+    return task
+
+
+def _wrap_turn(value, period):
+    reduced = sp.simplify(value - period * sp.floor(value / period))
+    if reduced == 0 or reduced == period:
+        raise RuntimeError("A phase time landed on the endpoint of the period.")
+    return reduced
+
+
+def _phase_task(gdc: bool):
+    amplitude = choice((3, 4, 5, 6))
+    period = choice((10, 12, 15, 20)) if gdc else choice((12, 18, 24))
+    midline = amplitude + choice((2, 4, 6, 8))
+    sixths = choice((1, 2))
+    shift = sp.Rational(sixths * period, 6)
+    frequency = sp.simplify(2 * sp.pi / period)
+    max_rate = sp.simplify(amplitude * frequency)
+    first = _wrap_turn(shift + sp.Rational(period, 4), period)
+    second = _wrap_turn(shift + sp.Rational(3 * period, 4), period)
+    if first == second:
+        raise RuntimeError("The two midline times coincided.")
+    fastest = first if first < second else second
+    # The first time the cosine derivative is most negative is shift + T/4, wrapped.
+    fastest = _wrap_turn(shift + sp.Rational(period, 4), period)
+    if gdc:
+        fraction = choice((sp.Rational(1, 5), sp.Rational(2, 5), sp.Rational(3, 5)))
+        target = midline + amplitude * fraction
+        angle = float(sp.acos(fraction))
+        delta = float(period) * angle / (2 * math.pi)
+        raw = (float(shift) + delta, float(shift) - delta)
+        wrapped = sorted(value % float(period) for value in raw)
+        if min(wrapped) < 1e-6 or abs(wrapped[0] - wrapped[1]) < 1e-3:
+            raise RuntimeError("Phase height times are not two interior instants.")
+        time_tex = rf"t = {three_sf(wrapped[0])},\ {three_sf(wrapped[1])}"
+        time_prompt = (
+            f"Hence find the times during the first period when $h={sp.latex(target)}$. "
+            "Give your answers to three significant figures."
+        )
+        time_reason = f"Solve $\\cos(b(t-{sp.latex(shift)}))={sp.latex(fraction)}$ on a GDC:"
+        time_round = ROUNDING_3SF
+        rate_tex = three_sf(max_rate)
+        rate_prompt = (
+            "Hence find the maximum rate of change of $h$. Give your answer to three significant figures."
+        )
+        rate_round = ROUNDING_3SF
+    else:
+        time_tex = rf"t = {sp.latex(first)},\ {sp.latex(second)}"
+        time_prompt = f"Hence find the times during the first period when $h={midline}$."
+        time_reason = "The height is at the midline when the cosine is zero:"
+        time_round = ""
+        rate_tex = sp.latex(max_rate)
+        rate_prompt = "Hence find the exact maximum rate of change of $h$."
+        rate_round = ""
+        fraction = 0
+    model = amplitude * sp.cos(frequency * (t - shift)) + midline
+    grid = np.linspace(0, float(period), 240)
+    heights = np.asarray(sp.lambdify(t, model, "numpy")(grid), dtype=float)
+    fig, ax = plt.subplots(figsize=(4.4, 3.2))
+    ax.plot(grid, heights, color="#1e293b", lw=1.8)
+    ax.axhline(midline, color="#2563eb", lw=0.8, ls="--")
+    _frame(ax, [0, float(period)], [float(np.min(heights)), float(np.max(heights)), 0])
+    _style(ax)
+    ax.set_xlabel("$t$")
+    ax.set_ylabel("$h$")
+    stem = (
+        rf"h_{{\max}} = {midline + amplitude},\quad h_{{\min}} = {midline - amplitude},\quad "
+        rf"\text{{period}} = {period},\quad t_{{\max}} = {sp.latex(shift)}"
+    )
+    task = pack_task(
+        title="Extended response: a shifted cosine",
+        intro=(
+            "The height $h$ of a tide marker is modelled by $h(t)=a\\cos(b(t-c))+d$. "
+            "The maximum occurs at $t=c$, and the first period starts at $t=0$."
+        ),
+        latex_main=stem,
+        parts=[
+            part(
+                "a",
+                "Find $a$, $b$, $c$ and $d$.",
+                4,
+                step(
+                    "The midline is the average of the extremes, the amplitude is half the range, "
+                    "$b=2\\pi$ divided by the period, and $c$ is the given time of the maximum:",
+                    rf"a={amplitude},\ b={sp.latex(frequency)},\ c={sp.latex(shift)},\ d={midline}",
+                    "M1 A1 A1 A1",
+                ),
+            ),
+            part(
+                "b",
+                time_prompt,
+                4,
+                step(time_reason, time_tex, "M1 A1 A1 A1", rounding=time_round),
+            ),
+            part(
+                "c",
+                rate_prompt,
+                3,
+                step(
+                    r"Differentiate. The maximum of $|\sin|$ is $1$:",
+                    rf"\left|h'(t)\right|_{{\max}} = {rate_tex}",
+                    "M1 A1 A1",
+                    rounding=rate_round,
+                ),
+            ),
+            part(
+                "d",
+                "Hence find the first time at which $h$ is decreasing most rapidly.",
+                3,
+                step(
+                    "The steepest decrease is the first time the sine factor equals $1$:",
+                    rf"t = {sp.latex(fastest)}",
+                    "M1 A1 A1",
+                ),
+            ),
+        ],
+        fig=fig,
+        plot_type="essential",
+        archetype="Shifted cosine: phase from the time of the maximum",
+        family="Cosine model whose maximum is not at t=0",
+        part_graph_id="ext_phase",
+        cover_id="tide",
+        numeric_id=f"a={amplitude}|T={period}|d={midline}|c={shift}|q={fraction}",
+    )
+    if task.marks != 14:
+        raise RuntimeError("Shifted-cosine Section B item must be worth 14 marks.")
+    return task
+
+
+def _phase_until(gdc: bool):
+    last_error = None
+    for _ in range(20):
+        try:
+            return _phase_task(gdc)
+        except RuntimeError as exc:
+            last_error = exc
+    raise RuntimeError(f"Could not build a shifted cosine. {last_error}")
+
+
+def gen_extended_phase(clean_integers: bool = True, difficulty: str = "standard"):
+    del clean_integers, difficulty
+    return _phase_until(False)
+
+
+def gen_extended_phase_gdc(clean_integers: bool = True, difficulty: str = "standard"):
+    del clean_integers, difficulty
+    return _phase_until(True)
+
+
+def gen_extended_clearance_gdc(clean_integers: bool = True, difficulty: str = "standard"):
+    """12-mark GDC clearance, so a Paper 2 cooling question can swap to it."""
+    del clean_integers, difficulty
+    initial = choice((40, 50, 60, 80))
+    ratio = choice((sp.Rational(2, 5), sp.Rational(3, 5), sp.Rational(4, 5), sp.Rational(1, 2)))
+    elapsed = choice((4, 5, 6, 8))
+    measured = sp.Integer(initial) * ratio
+    if measured != int(measured) or not (0 < measured < initial):
+        raise RuntimeError("Clearance reading is not a positive integer below the dose.")
+    measured = int(measured)
+    later_options = [value for value in (8, 10, 12, 16, 20, 24, 30) if value < measured]
+    if not later_options:
+        raise RuntimeError("No later concentration sits below the measured reading.")
+    later = choice(later_options)
+    constant = sp.log(sp.Rational(initial, measured)) / elapsed
+    rate = -constant * measured
+    target_time = sp.log(sp.Rational(initial, later)) / constant
+    times = np.linspace(0, float(target_time) * 1.15, 200)
+    curve = initial * np.exp(-float(constant) * times)
+    fig, ax = plt.subplots(figsize=(4.4, 3.2))
+    ax.plot(times, curve, color="#1e293b", lw=1.8)
+    ax.axhline(0, color="#2563eb", lw=0.9, ls="--")
+    _frame(ax, [0, float(target_time)], [0, initial])
+    _style(ax)
+    ax.set_xlabel("$t$ (h)")
+    ax.set_ylabel("$C$ (mg/L)")
+    task = pack_task(
+        title="Extended response: drug clearance",
+        intro=(
+            "A patient receives one intravenous dose of a drug. The concentration then decreases "
+            "at a rate directly proportional to the concentration itself. $C$ is the concentration "
+            "in milligrams per litre and $t$ is the time in hours, with $t \\ge 0$."
+        ),
+        latex_main=rf"C(0) = {initial},\quad C({elapsed}) = {measured}",
+        parts=[
+            part(
+                "a",
+                "Write down a differential equation for $C$, where $k$ is a positive constant. "
+                f"Hence show that $C(t) = {initial} e^{{-kt}}$.",
+                3,
+                step(
+                    "The rate is proportional to the concentration, and $C(0)$ fixes the constant:",
+                    rf"\dfrac{{\mathrm{{d}}C}}{{\mathrm{{d}}t}} = -kC",
+                    "M1 A1 A1",
+                ),
+            ),
+            part(
+                "b",
+                "Hence find the value of $k$, to three significant figures.",
+                3,
+                step(
+                    f"Use $C({elapsed}) = {measured}$:",
+                    f"k = {three_sf(constant)}",
+                    "M1 A1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
+            ),
+            part(
+                "c",
+                f"Hence find the time at which the concentration is ${later}$ mg/L, "
+                "to three significant figures.",
+                2,
+                step("Solve the model on a GDC:", f"t = {three_sf(target_time)}", "M1 A1", rounding=ROUNDING_3SF),
+            ),
+            part(
+                "d",
+                f"Hence find the rate of change of concentration when $C={measured}$, "
+                "to three significant figures. Give the units.",
+                2,
+                step(
+                    "Substitute into the differential equation. The unit is milligrams per litre per hour:",
+                    f"{three_sf(rate)}",
+                    "M1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
+            ),
+            part(
+                "e",
+                "State the limiting concentration as $t \\to \\infty$.",
+                2,
+                step("The exponential term tends to zero:", r"0\ \mathrm{mg/L}", "A1 R1"),
+            ),
+        ],
+        fig=fig,
+        plot_type="illustrative",
+        archetype="Drug clearance with a GDC value of k",
+        family="Exponential decay to zero concentration, answered to 3 s.f.",
+        part_graph_id="ext_clearance_gdc",
+        cover_id="clearance",
+        numeric_id=f"C0={initial}|t={elapsed}|q={ratio}|later={later}",
+    )
+    if task.marks != 12:
+        raise RuntimeError("GDC clearance item must be worth 12 marks.")
     return task

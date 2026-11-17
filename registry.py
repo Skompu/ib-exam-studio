@@ -3,6 +3,17 @@ from functools import lru_cache
 from itertools import combinations, product
 
 from core.task_contract import Task
+from generators.aa_archetypes import (
+    gen_box_regression,
+    gen_logistic,
+    gen_logistic_gdc,
+    gen_maclaurin_product,
+    gen_normal_binomial,
+    gen_regression_gdc,
+    gen_solid_optimisation,
+    gen_solid_optimisation_gdc,
+    gen_velocity_graph,
+)
 from generators.algebra_contradiction import gen_proof_contradiction
 from generators.algebra_combinations import gen_combinations
 from generators.algebra_direct_proof import gen_direct_proof
@@ -43,14 +54,17 @@ from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
 from generators.functions_extended import gen_extended_rational
 from generators.functions_gdc import gen_functions_gdc
+from generators.functions_piecewise import gen_piecewise
 from generators.functions_transformations import gen_transformations_modulus
 from generators.gdc_chi_squared import gen_gdc_chi_squared
 from generators.gdc_chi_gof import gen_gdc_chi_gof
 from generators.gdc_curve import gen_gdc_curve
 from generators.gdc_gauss import gen_gdc_gauss
 from generators.gdc_extended_model import gen_extended_gdc_model
-from generators.gdc_extended_stat import gen_extended_gdc_stat
+from generators.gdc_extended_stat import gen_extended_gdc_poisson, gen_extended_gdc_stat
 from generators.gdc_linear_system import gen_linear_system
+from generators.gdc_logarithm import gen_gdc_logarithm
+from generators.gdc_tangent import gen_gdc_tangent
 from generators.gdc_statistics import gen_gdc_distributions, gen_gdc_invnorm
 from generators.gdc_trigonometry import gen_gdc_trigonometry
 from generators.geometry_trig import gen_chord, gen_circular_sector, gen_segment
@@ -80,8 +94,12 @@ from generators.section_b_expanded import (
     gen_extended_pdf_gdc,
     gen_extended_series,
     gen_extended_series_gdc,
+    gen_extended_clearance_gdc,
+    gen_extended_phase,
+    gen_extended_phase_gdc,
     gen_extended_sine,
     gen_extended_sine_gdc,
+    gen_extended_triangle_gdc,
 )
 from generators.statistics import gen_normal_distribution
 from generators.statistics_bivariate import gen_bivariate_regression
@@ -106,7 +124,7 @@ from generators.sequences_infinite_series import gen_infinite_geometric_series
 from generators.vectors_plane_intersection import gen_vector_line_plane, gen_vector_line_plane_gdc
 from generators.vectors_planes import gen_vectors_plane
 from generators.vectors_skew import gen_vec_lines_intersect, gen_vec_plane_cross, gen_vectors_skew
-from generators.vectors_two_planes import gen_two_planes
+from generators.vectors_two_planes import gen_two_planes, gen_two_planes_gdc
 
 TASK_REGISTRY = {
     "calc_diff": {
@@ -201,6 +219,15 @@ TASK_REGISTRY = {
         "marks": 7,
         "category": "Calculus",
         "section": "A",
+    },
+    "maclaurin_product": {
+        "name": "Calculus: A Maclaurin product",
+        "func": gen_maclaurin_product,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "deal": False,
+        "search": "maclaurin exponential sine product limit cubic HL",
     },
     "induction": {
         "name": "Proof: Mathematical Induction",
@@ -477,6 +504,35 @@ TASK_REGISTRY = {
         "deal": False,
         "search": "logarithm inverse domain GDC three significant figures",
     },
+    "fn_piecewise": {
+        "name": "Functions: A Piecewise Function",
+        "func": gen_piecewise,
+        "marks": 6,
+        "category": "Functions",
+        "section": "A",
+        "deal": False,
+        "search": "piecewise continuous differentiable join linear quadratic",
+    },
+    "gdc_tangent": {
+        "name": "Paper 2: A Tangent Equation",
+        "func": gen_gdc_tangent,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "tangent equation radians GDC three significant figures",
+    },
+    "gdc_log": {
+        "name": "Paper 2: Exponential and Logarithmic Equations",
+        "func": gen_gdc_logarithm,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "exponential logarithmic equation GDC three significant figures",
+    },
     "gdc_gauss": {
         "name": "Paper 2: A Gaussian Curve on a GDC",
         "func": gen_gdc_gauss,
@@ -512,6 +568,16 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "search": "kinematics displacement velocity acceleration distance travelled",
     },
+    "kin_velocity_gdc": {
+        "name": "Paper 2: Velocity-time graph",
+        "func": gen_velocity_graph,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "velocity time graph distance displacement acceleration GDC",
+    },
     "gdc_area": {
         "name": "Paper 2: Numerical Area",
         "func": gen_gdc_area,
@@ -546,6 +612,25 @@ TASK_REGISTRY = {
         "section": "A",
         "calculator": "gdc",
         "search": "pearson regression correlation extrapolation",
+    },
+    "stat_box_regress": {
+        "name": "Statistics: Box plot and two regression lines",
+        "func": gen_box_regression,
+        "marks": 7,
+        "category": "Statistics",
+        "section": "A",
+        "deal": False,
+        "search": "box whisker outlier IQR regression lines mean point",
+    },
+    "stat_regress_gdc": {
+        "name": "Paper 2: Regression of y on x",
+        "func": gen_regression_gdc,
+        "marks": 6,
+        "category": "Statistics",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "eight points pearson regression prediction inverse line invalid",
     },
     "gdc_trig": {
         "name": "Paper 2: Trigonometric Equation",
@@ -806,6 +891,16 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "deal": False,
     },
+    "ext_clearance_gdc": {
+        "name": "Section B: Drug Clearance (GDC)",
+        "search": "drug clearance GDC exponential decay concentration",
+        "func": gen_extended_clearance_gdc,
+        "marks": 12,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+    },
     "ext_sine": {
         "name": "Section B: Sinusoidal Model",
         "search": "cosine tide ferris period maximum rate",
@@ -819,6 +914,25 @@ TASK_REGISTRY = {
         "name": "Section B: Sinusoidal Model (GDC)",
         "search": "cosine model GDC time at a height maximum rate",
         "func": gen_extended_sine_gdc,
+        "marks": 14,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+    },
+    "ext_phase": {
+        "name": "Section B: Shifted Cosine",
+        "search": "shifted cosine phase time of maximum tide",
+        "func": gen_extended_phase,
+        "marks": 14,
+        "category": "Section B",
+        "section": "B",
+        "deal": False,
+    },
+    "ext_phase_gdc": {
+        "name": "Section B: Shifted Cosine (GDC)",
+        "search": "shifted cosine GDC phase time of maximum",
+        "func": gen_extended_phase_gdc,
         "marks": 14,
         "category": "Section B",
         "section": "B",
@@ -901,6 +1015,16 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "deal": False,
     },
+    "ext_triangle_gdc": {
+        "name": "Section B: Triangle on Intersecting Lines (GDC)",
+        "search": "intersecting lines plane triangle area degrees GDC",
+        "func": gen_extended_triangle_gdc,
+        "marks": 13,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+    },
     "ext_ln": {
         "name": "Section B: Logarithmic Curve and Area",
         "func": gen_log_parameter,
@@ -926,6 +1050,64 @@ TASK_REGISTRY = {
         "section": "B",
         "calculator": "gdc",
         "search": "normal invNorm binomial expected profit quality control GDC",
+    },
+    "ext_gdc_poisson": {
+        "name": "Section B: Normal model and a Poisson count",
+        "func": gen_extended_gdc_poisson,
+        "marks": 19,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "normal invNorm Poisson expected cost GDC",
+    },
+    "ext_solid_opt": {
+        "name": "Section B: Closed cylinder of fixed volume",
+        "func": gen_solid_optimisation,
+        "marks": 14,
+        "category": "Section B",
+        "section": "B",
+        "deal": False,
+        "search": "cylinder surface area optimisation stationary minimum exact",
+    },
+    "ext_solid_opt_gdc": {
+        "name": "Section B: Closed cylinder of fixed volume (GDC)",
+        "func": gen_solid_optimisation_gdc,
+        "marks": 14,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "cylinder surface area optimisation GDC three significant figures",
+    },
+    "ext_norm_binom": {
+        "name": "Section B: Normal length and a binomial count",
+        "func": gen_normal_binomial,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "normal binomial conditional probability interquartile range GDC",
+    },
+    "ext_logistic": {
+        "name": "Section B: Logistic population",
+        "func": gen_logistic,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "deal": False,
+        "search": "logistic differential equation partial fractions maximum growth HL",
+    },
+    "ext_logistic_gdc": {
+        "name": "Section B: Logistic population (GDC)",
+        "func": gen_logistic_gdc,
+        "marks": 16,
+        "category": "Section B",
+        "section": "B",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "logistic differential equation GDC time of maximum growth HL",
     },
     "calc_recover_coeffs": {
         "name": "Calculus: Recover the Cubic Coefficients",
@@ -1008,6 +1190,16 @@ TASK_REGISTRY = {
         "category": "Vectors",
         "section": "A",
         "search": "two planes acute angle cosine line of intersection",
+    },
+    "vec_planes_gdc": {
+        "name": "Paper 2: Angle between Two Planes",
+        "func": gen_two_planes_gdc,
+        "marks": 7,
+        "category": "Vectors",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "two planes acute angle degrees GDC line of intersection",
     },
     "vec_line_plane_gdc": {
         "name": "Paper 2: Line, Plane and Angle",
@@ -1285,7 +1477,6 @@ def order_task_keys(keys):
 
 
 _SHALLOW_COHORTS = {
-    "alg_comb": 3,
     "ext_ln": 4,
 }
 
@@ -1345,26 +1536,9 @@ def advancement_band(spec: dict) -> int | None:
 
 
 # Cohorts that fit on one graph for this difficulty. Omitted topics support 4.
-_THIN_BANKS = {
-    ("maclaurin", "standard"): 3,
-    ("maclaurin", "challenging"): 2,
-    ("induction", "standard"): 3,
-    ("induction", "challenging"): 2,
-    ("prob_rv", "standard"): 3,
-    ("prob_rv", "challenging"): 2,
-    ("alg_comb", "standard"): 2,
-    ("alg_comb", "challenging"): 2,
-    ("trig_compound", "challenging"): 1,
-    ("trig_rform", "standard"): 2,
-    ("trig_rform", "challenging"): 3,
-    ("trig_recip", "standard"): 2,
-    ("trig_recip", "challenging"): 2,
-    ("trig_inv", "standard"): 2,
-    ("trig_inv", "challenging"): 3,
-    ("trig_identity", "standard"): 3,
-    ("trig_identity", "challenging"): 3,
-    ("trig_amb", "challenging"): 3,
-}
+# Trigonometry, combinations, induction, Maclaurin and discrete random variables
+# now carry four numeric variants on each graph. Depth falls through to cohort_depth.
+_THIN_BANKS = {}
 
 
 def _cohort_depth(key: str, difficulty: str = "standard") -> int:
@@ -1427,7 +1601,10 @@ _AA_HL_BY_KEY = {
     "ext_model": "Calculus",
     "ext_clearance": "Calculus",
     "ext_model_gdc": "Calculus",
+    "ext_clearance_gdc": "Calculus",
     "ext_sine": "Trigonometry",
+    "ext_phase": "Trigonometry",
+    "ext_phase_gdc": "Trigonometry",
     "ext_sine_gdc": "Trigonometry",
     "ext_exp_lin": "Calculus",
     "ext_exp_lin_gdc": "Calculus",
@@ -1437,9 +1614,16 @@ _AA_HL_BY_KEY = {
     "ext_linked_seq_gdc": "Algebra & Complex",
     "ext_lines_planes": "Vectors",
     "ext_lines_planes_gdc": "Vectors",
+    "ext_triangle_gdc": "Vectors",
     "ext_ln": "Calculus",
     "ext_gdc_model": "Calculus",
     "ext_gdc_stat": "Stats & Prob",
+    "ext_gdc_poisson": "Stats & Prob",
+    "ext_solid_opt": "Calculus",
+    "ext_solid_opt_gdc": "Calculus",
+    "ext_norm_binom": "Stats & Prob",
+    "ext_logistic": "Calculus",
+    "ext_logistic_gdc": "Calculus",
     "ext_cross_trig_seq": "Trigonometry",
     "ext_cross_log_calc": "Calculus",
     "ext_fn_rational": "Functions",
@@ -2004,9 +2188,15 @@ SL_EXCLUDED = frozenset({
     "ext_model",
     "ext_clearance",
     "ext_model_gdc",
+    "ext_clearance_gdc",
     "ext_lines_planes",
     "ext_lines_planes_gdc",
+    "ext_triangle_gdc",
+    "vec_planes_gdc",
     "maclaurin",
+    "maclaurin_product",
+    "ext_logistic",
+    "ext_logistic_gdc",
     "paper3_geo",
     "paper3_mac",
     "paper3_recur",
@@ -2183,8 +2373,13 @@ def swap_candidates(
     target_marks: int,
     level: str = "hl",
     excluded: tuple = (),
+    same_topic: bool = False,
 ) -> tuple[str, ...]:
     """Other topics that can sit in this slot: same marks, same section, not already on the paper.
+
+    The Swap button passes same_topic=True, so it stays inside the syllabus block.
+    Mute and refill leave same_topic off, and may cross blocks when that slot is the
+    only question in its block.
 
     The caller replaces that one index and leaves the rest of the order alone.
     """
@@ -2198,6 +2393,7 @@ def swap_candidates(
     spec = TASK_REGISTRY[paper[index]]
     section = spec.get("section", "A")
     marks = int(spec["marks"])
+    source_area = aa_hl_area(paper[index]) if same_topic else None
     present = set(paper)
     blocked = set(excluded)
     found = []
@@ -2205,6 +2401,8 @@ def swap_candidates(
         if key in present or key in blocked or int(other["marks"]) != marks:
             continue
         if other.get("section", "A") != section:
+            continue
+        if source_area and aa_hl_area(key) != source_area:
             continue
         if not _replacement_fits(
             key,
