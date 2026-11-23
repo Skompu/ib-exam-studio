@@ -14,7 +14,8 @@ import streamlit as st
 
 DEV_TEST_KEY = "DEV-TEST-2026"
 _GRANTING = frozenset({"active", "trialing"})
-_API_ROOT = "https://api.whop.com/api/v2/memberships/"
+_API_ROOT = "https://api.whop.com/api/v1/memberships/"
+_API_VERSION = "2026-11-22"
 
 
 def get_secret(key: str, default: str = "") -> str:
@@ -62,6 +63,8 @@ def decide_license(user_key: str, debug: bool, api_key: str, fetch) -> tuple[boo
         status = fetch(api_key, key)
     except LookupError:
         return False, "This key does not match a Whop membership."
+    except PermissionError:
+        return False, "Whop rejected the studio API key. Check WHOP_API_KEY on the server."
     except OSError:
         return False, "Could not reach Whop to check this key. Try again in a moment."
     except Exception:
@@ -78,6 +81,7 @@ def fetch_membership_status(api_key: str, license_key: str) -> str:
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Accept": "application/json",
+                "Api-Version-Date": _API_VERSION,
             },
             timeout=8,
         )
@@ -85,6 +89,8 @@ def fetch_membership_status(api_key: str, license_key: str) -> str:
         raise OSError("Whop request failed") from exc
     if response.status_code == 404:
         raise LookupError("unknown membership")
+    if response.status_code in {401, 403}:
+        raise PermissionError("Whop rejected the studio API key.")
     try:
         response.raise_for_status()
         payload = response.json()
