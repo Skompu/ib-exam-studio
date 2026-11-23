@@ -35,6 +35,7 @@
       <nav aria-label="Page">
         <a href="#features">Features</a>
         <a href="#papers">Exam Formats</a>
+        <a href="#topics">Topics</a>
         <a href="#after">How It Works</a>
         <a href="https://ib-exam-studio.streamlit.app">Open Studio</a>
         <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Try 30 Days for $4.99</a>
@@ -52,6 +53,24 @@
             and anti-cheating parallel cohorts — powered by a deterministic symbolic math engine
             with zero AI hallucinations.
           </p>
+          <ul class="hero-points">
+            <li>
+              <strong>Cohorts A–D, Section A and Section B.</strong>
+              Matched-difficulty variants for short-response questions and for 12–16 mark extended problems in calculus, differential equations, 3D vectors, and complex numbers.
+            </li>
+            <li>
+              <strong>Two-path symbolic check.</strong>
+              Every question is cross-checked by symbolic simplification and a high-precision numerical evaluation before it is rendered. A broken equation is discarded.
+            </li>
+            <li>
+              <strong>PDF and editable LaTeX.</strong>
+              Download the print-ready PDF, or the .tex source, and change the header in Overleaf.
+            </li>
+            <li>
+              <strong>Booklet or compact worksheet.</strong>
+              Exam Booklet leaves ruled working space. Worksheet is the paper-saving layout for a quick drill.
+            </li>
+          </ul>
           <div class="actions">
             <a class="buy" href="https://whop.com/checkout/plan_2ouVoFTZpvdNr">Start First Month — $4.99</a>
             <a class="text-link" href="https://ib-exam-studio.streamlit.app">Already have a key? Open Studio →</a>
@@ -87,7 +106,7 @@
               <span class="when-closed">Show [M1]/[A1] Solution</span>
               <span class="when-open">Hide [M1]/[A1] Solution</span>
             </summary>
-            <div id="scheme-body"></div>
+              <div class="scheme-body" id="scheme-body"></div>
           </details>
         </figure>
       </section>
@@ -133,63 +152,214 @@
         </div>
       </section>
 
+      <section id="engine" class="wrap">
+        <p class="eyebrow">In the studio</p>
+        <h2>Parallel papers, a symbolic check, and a file you can edit.</h2>
+        <div class="feature-grid">
+          <article class="card">
+            <h3>Cohorts A–D, Section A and Section B</h3>
+            <p>
+              Generate matched-difficulty variants of the short-response questions and of the 12–16 mark extended problems in calculus, differential equations, and 3D vectors. Complex-number questions sit in the same parallel papers. Same structure, same marks, new numbers.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Two-path symbolic check</h3>
+            <p>
+              Before a question is rendered, exact claims are checked two ways: symbolic simplification and a high-precision numerical evaluation. If the paths disagree, or a value is undefined, that variant is discarded and redrawn. The questions come from the symbolic engine, not from a language-model draft.
+            </p>
+          </article>
+          <article class="card">
+            <h3>PDF and editable LaTeX</h3>
+            <p>
+              Download the print-ready PDF, or take the <span class="mono">.tex</span> source and change the header and layout in Overleaf. The school name and contact line are fields on the export screen.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Booklet or compact worksheet</h3>
+            <p>
+              Exam Booklet leaves ruled working space under the short questions. Worksheet is the compact, paper-saving layout for a quick drill.
+            </p>
+          </article>
+        </div>
+      </section>
+
       <section id="papers" class="wrap">
-        <p class="eyebrow">Exam Formats</p>
-        <h2>Full IB blueprints, and a paper that fits the lesson.</h2>
+        <div class="formats">
+          <div class="formats-copy">
+            <p class="eyebrow">Exam Formats</p>
+            <h2>Full IB blueprints, and a paper that fits the lesson.</h2>
+            <p class="section-lead">
+              Paper 1, Paper 2, and HL Paper 3 sit in the same membership. Paper 3 is for HL.
+              Covers core IB Mathematics AA (HL &amp; SL) topics across Algebra, Functions, Trigonometry, Calculus, Vectors, and Probability — with new question archetypes added weekly.
+            </p>
+            <div class="card table-card formats-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Format</th>
+                    <th>Marks</th>
+                    <th>Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>SL Full Mock Exam</strong>
+                      <span class="shape">Section A + Section B</span>
+                    </td>
+                    <td>80 marks</td>
+                    <td>90 min</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>HL Full Mock Exam</strong>
+                      <span class="shape">Section A + Section B</span>
+                    </td>
+                    <td>110 marks</td>
+                    <td>120 min</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>HL Paper 3 Investigation</strong>
+                      <span class="shape">Extended multi-part problem solving</span>
+                    </td>
+                    <td>55 marks</td>
+                    <td>60 min</td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <strong>Classroom Test / Custom Drill</strong>
+                      <span class="shape">50-mark paper, single-topic drill, or custom question list</span>
+                    </td>
+                    <td>Your list</td>
+                    <td>Your lesson</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <aside class="callout">
+              <p class="callout-title">100% Symbolic Math Engine — Zero LLM Hallucinations.</p>
+              <p>
+                Every derivative, integral, vector cross product, and coordinate graph is computed symbolically and rendered cleanly for print.
+                Step-by-step Tutor Notes &amp; Examiner Insights included to help unpack tricky derivations during lessons or self-study.
+              </p>
+            </aside>
+          </div>
+
+          <figure class="preview" id="formats-preview">
+            <figcaption>Interactive Engine Preview · Parameterized IB Math AA Problem</figcaption>
+            <div class="archetype-tabs" role="tablist" aria-label="Question archetype">
+              <button type="button" class="on" role="tab" data-format-topic="vectors" aria-selected="true">Vectors (HL)</button>
+              <button type="button" role="tab" data-format-topic="probability" aria-selected="false">Probability (SL/HL)</button>
+              <button type="button" role="tab" data-format-topic="model" aria-selected="false">Section B Model</button>
+            </div>
+            <div class="preview-toolbar">
+              <div class="cohorts" role="group" aria-label="Parallel cohort">
+                <button type="button" class="on" data-format-cohort="a" aria-pressed="true">Cohort A</button>
+                <button type="button" data-format-cohort="b" aria-pressed="false">Cohort B</button>
+              </div>
+              <p class="preview-note">Same syllabus point. New numbers. Same marks.</p>
+            </div>
+            <div class="paper" id="format-paper">
+              <div class="q-meta">
+                <span class="q-number">Question 1</span>
+                <span class="q-topic" id="format-topic"></span>
+                <span class="q-marks" id="format-marks"></span>
+              </div>
+              <p class="stem" id="format-stem"></p>
+              <ol class="parts" id="format-parts"></ol>
+            </div>
+            <details class="scheme" id="format-scheme">
+              <summary>
+                <span class="when-closed">Show [M1]/[A1] Solution</span>
+                <span class="when-open">Hide [M1]/[A1] Solution</span>
+              </summary>
+              <div class="scheme-body" id="format-scheme-body"></div>
+            </details>
+          </figure>
+        </div>
+      </section>
+
+      <section id="topics" class="wrap">
+        <p class="eyebrow">Syllabus coverage</p>
+        <h2>The question bank follows the AA syllabus.</h2>
         <p class="section-lead">
-          Paper 1, Paper 2, and HL Paper 3 sit in the same membership. Paper 3 is for HL.
-          Covers core IB Mathematics AA (HL &amp; SL) topics across Algebra, Functions, Trigonometry, Calculus, Vectors, and Probability — with new question archetypes added weekly.
+          Original Paper 1, Paper 2, and HL Paper 3 questions are dealt from the five strands of
+          Mathematics: Analysis and Approaches. HL and SL share the core. HL keeps the extra topics,
+          including Paper 3. Every paper is new values, with a mark scheme written for that paper.
         </p>
-        <div class="card table-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Format</th>
-                <th>Marks</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>
-                  <strong>SL Full Mock Exam</strong>
-                  <span class="shape">Section A + Section B</span>
-                </td>
-                <td>80 marks</td>
-                <td>90 min</td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>HL Full Mock Exam</strong>
-                  <span class="shape">Section A + Section B</span>
-                </td>
-                <td>110 marks</td>
-                <td>120 min</td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>HL Paper 3 Investigation</strong>
-                  <span class="shape">Extended multi-part problem solving</span>
-                </td>
-                <td>55 marks</td>
-                <td>75 min</td>
-              </tr>
-              <tr>
-                <td>
-                  <strong>Classroom Test / Custom Drill</strong>
-                  <span class="shape">50-mark paper, single-topic drill, or custom question list</span>
-                </td>
-                <td>Your list</td>
-                <td>Your lesson</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="feature-grid topic-grid">
+          <article class="card">
+            <h3>Number and algebra</h3>
+            <ul>
+              <li>Arithmetic and geometric sequences and series, including infinite geometric series</li>
+              <li>The binomial theorem, its general term, and the general expansion</li>
+              <li>Logarithms and exponential equations</li>
+              <li>Quadratics, the discriminant, sum and product of roots, remainder and factor theorems</li>
+              <li>Partial fractions (HL) and linear systems with a parameter (HL)</li>
+              <li>Proof by a direct argument or by contradiction</li>
+              <li>HL: induction, and complex numbers — polar form, Argand diagram, conjugate roots, de Moivre, loci</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Functions</h3>
+            <ul>
+              <li>Composition, domain, and inverse</li>
+              <li>Transformations and the modulus</li>
+              <li>Rational functions and asymptotes</li>
+              <li>Piecewise functions</li>
+              <li>Logarithmic functions and their inverses</li>
+              <li>Exponential and logarithmic models</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Geometry and trigonometry</h3>
+            <ul>
+              <li>Exact trigonometric equations</li>
+              <li>Sine rule, double angles, compound angles, and identities</li>
+              <li>The ambiguous case, and the form R sin(x + α)</li>
+              <li>Secant, cosecant, cotangent, and inverse trigonometric functions</li>
+              <li>Radian measure, sectors, chords, and segments</li>
+              <li>HL: vectors — skew lines, the cross product, a line and a plane, the angle between two planes</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Statistics and probability</h3>
+            <ul>
+              <li>Conditional probability</li>
+              <li>Discrete and continuous random variables, density, median, and expectation</li>
+              <li>Binomial distribution and counting principles (HL: permutations &amp; combinations)</li>
+              <li>The normal distribution and the inverse normal</li>
+              <li>Linear regression and box plots</li>
+              <li>Pearson's r, box plots with IQR outliers, and bivariate regression</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Calculus</h3>
+            <ul>
+              <li>Differentiation, stationary points, and points of inflection</li>
+              <li>Tangents, normals, implicit differentiation, and related rates</li>
+              <li>Definite integrals and area, including a numerical area on a GDC</li>
+              <li>Integration by parts and by substitution</li>
+              <li>Volumes of revolution and L'Hôpital's rule</li>
+              <li>Kinematics in a straight line</li>
+              <li>HL: differential equations (separable, homogeneous, integrating factor, logistic) and Maclaurin series</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Paper 3 and longer questions</h3>
+            <ul>
+              <li>HL Paper 3 investigations: a geometric series, Maclaurin error, a recurrence and its closed form, powers of sine, and powers on the unit circle</li>
+              <li>A full 60-minute HL Paper 3, or a shorter topic probe</li>
+              <li>Section B models: a cubic, cooling, drug clearance, a sinusoid, an exponential-linear curve, a cylinder of fixed volume, linked sequences, or a normal model with a binomial count</li>
+            </ul>
+          </article>
         </div>
         <aside class="callout">
-          <p class="callout-title">100% Symbolic Math Engine — Zero LLM Hallucinations.</p>
+          <p class="callout-title">A working bank, grouped the way a teacher reads the syllabus.</p>
           <p>
-            Every derivative, integral, vector cross product, and coordinate graph is computed symbolically and rendered cleanly for print.
-            Step-by-step Tutor Notes &amp; Examiner Insights included to help unpack tricky derivations during lessons or self-study.
+            It is not a line-by-line copy of every syllabus bullet. SL papers leave out complex numbers,
+            induction, Maclaurin series, differential equations, vectors, and Paper 3.
           </p>
         </aside>
       </section>
@@ -215,7 +385,7 @@
           <li class="card">
             <span class="step-no">3</span>
             <h3>Generate, customize &amp; export</h3>
-            <p>Pick HL or SL, choose Paper 1, 2, or 3, swap or save questions, and download print-ready PDFs and mark schemes. JSON archive backups are there whenever you want a copy.</p>
+            <p>Pick HL or SL, choose Paper 1, 2, or 3, swap or save questions, then download the print-ready PDF or the editable .tex source. Choose Exam Booklet or the compact Worksheet before you print.</p>
           </li>
         </ol>
       </section>
@@ -242,7 +412,12 @@
           </details>
           <details class="card">
             <summary>Are the downloads print-ready?</summary>
-            <p>Yes. You export a student paper and a matching mark scheme as PDFs, with the mathematics laid out for a printed booklet. The Issued archive keeps a JSON copy of papers you have already built.</p>
+            <p>Yes. Export a student paper and a matching mark scheme as PDFs, or download the .tex source to edit the header in Overleaf. Exam Booklet leaves ruled working space. Worksheet packs the same paper into fewer pages.</p>
+          </details>
+          <details class="card">
+            <summary>What do Challenging and Issued do?</summary>
+            <p><em>Challenging</em> keeps the same topics and the same marks as Standard. A question may ask for one extra step, or a less obvious case. Every group stays on that setting. Different numbers between groups come from the Groups slider, not from this switch.</p>
+            <p><em>Issued</em> is the archive of papers you saved with “Save paper to school archive”. Open one to read every group and reprint the student PDF. Export Archive downloads a JSON copy of those papers, plus class lists, blocked topics, and questions saved for later.</p>
           </details>
           <details class="card">
             <summary>Does the question bank stay still?</summary>
@@ -333,6 +508,194 @@
       });
 
       render("a");
+
+      function markLine(text, tag) {
+        return '<div class="ms-line"><p>' + text + '</p><span class="tag">' + tag + "</span></div>";
+      }
+
+      function partItem(text, marks) {
+        return "<li>" + text + ' <span class="part-marks">[' + marks + "]</span></li>";
+      }
+
+      const formatBank = {
+        vectors: {
+          label: "Vectors · HL",
+          marks: "[6 marks]",
+          a: {
+            stem:
+              "The lines " + math("L<sub>1</sub>") + " and " + math("L<sub>2</sub>") + " are skew, where<br>" +
+              math("L<sub>1</sub>: r = (1, 0, 2) + λ(1, 2, −1)") + "<br>" +
+              math("L<sub>2</sub>: r = (2, 1, 0) + μ(2, 1, 1)") + ",<br>" +
+              "and " + math("λ, μ ∈ ℝ") + ".",
+            parts:
+              partItem("Find " + math("d<sub>1</sub> × d<sub>2</sub>") + ".", "2") +
+              partItem("Hence find the shortest distance between " + math("L<sub>1</sub>") + " and " + math("L<sub>2</sub>") + ".", "4"),
+            scheme:
+              '<p class="scheme-part">(a)</p>' +
+              markLine(math("d<sub>1</sub> × d<sub>2</sub> = (2·1 − (−1)·1, −(1·1 − (−1)·2), 1·1 − 2·2)"), "M1") +
+              markLine(math("= (3, −3, −3)"), "A1") +
+              '<p class="scheme-part">(b)</p>' +
+              markLine("The lines are skew, so the shortest distance is " + math("|(r<sub>2</sub> − r<sub>1</sub>) · (d<sub>1</sub> × d<sub>2</sub>)| / |d<sub>1</sub> × d<sub>2</sub>|"), "R1") +
+              markLine(math("(r<sub>2</sub> − r<sub>1</sub>) · (d<sub>1</sub> × d<sub>2</sub>) = (1, 1, −2) · (3, −3, −3) = 6"), "A1") +
+              markLine(math("|d<sub>1</sub> × d<sub>2</sub>| = √(9 + 9 + 9) = 3√3"), "M1") +
+              markLine("Shortest distance " + math("= 6 / (3√3) = (2√3) / 3"), "A1"),
+          },
+          b: {
+            stem:
+              "The lines " + math("L<sub>1</sub>") + " and " + math("L<sub>2</sub>") + " are skew, where<br>" +
+              math("L<sub>1</sub>: r = (0, 1, 1) + λ(1, −1, 2)") + "<br>" +
+              math("L<sub>2</sub>: r = (2, 0, 3) + μ(1, 1, −1)") + ",<br>" +
+              "and " + math("λ, μ ∈ ℝ") + ".",
+            parts:
+              partItem("Find " + math("d<sub>1</sub> × d<sub>2</sub>") + ".", "2") +
+              partItem("Hence find the shortest distance between " + math("L<sub>1</sub>") + " and " + math("L<sub>2</sub>") + ".", "4"),
+            scheme:
+              '<p class="scheme-part">(a)</p>' +
+              markLine(math("d<sub>1</sub> × d<sub>2</sub> = ((−1)·(−1) − 2·1, −(1·(−1) − 2·1), 1·1 − (−1)·1)"), "M1") +
+              markLine(math("= (−1, 3, 2)"), "A1") +
+              '<p class="scheme-part">(b)</p>' +
+              markLine("The lines are skew, so the shortest distance is " + math("|(r<sub>2</sub> − r<sub>1</sub>) · (d<sub>1</sub> × d<sub>2</sub>)| / |d<sub>1</sub> × d<sub>2</sub>|"), "R1") +
+              markLine(math("(r<sub>2</sub> − r<sub>1</sub>) · (d<sub>1</sub> × d<sub>2</sub>) = (2, −1, 2) · (−1, 3, 2) = −1"), "A1") +
+              markLine(math("|d<sub>1</sub> × d<sub>2</sub>| = √(1 + 9 + 4) = √14"), "M1") +
+              markLine("Shortest distance " + math("= 1 / √14 = √14 / 14"), "A1"),
+          },
+        },
+        probability: {
+          label: "Probability · SL/HL",
+          marks: "[6 marks]",
+          a: {
+            stem: "The random variable " + math("X ∼ N(50, 4<sup>2</sup>)") + ".",
+            parts:
+              partItem("Find " + math("P(X &gt; 56)") + ".", "2") +
+              partItem("Eight independent observations of " + math("X") + " are taken. Find the probability that exactly two of them are greater than 56.", "4"),
+            scheme:
+              '<p class="scheme-part">(a)</p>' +
+              markLine("Standardise: " + math("z = (56 − 50) / 4 = 3/2"), "R1") +
+              markLine(math("P(X &gt; 56) = 1 − Φ(3/2)"), "A1") +
+              '<p class="scheme-part">(b)</p>' +
+              markLine("Let " + math("Y") + " be the number of observations greater than 56. Then " + math("Y ∼ B(8, p)") + " with " + math("p = 1 − Φ(3/2)") + ".", "M1") +
+              markLine(math("n = 8") + " and " + math("p = 1 − Φ(3/2)"), "A1") +
+              markLine(math("P(Y = 2) = C(8, 2) p<sup>2</sup> (1 − p)<sup>6</sup>"), "M1") +
+              markLine(math("= C(8, 2) [1 − Φ(3/2)]<sup>2</sup> [Φ(3/2)]<sup>6</sup>"), "A1"),
+          },
+          b: {
+            stem: "The random variable " + math("X ∼ N(64, 5<sup>2</sup>)") + ".",
+            parts:
+              partItem("Find " + math("P(X &gt; 74)") + ".", "2") +
+              partItem("Ten independent observations of " + math("X") + " are taken. Find the probability that exactly one of them is greater than 74.", "4"),
+            scheme:
+              '<p class="scheme-part">(a)</p>' +
+              markLine("Standardise: " + math("z = (74 − 64) / 5 = 2"), "R1") +
+              markLine(math("P(X &gt; 74) = 1 − Φ(2)"), "A1") +
+              '<p class="scheme-part">(b)</p>' +
+              markLine("Let " + math("Y") + " be the number of observations greater than 74. Then " + math("Y ∼ B(10, p)") + " with " + math("p = 1 − Φ(2)") + ".", "M1") +
+              markLine(math("n = 10") + " and " + math("p = 1 − Φ(2)"), "A1") +
+              markLine(math("P(Y = 1) = C(10, 1) p (1 − p)<sup>9</sup>"), "M1") +
+              markLine(math("= 10 [1 − Φ(2)] [Φ(2)]<sup>9</sup>"), "A1"),
+          },
+        },
+        model: {
+          label: "Section B · Calculus",
+          marks: "[12 marks]",
+          a: {
+            stem:
+              "A liquid cools in a room at a constant " + math("20°C") + ". Its temperature, in °C, is modelled by<br>" +
+              math("T(t) = 20 + A e<sup>−kt</sup>") + ",<br>" +
+              "where " + math("t") + " is the time in minutes and " + math("A, k &gt; 0") + ". " +
+              "The liquid is at " + math("90°C") + " when " + math("t = 0") + ", and at " + math("70°C") + " when " + math("t = 10") + ".",
+            parts:
+              partItem("Show that " + math("T(t) = 20 + 70 e<sup>−kt</sup>") + ".", "4") +
+              partItem("Hence find the exact value of " + math("k") + ".", "4") +
+              partItem("Find the exact rate of change of the temperature when " + math("t = 10") + ".", "4"),
+            scheme:
+              '<p class="scheme-part">(a)</p>' +
+              markLine("Newton's law of cooling: " + math("dT/dt = −k(T − 20)"), "R1") +
+              markLine("Separable solution " + math("T(t) = 20 + A e<sup>−kt</sup>"), "A1") +
+              markLine(math("T(0) = 90") + " gives " + math("20 + A = 90"), "M1") +
+              markLine(math("A = 70") + ", so " + math("T(t) = 20 + 70 e<sup>−kt</sup>"), "A1") +
+              '<p class="scheme-part">(b)</p>' +
+              markLine(math("T(10) = 70") + " gives " + math("20 + 70 e<sup>−10k</sup> = 70"), "M1") +
+              markLine(math("e<sup>−10k</sup> = 5/7"), "A1") +
+              markLine("Take natural logs: " + math("−10k = ln(5/7)"), "M1") +
+              markLine(math("k = (1/10) ln(7/5)"), "A1") +
+              '<p class="scheme-part">(c)</p>' +
+              markLine(math("dT/dt = −70k e<sup>−kt</sup>"), "M1") +
+              markLine("At " + math("t = 10") + ", " + math("e<sup>−10k</sup> = 5/7") + ", so " + math("dT/dt = −50k"), "A1") +
+              markLine("Substitute " + math("k") + ": " + math("dT/dt = −5 ln(7/5)"), "M1") +
+              markLine("The temperature is falling at " + math("5 ln(7/5)") + " °C per minute.", "A1"),
+          },
+          b: {
+            stem:
+              "A liquid cools in a room at a constant " + math("25°C") + ". Its temperature, in °C, is modelled by<br>" +
+              math("T(t) = 25 + A e<sup>−kt</sup>") + ",<br>" +
+              "where " + math("t") + " is the time in minutes and " + math("A, k &gt; 0") + ". " +
+              "The liquid is at " + math("85°C") + " when " + math("t = 0") + ", and at " + math("65°C") + " when " + math("t = 5") + ".",
+            parts:
+              partItem("Show that " + math("T(t) = 25 + 60 e<sup>−kt</sup>") + ".", "4") +
+              partItem("Hence find the exact value of " + math("k") + ".", "4") +
+              partItem("Find the exact rate of change of the temperature when " + math("t = 5") + ".", "4"),
+            scheme:
+              '<p class="scheme-part">(a)</p>' +
+              markLine("Newton's law of cooling: " + math("dT/dt = −k(T − 25)"), "R1") +
+              markLine("Separable solution " + math("T(t) = 25 + A e<sup>−kt</sup>"), "A1") +
+              markLine(math("T(0) = 85") + " gives " + math("25 + A = 85"), "M1") +
+              markLine(math("A = 60") + ", so " + math("T(t) = 25 + 60 e<sup>−kt</sup>"), "A1") +
+              '<p class="scheme-part">(b)</p>' +
+              markLine(math("T(5) = 65") + " gives " + math("25 + 60 e<sup>−5k</sup> = 65"), "M1") +
+              markLine(math("e<sup>−5k</sup> = 2/3"), "A1") +
+              markLine("Take natural logs: " + math("−5k = ln(2/3)"), "M1") +
+              markLine(math("k = (1/5) ln(3/2)"), "A1") +
+              '<p class="scheme-part">(c)</p>' +
+              markLine(math("dT/dt = −60k e<sup>−kt</sup>"), "M1") +
+              markLine("At " + math("t = 5") + ", " + math("e<sup>−5k</sup> = 2/3") + ", so " + math("dT/dt = −40k"), "A1") +
+              markLine("Substitute " + math("k") + ": " + math("dT/dt = −8 ln(3/2)"), "M1") +
+              markLine("The temperature is falling at " + math("8 ln(3/2)") + " °C per minute.", "A1"),
+          },
+        },
+      };
+
+      let formatTopic = "vectors";
+      let formatCohort = "a";
+
+      function renderFormats() {
+        const item = formatBank[formatTopic][formatCohort];
+        const topic = formatBank[formatTopic];
+        document.getElementById("format-topic").textContent = topic.label;
+        document.getElementById("format-marks").textContent = topic.marks;
+        document.getElementById("format-stem").innerHTML = item.stem;
+        document.getElementById("format-parts").innerHTML = item.parts;
+        document.getElementById("format-scheme-body").innerHTML = item.scheme;
+        const paper = document.getElementById("format-paper");
+        paper.classList.remove("flash");
+        void paper.offsetWidth;
+        paper.classList.add("flash");
+      }
+
+      document.querySelectorAll("[data-format-topic]").forEach((button) => {
+        button.addEventListener("click", () => {
+          formatTopic = button.dataset.formatTopic;
+          document.querySelectorAll("[data-format-topic]").forEach((item) => {
+            const on = item === button;
+            item.classList.toggle("on", on);
+            item.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          renderFormats();
+        });
+      });
+
+      document.querySelectorAll("[data-format-cohort]").forEach((button) => {
+        button.addEventListener("click", () => {
+          formatCohort = button.dataset.formatCohort;
+          document.querySelectorAll("[data-format-cohort]").forEach((item) => {
+            const on = item === button;
+            item.classList.toggle("on", on);
+            item.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+          renderFormats();
+        });
+      });
+
+      renderFormats();
     </script>
   </body>
 </html>
