@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Callable, Literal
 
 from core.rng import bind as bind_rng
+from core.rng import bind_story, release_story
 from core.rng import release as release_rng
 from core.task_contract import Task
 
@@ -167,10 +168,36 @@ def compose_papers(
     if num_variants < 1 or num_variants > len(VARIANT_CHARS):
         raise ValueError("num_variants must be 1, 2, 3 or 4.")
 
-    from registry import TASK_REGISTRY, call_generator
+    from registry import call_generator
 
     generate = draw or call_generator
     variant_chars = VARIANT_CHARS[:num_variants]
+    story_token = bind_story(int(seed_value) if cohort_mode == "strict_parallel" else None)
+    try:
+        return _compose_variants(
+            task_keys_tuple,
+            variant_chars,
+            clean_integers,
+            seed_value,
+            difficulty,
+            cohort_mode,
+            generate,
+        )
+    finally:
+        release_story(story_token)
+
+
+def _compose_variants(
+    task_keys_tuple,
+    variant_chars,
+    clean_integers,
+    seed_value,
+    difficulty,
+    cohort_mode,
+    generate,
+):
+    from registry import TASK_REGISTRY
+
     papers: list[dict] = []
     used_numeric: dict[str, set[str]] = {key: set() for key in task_keys_tuple}
     used_cover: dict[str, set[str]] = {key: set() for key in task_keys_tuple}
@@ -233,7 +260,7 @@ def compose_papers(
             if generated_data is None:
                 if saw_task:
                     raise RuntimeError(
-                        f"Bank too shallow for {key} in mode {cohort_mode} - cannot assemble {num_variants} cohorts"
+                        f"Bank too shallow for {key} in mode {cohort_mode} - cannot assemble {len(variant_chars)} cohorts"
                     )
                 detail = (
                     f"{type(last_error).__name__}: {last_error}"

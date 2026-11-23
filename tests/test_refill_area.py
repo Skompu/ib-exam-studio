@@ -4,6 +4,8 @@ import pytest
 
 from registry import (
     AA_HL_AREAS,
+    PAPER2_CURVE_FAMILY,
+    PAPER2_MODEL_FAMILY,
     TASK_REGISTRY,
     _replacement_fits,
     aa_hl_area,
@@ -32,8 +34,13 @@ def test_paper2_functions_sit_in_the_gdc_pool():
     assert _replacement_fits("gdc_gauss", "gdc", 110, "standard", 4, "A")
     dealt = build_exam_blueprint("gdc", 110, 2026, min_cohort_depth=4)
     assert "functions_gdc" not in dealt
-    assert "vol_rev_gdc" not in dealt
-    assert "gdc_gauss" not in dealt
+    present = [key for key in dealt if key in PAPER2_CURVE_FAMILY]
+    assert len(present) <= 1
+    if present:
+        assert "gdc_curve" not in dealt
+        assert present == [PAPER2_CURVE_FAMILY[2026 % len(PAPER2_CURVE_FAMILY)]]
+        models = [key for key in dealt if key in PAPER2_MODEL_FAMILY["hl"]]
+        assert models == [PAPER2_MODEL_FAMILY["hl"][2026 % len(PAPER2_MODEL_FAMILY["hl"])]]
     assert stand_in_areas("gdc") == frozenset({"Functions"})
     assert stand_in_areas("none") == frozenset()
     missing = [area for area in AA_HL_AREAS if not aa_hl_coverage(dealt)[area]]

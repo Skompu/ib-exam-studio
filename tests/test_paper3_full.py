@@ -3,7 +3,7 @@
 from core.calculator_paths import paths_for_task
 from core.cohorts import compose_papers
 from core.ai_tutor import build_prompt
-from registry import PRESETS, TASK_REGISTRY, build_exam_blueprint, call_generator
+from registry import PRESETS, TASK_REGISTRY, build_exam_blueprint, call_generator, paper3_keys
 
 
 def _codes(task) -> str:
@@ -13,6 +13,12 @@ def _codes(task) -> str:
             chunks.append(scheme.code)
             chunks.append(scheme.desc)
     return " ".join(chunks)
+
+
+def test_paper3_seed_alternates_the_28_mark_investigation():
+    assert paper3_keys(2026) == ("paper3_recur", "paper3_integral")
+    assert paper3_keys(2027) == ("paper3_circle", "paper3_integral")
+    assert sum(TASK_REGISTRY[key]["marks"] for key in paper3_keys(2027)) == 55
 
 
 def test_full_paper3_is_55_marks_and_75_minutes():

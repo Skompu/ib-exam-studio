@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 
 _ACUTE = tuple(
     {
@@ -107,7 +107,7 @@ def gen_ambiguous_case(clean_integers: bool, difficulty: str = "standard"):
     case = choice(_READY_OBTUSE if difficulty == "challenging" else _READY_ACUTE)
     acute, obtuse = case["angles_b"]
     side_c_acute, side_c_obtuse = case["sides_c"]
-    if choice((False, True)):
+    if story_choice((False, True)):
         title = "Trigonometry: two possible positions"
         intro = (
             f"A surveyor at $A$ measures point $C$ and a point $B$. "

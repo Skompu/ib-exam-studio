@@ -18,7 +18,7 @@ from core.randomizer import (
     vlatex,
     x,
 )
-from core.rng import choice, randint
+from core.rng import choice, randint, story_choice
 from generators.modelling import clearance_extended, newton_extended, sample_clearance, sample_newton
 
 
@@ -278,7 +278,7 @@ def _sample_skew_lines():
 
 def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standard"):
     del clean_integers
-    cables = choice((False, True))
+    cables = story_choice((False, True))
     item = _sample_skew_lines()
     normal = item["n"]
     rhs = sum(normal[index] * item["a1"][index] for index in range(3))
@@ -390,7 +390,7 @@ def gen_extended_vectors(clean_integers: bool = True, difficulty: str = "standar
 
 def gen_extended_model(clean_integers: bool = True, difficulty: str = "standard"):
     del difficulty
-    if choice((False, True)):
+    if story_choice((False, True)):
         return clearance_extended(sample_clearance(clean_integers))
     return newton_extended(sample_newton(clean_integers))
 

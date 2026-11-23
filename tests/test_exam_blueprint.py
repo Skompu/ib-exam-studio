@@ -6,6 +6,13 @@ import pytest
 
 from registry import (
     PAPER1_SECTION_B_FAMILY,
+    PAPER1_VECTOR_FAMILY,
+    PAPER2_ALGEBRA_FAMILY,
+    PAPER2_CURVE_FAMILY,
+    PAPER2_KIN_FAMILY,
+    PAPER2_MODEL_FAMILY,
+    PAPER2_SECTION_A_FAMILY,
+    PAPER2_STAT_FAMILY,
     SL_EXCLUDED,
     TASK_REGISTRY,
     _syllabus_area,
@@ -79,36 +86,114 @@ def test_four_cohorts_prefer_topics_that_can_fill_four_variants():
     section_b = [key for key in paper if TASK_REGISTRY[key].get("section") == "B"]
     assert section_b
     gdc = build_exam_blueprint("gdc", 100, 2026, min_cohort_depth=4)
+    stat = PAPER2_STAT_FAMILY[(2026 // 2) % len(PAPER2_STAT_FAMILY)]
+    model = PAPER2_MODEL_FAMILY["hl"][2026 % len(PAPER2_MODEL_FAMILY["hl"])]
     assert {key for key in gdc if TASK_REGISTRY[key].get("section") == "B"} == {
-        "ext_gdc_model",
-        "ext_gdc_stat",
+        model,
+        stat,
     }
 
 
+def test_paper1_function_and_opener_rotations_keep_one_topic_per_area():
+    from registry import _rotate_paper1_functions, _rotate_paper1_opener, _rotate_paper1_sequence
+
+    base = ("fn_core", "alg_quad", "seq_arithmetic")
+    assert _rotate_paper1_functions(base, "none", 2026) == base
+    assert _rotate_paper1_functions(base, "none", 2027) == base
+    assert _rotate_paper1_functions(("fn_transform", "alg_quad"), "none", 2027) == (
+        "fn_transform",
+        "alg_quad",
+    )
+    assert _rotate_paper1_functions(("fn_rational", "alg_quad"), "none", 2027) == (
+        "fn_piecewise",
+        "alg_quad",
+    )
+    assert _rotate_paper1_sequence(("seq_arithmetic",), "none", 2026) == ("seq_arithmetic",)
+    assert _rotate_paper1_sequence(("seq_arithmetic",), "none", 2027) == ("seq_geometric",)
+    assert _rotate_paper1_sequence(("seq_geometric",), "none", 2026) == ("seq_arithmetic",)
+    assert _rotate_paper1_opener(base, "none", 2027) == base
+    opened = _rotate_paper1_opener(("fn_core", "alg_quad"), "none", 5)
+    assert opened == ("fn_core", "seq4_arith")
+    assert _rotate_paper1_opener(("fn_core", "alg_quad"), "none", 0) == ("fn_core", "alg_quad")
+
+
 def test_paper1_uses_one_topic_per_area_and_an_even_progression():
+    from registry import PAPER1_SEQUENCE_FAMILY
+
+    saw_piecewise = False
+    function_slot = {"fn_core", "fn_rational", "fn_transform", "fn_piecewise"}
     for target, extended in ((100, 4), (50, 1)):
         for seed in range(2026, 2032):
             paper = build_exam_blueprint("none", target, seed, min_cohort_depth=1)
             section_b = [key for key in paper if TASK_REGISTRY[key].get("section") == "B"]
             assert len(section_b) == extended
             assert max(_areas(paper).values()) == 1
+            functions = [key for key in paper if key in function_slot]
+            assert len(functions) <= 1
+            if seed % 2 == 0:
+                assert "fn_piecewise" not in paper
+            elif target == 100 and functions:
+                assert functions == ["fn_piecewise"]
+                saw_piecewise = True
+            sequences = [key for key in paper if key in PAPER1_SEQUENCE_FAMILY]
+            assert len(sequences) <= 1
+            if sequences:
+                assert sequences[0] == PAPER1_SEQUENCE_FAMILY[seed % 2]
             counts = Counter(_section_a_bands(paper))
             assert max(counts.values()) - min(counts.values()) <= 1
+    assert saw_piecewise
 
 
 def test_paper2_full_mock_drops_one_statistics_question():
     seen = set()
+    seen_family = set()
+    family = set(PAPER2_SECTION_A_FAMILY)
     for seed in range(2026, 2032):
         paper = build_exam_blueprint("gdc", 100, seed, min_cohort_depth=1)
-        missing = set(_GDC_SECTION_A) - set(paper)
+        assert paper == build_exam_blueprint("gdc", 100, seed, min_cohort_depth=1)
+        present = [key for key in paper if key in family]
+        assert present == [PAPER2_SECTION_A_FAMILY[seed % len(PAPER2_SECTION_A_FAMILY)]]
+        seen_family.add(present[0])
+        missing = (set(_GDC_SECTION_A) - set(paper)) - {
+            "gdc_trig",
+            "gdc_curve",
+            "gdc_system",
+            "kin_gdc",
+        }
         assert len(missing) == 1
         assert missing <= {"bivar", "gdc_dist", "gdc_invnorm"}
+        curve = PAPER2_CURVE_FAMILY[seed % len(PAPER2_CURVE_FAMILY)]
+        assert "gdc_curve" not in paper
+        assert curve in paper
+        algebra = PAPER2_ALGEBRA_FAMILY[(seed // 4) % len(PAPER2_ALGEBRA_FAMILY)]
+        if algebra == "gdc_log" and "functions_gdc" in paper:
+            algebra = "gdc_system"
+        assert algebra in paper
+        assert sum(key in PAPER2_ALGEBRA_FAMILY for key in paper) == 1
+        kin = PAPER2_KIN_FAMILY[(seed // 3) % len(PAPER2_KIN_FAMILY)]
+        assert kin in paper
+        stat = PAPER2_STAT_FAMILY[(seed // 2) % len(PAPER2_STAT_FAMILY)]
+        model = PAPER2_MODEL_FAMILY["hl"][seed % len(PAPER2_MODEL_FAMILY["hl"])]
         assert {key for key in paper if TASK_REGISTRY[key].get("section") == "B"} == {
-            "ext_gdc_model",
-            "ext_gdc_stat",
+            model,
+            stat,
         }
         seen.add(missing.pop())
     assert seen == {"bivar", "gdc_dist", "gdc_invnorm"}
+    assert seen_family == family
+    for key in (
+        "gdc_tangent",
+        "functions_gdc",
+        "vol_rev_gdc",
+        "gdc_gauss",
+        "ext_gdc_poisson",
+        "gdc_log",
+        "kin_velocity_gdc",
+        "ext_exp_lin_gdc",
+        "ext_linked_seq_gdc",
+        "ext_logistic_gdc",
+    ):
+        assert TASK_REGISTRY[key].get("deal") is False
 
 
 def test_two_cohorts_leave_out_a_one_variant_bank():
@@ -129,9 +214,12 @@ def test_paper2_mid_term_is_exactly_50_and_keeps_two_warmups():
         paper = build_exam_blueprint("gdc", 50, seed, min_cohort_depth=1)
         assert _marks(paper) == 50
         assert max(_areas(paper).values()) <= 2
-        assert {"gdc_dist", "gdc_invnorm", "kin_gdc", "ext_gdc_stat"} <= set(paper)
+        stat = PAPER2_STAT_FAMILY[(seed // 2) % len(PAPER2_STAT_FAMILY)]
+        kin = PAPER2_KIN_FAMILY[(seed // 3) % len(PAPER2_KIN_FAMILY)]
+        assert {"gdc_dist", "gdc_invnorm", kin, stat} <= set(paper)
         extended = [key for key in paper if TASK_REGISTRY[key].get("section") == "B"]
-        assert extended == ["ext_gdc_stat"]
+        assert extended == [stat]
+        assert "ext_logistic_gdc" not in paper
 
 
 def _section(keys, name: str) -> list[str]:
@@ -178,6 +266,8 @@ def test_paper1_rotates_the_sixteen_mark_section_b_slot():
         present = [key for key in paper if key in hl]
         assert len(present) == 1
         seen.add(present[0])
+        vectors = [key for key in paper if key in PAPER1_VECTOR_FAMILY]
+        assert vectors == [PAPER1_VECTOR_FAMILY[seed % len(PAPER1_VECTOR_FAMILY)]]
         full = build_exam_blueprint("none", 110, seed, min_cohort_depth=1)
         assert _marks(full) == 110
         assert len([key for key in full if key in hl]) <= 1
@@ -200,6 +290,8 @@ def test_paper1_rotates_the_sixteen_mark_section_b_slot():
 
     for seed in range(2026, 2032):
         paper = build_exam_blueprint("gdc", 100, seed, min_cohort_depth=1)
-        assert "ext_gdc_model" in paper
-        assert "ext_gdc_stat" in paper
+        assert "gdc_curve" not in paper
+        model = PAPER2_MODEL_FAMILY["hl"][seed % len(PAPER2_MODEL_FAMILY["hl"])]
+        stat = PAPER2_STAT_FAMILY[(seed // 2) % len(PAPER2_STAT_FAMILY)]
+        assert {model, stat} <= set(paper)
         assert hl.isdisjoint(paper)

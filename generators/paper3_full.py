@@ -7,7 +7,7 @@ Two wordings share one part graph so cohorts A–D can change the story or only 
 import sympy as sp
 
 from core.randomizer import pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 from core.rounding import three_sf
 from core.task_contract import ROUNDING_3SF
 
@@ -134,7 +134,7 @@ _CIRCLE = _circle_bank()
 def gen_paper3_recurrence(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
     del clean_integers
     item = choice(_available(_RECURRENCE, exclude_numeric_ids))
-    colony = choice((False, True))
+    colony = story_choice((False, True))
     index = 15 if difficulty == "challenging" else 12
     check = 8 if difficulty == "challenging" else 6
     shown_ratio = item["later_ratio"] if difficulty == "challenging" else item["ratio"]
@@ -261,7 +261,7 @@ def gen_paper3_recurrence(clean_integers: bool = True, difficulty: str = "standa
 def gen_paper3_integral(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
     del clean_integers
     item = choice(_available(_INTEGRAL, exclude_numeric_ids))
-    optical = choice((False, True))
+    optical = story_choice((False, True))
     ratio_n = 24 if difficulty == "challenging" else 20
     shown_ratio = item["later_ratio"] if difficulty == "challenging" else item["ratio"]
     if optical:
@@ -378,7 +378,7 @@ def gen_paper3_integral(clean_integers: bool = True, difficulty: str = "standard
 def gen_paper3_circle(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
     del clean_integers
     item = choice(_available(_CIRCLE, exclude_numeric_ids))
-    polygon = choice((False, True))
+    polygon = story_choice((False, True))
     check = (4, 5) if difficulty == "challenging" else (3, 4)
     if polygon:
         title = "Paper 3: a regular polygon"

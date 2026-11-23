@@ -3,7 +3,7 @@
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 
 # (students, biology or French, chemistry or Spanish, at least one of the two)
 _DEPENDENT = (
@@ -87,7 +87,8 @@ def _combined(clean_integers: bool):
     del clean_integers
     total, first, second, union, independent = choice(_TABLES)
     both = _check_counts(total, first, second, union)
-    story = choice((_subject_story, _language_story))(total, first, second, union)
+    story_name, story_builder = story_choice((("subjects", _subject_story), ("languages", _language_story)))
+    story = story_builder(total, first, second, union)
     p_first = sp.Rational(first, total)
     p_second = sp.Rational(second, total)
     p_union = sp.Rational(union, total)
@@ -95,7 +96,7 @@ def _combined(clean_integers: bool):
     product = sp.simplify(p_first * p_second)
     if independent != (sp.simplify(product - p_both) == 0):
         raise RuntimeError("Independence flag does not match the probabilities.")
-    use_complement = choice((False, True))
+    use_complement = story_choice((False, True))
     if use_complement:
         target = sp.Rational(first - both, first)
         prompt_b = "Find $P(B' \\mid A)$, giving the answer as a fraction in lowest terms."
@@ -149,6 +150,7 @@ def _combined(clean_integers: bool):
         ],
         archetype="Addition rule, a conditional probability, and an independence test",
         family="Two-way counts with the intersection withheld",
+        cover_id=f"{story_name}|{'complement' if use_complement else 'direct'}",
     )
 
 

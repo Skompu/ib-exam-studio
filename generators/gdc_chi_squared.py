@@ -3,7 +3,7 @@
 import mpmath as mp
 
 from core.randomizer import pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 from core.rounding import three_sf
 from core.task_contract import ROUNDING_3SF
 
@@ -38,11 +38,18 @@ def _chi2(observed):
 def _bank():
     found = []
     tables = (
-        ((22, 28), (23, 27)),
-        ((18, 22), (27, 33)),
         ((30, 20), (25, 25)),
         ((12, 18), (16, 14)),
+        ((28, 22), (20, 30)),
+        ((24, 16), (18, 22)),
+        ((14, 26), (22, 18)),
+        ((36, 24), (22, 38)),
+        ((25, 35), (38, 22)),
+        ((20, 30), (34, 16)),
+        ((15, 25), (28, 12)),
+        ((70, 30), (40, 60)),
         ((35, 15), (20, 30)),
+        ((22, 8), (10, 20)),
     )
     for observed in tables:
         built = _chi2(observed)
@@ -61,8 +68,13 @@ def _bank():
                 "reject": statistic > _CRITICAL_DF1,
             }
         )
-    if len(found) < 4:
-        raise RuntimeError("The chi-squared bank is too small.")
+    totals = {item["row"][0] + item["row"][1] for item in found}
+    conclusions = {item["reject"] for item in found}
+    if len(found) < 8 or len(totals) < 3 or conclusions != {False, True}:
+        raise RuntimeError("The chi-squared bank is too small or one-sided.")
+    kept = [item["statistic"] for item in found if not item["reject"]]
+    if max(kept) < 1.5:
+        raise RuntimeError("Every accepted chi-squared table is nearly independent.")
     return tuple(found)
 
 
@@ -108,7 +120,7 @@ def _expected_lines(expected):
 def gen_gdc_chi_squared(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
     item = choice(_NARROW)
-    cover = choice(COVERS_2X2)
+    cover = story_choice(COVERS_2X2)
     (a1, a2), (b1, b2) = item["observed"]
     table = [
         ["", cover["cols"][0], cover["cols"][1]],

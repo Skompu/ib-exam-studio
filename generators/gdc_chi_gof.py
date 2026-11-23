@@ -4,7 +4,7 @@ import mpmath as mp
 import sympy as sp
 
 from core.randomizer import pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 from core.rounding import three_sf
 
 mp.mp.dps = 25
@@ -165,7 +165,7 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
     if difficulty == "challenging":
         item = choice(_FOUR)
-        cover = choice(COVERS_FOUR)
+        cover = story_choice(COVERS_FOUR)
         cover_id = cover["id"]
         story = cover["title"]
         labels = cover["labels"]
@@ -173,7 +173,7 @@ def gen_gdc_chi_gof(clean_integers: bool, difficulty: str = "standard"):
         graph = "chi2_gof_four_specified"
     else:
         item = choice(_DIE)
-        cover = choice(COVERS_SIX)
+        cover = story_choice(COVERS_SIX)
         cover_id = cover["id"]
         story = cover["title"]
         labels = cover["labels"]

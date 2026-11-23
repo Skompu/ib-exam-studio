@@ -10,6 +10,7 @@ import random
 from contextvars import ContextVar
 
 _current: ContextVar = ContextVar("stem_rng", default=None)
+_story_seed: ContextVar = ContextVar("stem_story_seed", default=None)
 
 
 def bind(seed):
@@ -29,6 +30,27 @@ def _stream():
 
 def choice(options):
     return _stream().choice(tuple(options))
+
+
+def bind_story(seed):
+    """Pin story choice for one strict-parallel class set. None keeps it random."""
+    return _story_seed.set(seed)
+
+
+def release_story(token):
+    _story_seed.reset(token)
+
+
+def story_choice(options):
+    """Pick a cover from the class seed when a strict-parallel set is being built.
+
+    Cognitive Twin and a single redraw leave the seed unset, so the story can change.
+    """
+    items = tuple(options)
+    seed = _story_seed.get()
+    if seed is None:
+        return choice(items)
+    return items[int(seed) % len(items)]
 
 
 def randint(low: int, high: int) -> int:

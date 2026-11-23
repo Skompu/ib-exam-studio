@@ -1494,6 +1494,7 @@ _CORE_LADDER = {
     "proof_direct",
     "proof_contra",
     "fn_rational",
+    "fn_piecewise",
     "seq_arithmetic",
     "seq_geometric",
     "log_eq",
@@ -2225,7 +2226,7 @@ PAPER1_SECTION_B_FAMILY = {
 def _rotate_paper1_section_b(paper, calculator: str, topic_seed: int, level: str):
     """Replace the dealt logarithmic Section B item with one same-mark story.
 
-    Paper 2 is left alone. SL never receives the continuous-density member.
+    SL never receives the continuous-density member.
     Every cohort of this paper still shares the key chosen here.
     """
     if calculator != "none" or "ext_ln" not in paper:
@@ -2233,6 +2234,157 @@ def _rotate_paper1_section_b(paper, calculator: str, topic_seed: int, level: str
     family = PAPER1_SECTION_B_FAMILY[level]
     chosen = family[int(topic_seed) % len(family)]
     return tuple(chosen if key == "ext_ln" else key for key in paper)
+
+
+# The scorer still deals only gdc_trig. The other two stay deal: false and
+# rotate into that one 6-mark Paper 2 slot.
+PAPER2_SECTION_A_FAMILY = ("gdc_trig", "gdc_tangent", "functions_gdc")
+
+
+def _rotate_paper2_section_a(paper, calculator: str, topic_seed: int):
+    """Replace the dealt sine equation with one same-mark Paper 2 story."""
+    if calculator != "gdc" or "gdc_trig" not in paper:
+        return paper
+    chosen = PAPER2_SECTION_A_FAMILY[int(topic_seed) % len(PAPER2_SECTION_A_FAMILY)]
+    return tuple(chosen if key == "gdc_trig" else key for key in paper)
+
+
+# The short exponential-log curve repeats the 16-mark model. These two stay
+# deal: false and take that 6-mark slot only when both questions were dealt.
+PAPER2_CURVE_FAMILY = ("vol_rev_gdc", "gdc_gauss")
+
+# Same 19-mark normal opening. The count at the end is binomial or Poisson.
+PAPER2_STAT_FAMILY = ("ext_gdc_stat", "ext_gdc_poisson")
+
+
+def _rotate_paper2_curve(paper, calculator: str, topic_seed: int):
+    """Drop the short curve when the long exponential-log model is on the paper."""
+    if calculator != "gdc" or "gdc_curve" not in paper or "ext_gdc_model" not in paper:
+        return paper
+    chosen = PAPER2_CURVE_FAMILY[int(topic_seed) % len(PAPER2_CURVE_FAMILY)]
+    return tuple(chosen if key == "gdc_curve" else key for key in paper)
+
+
+def _rotate_paper2_stat(paper, calculator: str, topic_seed: int):
+    """Replace the dealt binomial profit model with one same-mark count."""
+    if calculator != "gdc" or "ext_gdc_stat" not in paper:
+        return paper
+    index = (int(topic_seed) // 2) % len(PAPER2_STAT_FAMILY)
+    chosen = PAPER2_STAT_FAMILY[index]
+    return tuple(chosen if key == "ext_gdc_stat" else key for key in paper)
+
+
+# The scorer still deals only ext_gdc_model. Logistic growth is HL.
+PAPER2_MODEL_FAMILY = {
+    "hl": ("ext_gdc_model", "ext_exp_lin_gdc", "ext_linked_seq_gdc", "ext_logistic_gdc"),
+    "sl": ("ext_gdc_model", "ext_exp_lin_gdc", "ext_linked_seq_gdc"),
+}
+
+# Two intersecting lines replace skew lines. Both are HL and worth 13.
+PAPER1_VECTOR_FAMILY = ("ext_vectors", "ext_lines_planes")
+
+# A second logarithm is skipped when the 6-mark trig slot is already the log function.
+PAPER2_ALGEBRA_FAMILY = ("gdc_system", "gdc_log")
+
+PAPER2_KIN_FAMILY = ("kin_gdc", "kin_velocity_gdc")
+
+# The dealt 6-mark functions question. Odd seeds replace it with the piecewise question.
+PAPER1_FUNCTION_SLOT = ("fn_core", "fn_rational", "fn_transform")
+
+# Both are 5 marks, so the sequence slot can change without moving the total.
+PAPER1_SEQUENCE_FAMILY = ("seq_arithmetic", "seq_geometric")
+
+# A 4-mark quadratic can become a 4-mark sequence when the paper has no sequence yet.
+PAPER1_OPENER_FAMILY = (
+    "alg_quad",
+    "seq4_arith",
+    "seq4_geom",
+    "seq4_arith_terms",
+    "seq4_geom_terms",
+)
+
+# The 28-mark Paper 3 investigation. The 27-mark reduction formula stays beside it.
+PAPER3_INVESTIGATION = ("paper3_recur", "paper3_circle")
+
+
+def _rotate_paper2_model(paper, calculator: str, topic_seed: int, level: str):
+    """Replace the dealt exponential-log model with one same-mark Section B story."""
+    if calculator != "gdc" or "ext_gdc_model" not in paper:
+        return paper
+    family = PAPER2_MODEL_FAMILY[level]
+    chosen = family[int(topic_seed) % len(family)]
+    return tuple(chosen if key == "ext_gdc_model" else key for key in paper)
+
+
+def _rotate_paper1_vectors(paper, calculator: str, topic_seed: int, level: str):
+    """Replace skew lines with two intersecting lines and a plane."""
+    if level != "hl" or calculator != "none" or "ext_vectors" not in paper:
+        return paper
+    chosen = PAPER1_VECTOR_FAMILY[int(topic_seed) % len(PAPER1_VECTOR_FAMILY)]
+    return tuple(chosen if key == "ext_vectors" else key for key in paper)
+
+
+def _rotate_paper2_algebra(paper, calculator: str, topic_seed: int):
+    """Replace the three-equation system unless the paper already has a logarithm."""
+    if calculator != "gdc" or "gdc_system" not in paper:
+        return paper
+    chosen = PAPER2_ALGEBRA_FAMILY[(int(topic_seed) // 4) % len(PAPER2_ALGEBRA_FAMILY)]
+    if chosen == "gdc_log" and "functions_gdc" in paper:
+        chosen = "gdc_system"
+    return tuple(chosen if key == "gdc_system" else key for key in paper)
+
+
+def _rotate_paper1_functions(paper, calculator: str, topic_seed: int):
+    """Replace the dealt functions question when the piecewise one stays in the same band.
+
+    A full paper deals the rational function, a warm-up. The piecewise question is in
+    that same band, so an odd seed can use it without moving the progression. The
+    composition and transformation questions sit one band higher, and stay.
+    """
+    if calculator != "none" or int(topic_seed) % 2 == 0:
+        return paper
+    present = [key for key in paper if key in PAPER1_FUNCTION_SLOT]
+    if len(present) != 1:
+        return paper
+    dealt = present[0]
+    if advancement_band(TASK_REGISTRY[dealt]) != advancement_band(TASK_REGISTRY["fn_piecewise"]):
+        return paper
+    return tuple("fn_piecewise" if key == dealt else key for key in paper)
+
+
+def _rotate_paper1_sequence(paper, calculator: str, topic_seed: int):
+    """Swap the 5-mark arithmetic and geometric series. The mark total stays put."""
+    if calculator != "none":
+        return paper
+    present = [key for key in paper if key in PAPER1_SEQUENCE_FAMILY]
+    if len(present) != 1:
+        return paper
+    chosen = PAPER1_SEQUENCE_FAMILY[int(topic_seed) % len(PAPER1_SEQUENCE_FAMILY)]
+    return tuple(chosen if key == present[0] else key for key in paper)
+
+
+def _rotate_paper1_opener(paper, calculator: str, topic_seed: int):
+    """Replace the 4-mark quadratic when that would not put two sequence questions on the paper."""
+    if calculator != "none" or "alg_quad" not in paper:
+        return paper
+    if any(key.startswith("seq") for key in paper):
+        return paper
+    chosen = PAPER1_OPENER_FAMILY[(int(topic_seed) // 5) % len(PAPER1_OPENER_FAMILY)]
+    return tuple(chosen if key == "alg_quad" else key for key in paper)
+
+
+def paper3_keys(topic_seed: int) -> tuple[str, str]:
+    """One 28-mark investigation, then the 27-mark reduction formula. 55 marks."""
+    lead = PAPER3_INVESTIGATION[int(topic_seed) % len(PAPER3_INVESTIGATION)]
+    return (lead, "paper3_integral")
+
+
+def _rotate_paper2_kinematics(paper, calculator: str, topic_seed: int):
+    """Replace the displacement formula with a velocity-time graph of the same length."""
+    if calculator != "gdc" or "kin_gdc" not in paper:
+        return paper
+    chosen = PAPER2_KIN_FAMILY[(int(topic_seed) // 3) % len(PAPER2_KIN_FAMILY)]
+    return tuple(chosen if key == "kin_gdc" else key for key in paper)
 
 
 def _pools(
@@ -2328,7 +2480,19 @@ def build_exam_blueprint(
     extended question the paper actually has; a 50-mark test uses one. The topic seed
     picks among papers with the same best shape, so a redraw changes the topics
     without giving up the mark total. On Paper 1, that same seed then rotates the
-    16-mark logarithmic Section B slot through one same-mark family.
+    16-mark logarithmic Section B slot through one same-mark family. On Paper 2 it
+    rotates the 6-mark sine slot through a tangent equation or a logarithmic function.
+    When the long exponential-log model is present, the short copy of that curve
+    becomes a volume or a Gaussian-log curve. The 19-mark statistics question
+    alternates between a binomial count and a Poisson count. That 16-mark model
+    then rotates through an exponential-linear curve, linked sequences, or, on HL,
+    a logistic population. The three-equation slot can become two logarithmic
+    equations, and the kinematics slot can become a velocity-time graph.     On HL
+    Paper 1 the skew-line question can become two intersecting lines and a plane.
+    The warm-up function question can become a piecewise function of the same band,
+    and a 5-mark series alternates between arithmetic and geometric. The 4-mark
+    quadratic can become a short sequence when the paper does not already have one.
+    Paper 3 chooses its 28-mark investigation with paper3_keys.
     """
     if calculator not in {"none", "gdc"}:
         raise ValueError(f"Unknown calculator policy {calculator!r}.")
@@ -2353,7 +2517,17 @@ def build_exam_blueprint(
             f"No slot blueprint within 2 marks of {target_marks} for calculator {calculator!r}."
         )
     paper = papers[int(topic_seed) % len(papers)]
-    return _rotate_paper1_section_b(paper, calculator, int(topic_seed), level)
+    paper = _rotate_paper1_section_b(paper, calculator, int(topic_seed), level)
+    paper = _rotate_paper1_vectors(paper, calculator, int(topic_seed), level)
+    paper = _rotate_paper1_functions(paper, calculator, int(topic_seed))
+    paper = _rotate_paper1_sequence(paper, calculator, int(topic_seed))
+    paper = _rotate_paper1_opener(paper, calculator, int(topic_seed))
+    paper = _rotate_paper2_section_a(paper, calculator, int(topic_seed))
+    paper = _rotate_paper2_algebra(paper, calculator, int(topic_seed))
+    paper = _rotate_paper2_kinematics(paper, calculator, int(topic_seed))
+    paper = _rotate_paper2_curve(paper, calculator, int(topic_seed))
+    paper = _rotate_paper2_stat(paper, calculator, int(topic_seed))
+    return _rotate_paper2_model(paper, calculator, int(topic_seed), level)
 
 
 def _replacement_fits(

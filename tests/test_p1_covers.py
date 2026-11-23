@@ -12,6 +12,9 @@ from generators.gdc_extended_model import _CHALLENGING as MODEL_HARD
 from generators.gdc_extended_model import _STANDARD as MODEL_STD
 from generators.gdc_extended_stat import _contexts
 from generators.gdc_statistics import COVERS_BINOMIAL, COVERS_NORMAL
+from generators.functions_gdc import _BANK as LOG_BANK
+from generators.functions_gdc import _CHALLENGING_BANK as LOG_HARD
+from generators.gdc_tangent import _SHIFTED_BANK
 from generators.gdc_trigonometry import _BANK as TRIG_BANK
 from generators.gdc_trigonometry import _COS_BANK
 from generators.paper2_gdc import _CHALLENGING_LINES, _STANDARD_LINES
@@ -164,6 +167,24 @@ def test_numeric_banks_have_eight_items_per_graph():
     assert len({(item[0], item[1]) for item in _CHALLENGING_LINES}) >= 8
     assert len({item[0] for item in TRIG_BANK}) >= 8
     assert len(_COS_BANK) >= 8
+    assert any(item[2] > 1 for item in LOG_BANK)
+    assert all(item[3] >= 0 and item[4] >= 0 for item in LOG_BANK)
+    assert all((item[3] < 0) ^ (item[4] < 0) for item in LOG_HARD)
+    assert any(item[0] < 0 for item in _SHIFTED_BANK)
+    assert len(_SHIFTED_BANK) >= 8
+    from generators.gdc_tangent import _BANK as PLAIN_TANGENT
+    from generators.paper2_gdc import _CHALLENGING_WINDOWS, _EXP_LINES, _STANDARD_WINDOWS
+
+    assert len(PLAIN_TANGENT) >= 8
+    slopes = [float(item[1]) for item in _EXP_LINES]
+    intercepts = [float(item[2]) for item in _EXP_LINES]
+    assert max(slopes) - min(slopes) >= 0.5
+    assert min(intercepts) <= 0.5
+    assert max(intercepts) >= 1.2
+    assert {window[0] for window in _STANDARD_WINDOWS} == {0}
+    assert len({window[1] - window[0] for window in _STANDARD_WINDOWS}) == 2
+    assert {window[0] for window in _CHALLENGING_WINDOWS} == {1}
+    assert len({window[1] for window in _CHALLENGING_WINDOWS}) == 2
     hard_rates = {item[0] for item in CURVE_HARD}
     assert all(rate >= 2 for rate in hard_rates)
 
@@ -173,12 +194,35 @@ def test_challenging_trigonometry_uses_cosine_and_a_parallel_line():
     cosine = _draw("gdc_trig", "challenging", 4)
     assert {task.part_graph_id for task in sine} == {"gdc_trig_sin_three_roots"}
     assert {task.part_graph_id for task in cosine} == {"gdc_trig_cos_three_roots"}
-    assert all(task.latex_main.startswith(r"\cos") for task in cosine)
+    assert all(task.latex_main.startswith(r"\sin(x - ") for task in sine)
+    assert all(task.latex_main.startswith(r"\cos(x - ") for task in cosine)
     meeting = _draw("vec_line_plane", "standard", 4)
     parallel = _draw("vec_line_plane", "challenging", 4)
     assert {task.part_graph_id for task in meeting} == {"vec_line_plane_angle"}
     assert {task.part_graph_id for task in parallel} == {"vec_line_plane_parallel"}
     assert all(task.marks == 7 for task in parallel)
+
+
+def test_intersection_and_area_draw_a_second_family():
+    intersections = _draw("gdc_intersect", "standard", 24)
+    areas = _draw("gdc_area", "standard", 24)
+    assert {task.part_graph_id for task in intersections} == {
+        "gdc_intersect_ln_line_two_roots",
+        "gdc_intersect_exp_line_two_roots",
+    }
+    assert {task.part_graph_id for task in areas} == {
+        "gdc_area_sqrt_cubic_shift",
+        "gdc_area_sqrt_quartic_shift",
+    }
+    assert all(task.marks == 6 for task in intersections + areas)
+    assert all(
+        task.latex_main.startswith(r"y = \mathrm{e}^{-x}")
+        or task.latex_main.startswith(r"y = 2\mathrm{e}^{-x}")
+        or task.latex_main.startswith(r"y = \ln x")
+        for task in intersections
+    )
+    assert any("[0,3]" in task.numeric_id for task in areas)
+    assert all(r"\sqrt{x^3" in task.latex_main or r"\sqrt{x^{4}" in task.latex_main for task in areas)
 
 
 def test_challenging_curve_does_not_fall_back_to_standard_rates():
@@ -219,6 +263,8 @@ def test_kin_gdc_standard_bank_supports_three_cohorts():
 
     assert len(_SINGLES) >= 8
     assert len(_DOUBLES) >= 8
+    assert {item["family"] for item in _SINGLES} == {"cos", "sin"}
+    assert {item["family"] for item in _DOUBLES} == {"cos", "sin"}
     singles = {f"a={item['scale']}|c={item['mix']}|T={item['upper']}" for item in _SINGLES}
     assert len(singles) >= 8
     assert all(item["changes"] == 1 for item in _SINGLES)
@@ -476,6 +522,82 @@ def test_easy_paper1_lists_grow_inside_one_graph():
         fig = paper["tasks"][0].get("fig")
         if fig is not None:
             plt.close(fig)
+
+
+def test_parallel_groups_get_a_wider_number_spread():
+    for cover in BIVAR_COVERS:
+        tables = cover["tables"]
+        steps = {table["points"][1][0] - table["points"][0][0] for table in tables}
+        strengths = {
+            "strong" if abs(float(table["correlation"])) >= 0.8 else "moderate"
+            for table in tables
+        }
+        assert len(tables) >= 4
+        assert len(steps) >= 2
+        assert strengths == {"moderate", "strong"}
+    assert all(float(table["correlation"]) < 0 for table in BIVAR_COVERS[0]["tables"])
+    assert all(
+        max(point[1] for point in table["points"]) >= 40
+        for table in BIVAR_COVERS[1]["tables"]
+    )
+    revision_axes = {
+        tuple(point[0] for point in table["points"]) for table in BIVAR_COVERS[1]["tables"]
+    }
+    fertiliser_axes = {
+        tuple(point[0] for point in table["points"]) for table in BIVAR_COVERS[2]["tables"]
+    }
+    assert revision_axes.isdisjoint(fertiliser_axes)
+
+    assert any(item["reject"] for item in _NARROW)
+    assert any(not item["reject"] for item in _NARROW)
+    totals = {item["row"][0] + item["row"][1] for item in _NARROW}
+    assert len(totals) >= 3
+    kept = [item["statistic"] for item in _NARROW if not item["reject"]]
+    assert max(kept) > 1.5
+    assert max(item["statistic"] for item in _NARROW) > 8
+
+    from generators.gdc_extended_stat import _PRICE_PAIRS
+    from generators.section_b_expanded import _EXP_SPECS, _GDC_LINKS
+
+    assert len({link[1] for link in _GDC_LINKS}) >= 4
+    assert len({pair[0] for pair in _PRICE_PAIRS}) >= 4
+    assert len(_EXP_SPECS) >= 8
+    assert len({spec[1] for spec in _EXP_SPECS}) >= 4
+
+    import matplotlib.pyplot as plt
+
+    for key in ("bivar", "gdc_chi", "ext_gdc_stat", "ext_linked_seq_gdc", "ext_exp_lin_gdc"):
+        papers = compose_papers((key,), 4, True, 2026, "standard", "strict_parallel")
+        covers = {paper["tasks"][0]["cover_id"] for paper in papers}
+        graphs = {paper["tasks"][0]["part_graph_id"] for paper in papers}
+        numbers = {paper["tasks"][0]["numeric_id"] for paper in papers}
+        assert len(covers) == 1, key
+        assert len(graphs) == 1, key
+        assert len(numbers) == 4, key
+        for paper in papers:
+            fig = paper["tasks"][0].get("fig")
+            if fig is not None:
+                plt.close(fig)
+
+
+def test_strict_parallel_pins_the_story_to_the_class_seed():
+    from generators.algebra_combinations import COVERS as COMMITTEES
+    from generators.statistics_bivariate import COVERS as BIVAR
+
+    for seed in (2026, 2027):
+        papers = compose_papers(("bivar",), 3, True, seed, "standard", "strict_parallel")
+        covers = {paper["tasks"][0]["cover_id"] for paper in papers}
+        assert covers == {BIVAR[seed % len(BIVAR)]["id"]}
+        pinned = {
+            "trig_amb": "survey" if seed % 2 else "triangle",
+            "alg_comb": COMMITTEES[seed % len(COMMITTEES)]["id"],
+            "prob_cond": "languages|complement" if seed % 2 else "subjects|direct",
+        }
+        for key, cover in pinned.items():
+            group = compose_papers((key,), 3, True, seed, "standard", "strict_parallel")
+            assert {paper["tasks"][0]["cover_id"] for paper in group} == {cover}, key
+    twin = compose_papers(("bivar",), 3, True, 2026, "standard", "cognitive_twin")
+    assert len({paper["tasks"][0]["cover_id"] for paper in twin}) == 3
 
 
 def test_cognitive_twin_three_cohorts_on_story_covers():

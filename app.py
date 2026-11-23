@@ -16,6 +16,7 @@ from registry import (
     aa_hl_coverage,
     advancement_band,
     build_exam_blueprint,
+    paper3_keys,
     calculator_pool_areas,
     coverage_swap_note,
     empty_block_message,
@@ -719,6 +720,11 @@ def _render_saved_library(is_exam_mode: bool, format_choice: str) -> None:
 def _render_archive(is_exam_mode: bool, format_choice: str) -> None:
     archive_id = st.session_state.get("membership_id")
     st.subheader("Issued")
+    st.caption(
+        "Papers saved with “Save paper to school archive” stay on this license. "
+        "Open one to read every group and reprint the student PDF. "
+        "The JSON file also carries class lists, blocked topics, and questions saved for later."
+    )
     if not archive_id:
         st.info("Unlock the studio with a license key. Saved papers are filed under that license.")
         return
@@ -1300,7 +1306,11 @@ if nav.button(
     st.session_state["show_archive"] = False
     st.rerun()
 archive_open = bool(st.session_state.get("show_archive"))
-if nav.button("Back" if archive_open else "Issued", key="toggle-archive"):
+if nav.button(
+    "Back" if archive_open else "Issued",
+    key="toggle-archive",
+    help="Papers already saved for this license. Reprint one, or export the archive.",
+):
     st.session_state["show_archive"] = not archive_open
     st.session_state["show_saved"] = False
     st.rerun()
@@ -1357,6 +1367,11 @@ with st.container(border=True):
             format_func=lambda key: "Standard" if key == "standard" else "Challenging",
             horizontal=True,
             key="difficulty",
+            help="Challenging keeps the topics and the marks. A question may take one extra step, or a less obvious case.",
+        )
+        st.caption(
+            "Standard is the direct method. Challenging keeps the same topics and marks, "
+            "and may add one extra step or a less obvious case. Every group uses the same setting."
         )
     with group_col:
         num_variants = int(st.slider("Groups", min_value=1, max_value=4, value=1, key="cohort-count"))
@@ -1659,7 +1674,7 @@ if paper3_paper:
     if level == "sl":
         st.error("Paper 3 is an AA HL paper. Switch the level to AA HL.")
         st.stop()
-    partner = "paper3_recur" if int(st.session_state[topic_state]) % 2 == 0 else "paper3_circle"
+    partner = paper3_keys(int(st.session_state[topic_state]))[0]
     if partner in muted_topics:
         other = "paper3_circle" if partner == "paper3_recur" else "paper3_recur"
         if other not in muted_topics:

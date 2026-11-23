@@ -4,7 +4,7 @@ import mpmath as mp
 import sympy as sp
 
 from core.randomizer import pack_task, part, step
-from core.rng import choice, randint
+from core.rng import choice, randint, story_choice
 from core.rounding import three_sf
 from core.task_contract import ROUNDING_3SF
 
@@ -66,7 +66,7 @@ def _pmf(trials, successes, proportion):
 
 
 def _binomial():
-    cover = choice(COVERS_BINOMIAL)
+    cover = story_choice(COVERS_BINOMIAL)
     for _ in range(40):
         trials = randint(10, 20)
         proportion, shown = choice(_PROPORTIONS)
@@ -138,7 +138,7 @@ def _quantile(probability):
 
 
 def _inverse_normal():
-    cover = choice(COVERS_NORMAL)
+    cover = story_choice(COVERS_NORMAL)
     mean = choice((80, 100, 150, 500))
     spread = choice((5, 8, 10, 12, 15))
     tail = choice((sp.Rational(8, 100), sp.Rational(12, 100), sp.Rational(15, 100)))

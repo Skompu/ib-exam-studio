@@ -14,7 +14,7 @@ import numpy as np
 import sympy as sp
 
 from core.randomizer import pack_task, part, plane_expr, step, vlatex
-from core.rng import choice, randint
+from core.rng import choice, randint, story_choice
 from core.rounding import three_sf
 from core.task_contract import ROUNDING_3SF
 
@@ -39,7 +39,7 @@ def _frame(ax, xs, ys):
 
 
 def _sine(gdc: bool):
-    cover = choice(("tide", "wheel"))
+    cover = story_choice(("tide", "wheel"))
     amplitude = choice((3, 4, 5, 6))
     period = choice((5, 7, 9, 10)) if gdc else choice((6, 8, 12))
     midline = amplitude + choice((2, 4, 6, 8))
@@ -177,9 +177,47 @@ def gen_extended_sine_gdc(clean_integers: bool = True, difficulty: str = "standa
     return _sine_task(True)
 
 
+def _fourth_digit_is_five(value) -> bool:
+    number = abs(float(sp.N(value, 40)))
+    if number == 0:
+        return False
+    digits = format(number, ".16e").split("e")[0].replace(".", "")
+    return len(digits) >= 4 and digits[3] == "5"
+
+
+# (leading coefficient, stationary x). (1, 3) is omitted: its area rounds on a 5.
+_EXP_SPECS = (
+    (1, 2),
+    (1, 4),
+    (1, 5),
+    (2, 2),
+    (2, 3),
+    (2, 4),
+    (2, 5),
+    (3, 2),
+    (3, 3),
+    (3, 4),
+    (3, 5),
+)
+
+
+def _assert_exp_specs():
+    if len(_EXP_SPECS) < 8 or len({item[1] for item in _EXP_SPECS}) < 3:
+        raise RuntimeError("The exponential-linear bank is too small.")
+    for leading, stationary in _EXP_SPECS:
+        height = leading * sp.exp(-stationary)
+        area = sp.Abs(leading * (2 - stationary - sp.exp(1 - stationary)))
+        if _fourth_digit_is_five(height) or _fourth_digit_is_five(area):
+            raise RuntimeError(f"Exponential spec a={leading}, s={stationary} rounds on a 5.")
+        three_sf(height)
+        three_sf(area)
+
+
+_assert_exp_specs()
+
+
 def _exp_task(gdc: bool):
-    leading = choice((1, 2))
-    stationary = choice((2, 3))
+    leading, stationary = choice(_EXP_SPECS)
     intercept = leading * (1 - stationary)
     function = (leading * x + intercept) * sp.exp(-x)
     derivative = sp.factor(sp.diff(function, x))
@@ -422,12 +460,28 @@ def _least_geometric(first, ratio, threshold) -> int:
     raise RuntimeError("No partial geometric sum cleared the threshold.")
 
 
+# First term, ratio, and the powers that keep the partial-sum search under a dozen terms.
+_GDC_LINKS = (
+    (8, sp.Rational(1, 2), (2, 3, 4)),
+    (12, sp.Rational(1, 2), (2, 3, 4)),
+    (16, sp.Rational(1, 2), (2, 3, 4)),
+    (20, sp.Rational(1, 2), (2, 3, 4)),
+    (12, sp.Rational(2, 3), (2, 3, 4)),
+    (18, sp.Rational(2, 3), (2, 3, 4)),
+    (24, sp.Rational(2, 3), (2, 3, 4)),
+    (8, sp.Rational(3, 4), (2,)),
+    (16, sp.Rational(3, 4), (2,)),
+    (24, sp.Rational(3, 4), (2,)),
+    (10, sp.Rational(3, 5), (2, 3, 4)),
+    (20, sp.Rational(3, 5), (2, 3, 4)),
+)
+
+
 def _series_task(gdc: bool):
     if gdc:
-        first = choice((12, 18, 24))
-        ratio = sp.Rational(2, 3)
-        difference = -first // 6
-        power = choice((2, 3, 4))
+        first, ratio, powers = choice(_GDC_LINKS)
+        difference = sp.Integer(sp.simplify(first * (ratio - 1) / 2))
+        power = choice(powers)
     else:
         first = choice((4, 8, 12, 16))
         ratio = sp.Rational(1, 2)

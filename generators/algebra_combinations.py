@@ -1,7 +1,7 @@
 """Committees. The block count is checked against the binomial complement before it is printed."""
 
 from core.randomizer import pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 
 import sympy as sp
 
@@ -77,7 +77,7 @@ COVERS = (
 
 def gen_combinations(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    cover = choice(COVERS)
+    cover = story_choice(COVERS)
     if difficulty == "challenging":
         men, women, seats, total, wanted = choice(_WOMEN)
         task = pack_task(

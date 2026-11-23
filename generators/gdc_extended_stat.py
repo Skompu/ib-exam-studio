@@ -3,7 +3,7 @@
 import mpmath as mp
 
 from core.randomizer import pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 from core.rounding import three_sf
 from core.task_contract import ROUNDING_3SF
 
@@ -160,6 +160,32 @@ def _build_bank():
 
 _BANK = _build_bank()
 
+# Currency pairs that stay profitable for every normal model in the bank.
+_PRICE_PAIRS = (
+    (10, 1),
+    (15, 2),
+    (18, 2),
+    (20, 2),
+)
+
+
+def _profit_text(item, gain, loss) -> str:
+    profit = (
+        item["trials"] * item["proportion"] * gain
+        - item["trials"] * (1 - item["proportion"]) * loss
+    )
+    if profit <= 0 or _fourth_digit_is_five(profit):
+        raise RuntimeError(
+            f"Price pair {gain}, {loss} is unstable for n={item['trials']} "
+            f"p={item['proportion']}: profit={profit}."
+        )
+    return three_sf(profit)
+
+
+for _item in _BANK:
+    for _gain, _loss in _PRICE_PAIRS:
+        _profit_text(_item, _gain, _loss)
+
 
 def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
@@ -172,15 +198,15 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
         }
         pool = longer if len(identities) >= 4 else _BANK
     item = choice(pool)
-    story = choice(_contexts())
+    story = story_choice(_contexts())
     shown = item["shown"]
     mean = item["mean"]
     spread = item["spread"]
     cutoff = item["cutoff"]
     trials = item["trials"]
     at_least = item["at_least"]
-    gain = item["gain"]
-    loss = item["loss"]
+    gain, loss = choice(_PRICE_PAIRS)
+    profit_tex = _profit_text(item, gain, loss)
     task = pack_task(
         title="Section B: Normal and binomial quality control",
         intro=(
@@ -264,7 +290,7 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
                     rf"$E(Y) = {trials}\times {shown['p']} = {shown['expected']}$. "
                     rf"Expected profit $= {shown['expected']}\times {gain:g}"
                     rf" - ({trials}-{shown['expected']})\times {loss:g}$:",
-                    rf"{shown['profit']}",
+                    rf"{profit_tex}",
                     "M1 A1 A1 A1",
                     ft=True,
                     rounding=ROUNDING_3SF,
@@ -279,7 +305,7 @@ def gen_extended_gdc_stat(clean_integers: bool, difficulty: str = "standard"):
         part_graph_id="ext_gdc_stat_normal_binom_profit",
         cover_id=story["id"],
         numeric_id=(
-            f"N({mean},{spread}^2)|cut{cutoff}|B({trials},{shown['p']})|r>={at_least}"
+            f"N({mean},{spread}^2)|cut{cutoff}|B({trials},{shown['p']})|r>={at_least}|gain={gain}|loss={loss}"
         ),
     )
     if task.marks != 19:
@@ -308,7 +334,7 @@ def gen_extended_gdc_poisson(clean_integers: bool, difficulty: str = "standard")
 
 def _one_poisson(difficulty: str):
     item = choice(_BANK)
-    story = choice(_contexts())
+    story = story_choice(_contexts())
     shown = item["shown"]
     mean = item["mean"]
     spread = item["spread"]

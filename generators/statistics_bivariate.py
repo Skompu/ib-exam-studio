@@ -3,6 +3,9 @@
 Pearson r and the least-squares line are exact. The estimate in part (c)
 uses the three-significant-figure equation from part (b), which is the
 value a calculator displays. Tables whose rounding sits on a 5 are rejected.
+
+Each story has its own scale. A class set shares the story and differs by
+the table: some correlations are strong and some are only moderate.
 """
 
 from decimal import Decimal
@@ -10,12 +13,19 @@ from decimal import Decimal
 import sympy as sp
 
 from core.randomizer import assert_zero, pack_task, part, step
-from core.rng import choice
+from core.rng import choice, story_choice
 from core.rounding import three_sf
 from core.task_contract import ROUNDING_3SF
 
-_LOW = sp.Rational(9, 10) ** 2
+_LOW = sp.Rational(3, 5) ** 2
 _HIGH = sp.Rational(98, 100) ** 2
+_STRONG = sp.Rational(4, 5)
+
+
+def _strength(correlation) -> str:
+    if abs(correlation) >= _STRONG:
+        return "strong"
+    return "moderate"
 
 
 def _fourth_digit_is_five(value) -> bool:
@@ -43,7 +53,7 @@ def _fit(points):
     assert_zero(sp.simplify(slope * x_mean + intercept - y_mean), "Regression line misses the mean point.")
     squared = sp.simplify(correlation**2)
     if squared < _LOW or squared > _HIGH:
-        raise RuntimeError("Pearson r is outside the strong-correlation band.")
+        raise RuntimeError("Pearson r is outside the usable correlation band.")
     for value in (correlation, slope, intercept):
         if _fourth_digit_is_five(value):
             raise RuntimeError("A regression coefficient sits on a rounding boundary.")
@@ -99,20 +109,12 @@ def _check_table(points):
     return correlation, slope, intercept, queries
 
 
-_RAW = (
-    ((2, 10), (4, 12), (6, 14), (8, 16), (10, 21), (12, 20)),
-    ((2, 10), (4, 15), (6, 14), (8, 16), (10, 18), (12, 20)),
-    ((2, 10), (4, 12), (6, 11), (8, 16), (10, 18), (12, 20)),
-    ((2, 17), (4, 16), (6, 21), (8, 23), (10, 25), (12, 27)),
-    ((2, 10), (4, 11), (6, 9), (8, 7), (10, 5), (12, 3)),
-    ((2, 13), (4, 14), (6, 9), (8, 7), (10, 5), (12, 3)),
-)
-
-
-def _verified_tables():
+def _pack_tables(points_list, sign):
     found = []
-    for points in _RAW:
+    for points in points_list:
         correlation, slope, intercept, queries = _check_table(points)
+        if (correlation > 0) != (sign > 0):
+            raise RuntimeError("Regression table has the wrong sign for its story.")
         found.append(
             {
                 "points": points,
@@ -122,28 +124,67 @@ def _verified_tables():
                 "queries": queries,
             }
         )
-    if len(found) < 4:
-        raise RuntimeError("Regression bank is too small.")
+    strengths = {_strength(item["correlation"]) for item in found}
+    steps = {item["points"][1][0] - item["points"][0][0] for item in found}
+    if len(found) < 4 or strengths != {"moderate", "strong"} or len(steps) < 2:
+        raise RuntimeError("Regression story needs two scales and both correlation strengths.")
     return tuple(found)
 
 
-_TABLES = _verified_tables()
+# Gas falls as the day gets warmer. Hours of revision and grams of fertiliser
+# rise with the recorded result. None of the three stories shares an x-grid.
+_TEMPERATURE = _pack_tables(
+    (
+        ((0, 25), (4, 27), (8, 23), (12, 18), (16, 14), (20, 14)),
+        ((0, 25), (4, 25), (8, 21), (12, 21), (16, 16), (20, 16)),
+        ((0, 22), (4, 19), (8, 16), (12, 15), (16, 19), (20, 14)),
+        ((0, 26), (5, 25), (10, 24), (15, 21), (20, 14), (25, 12)),
+        ((0, 17), (5, 21), (10, 17), (15, 17), (20, 14), (25, 12)),
+        ((2, 22), (6, 23), (10, 18), (14, 18), (18, 15), (22, 14)),
+    ),
+    -1,
+)
+_REVISION = _pack_tables(
+    (
+        ((1, 43), (3, 47), (5, 50), (7, 56), (9, 67), (11, 74)),
+        ((1, 41), (3, 49), (5, 55), (7, 56), (9, 68), (11, 68)),
+        ((1, 52), (3, 55), (5, 48), (7, 53), (9, 64), (11, 66)),
+        ((2, 37), (4, 40), (6, 44), (8, 50), (10, 47), (12, 61)),
+        ((2, 44), (4, 48), (6, 53), (8, 57), (10, 59), (12, 50)),
+        ((1, 41), (4, 41), (7, 54), (10, 59), (13, 68), (16, 70)),
+    ),
+    1,
+)
+_FERTILISER = _pack_tables(
+    (
+        ((10, 6), (20, 8), (30, 9), (40, 10), (50, 10), (60, 12)),
+        ((10, 5), (20, 6), (30, 7), (40, 11), (50, 10), (60, 13)),
+        ((10, 4), (20, 6), (30, 6), (40, 10), (50, 7), (60, 9)),
+        ((20, 5), (40, 6), (60, 6), (80, 10), (100, 10), (120, 11)),
+        ((5, 3), (10, 7), (15, 8), (20, 10), (25, 11), (30, 13)),
+        ((5, 4), (10, 6), (15, 9), (20, 9), (25, 11), (30, 8)),
+    ),
+    1,
+)
 
 COVERS = (
     {
         "id": "temperature_gas",
         "lead": "On six days a household records the outside temperature $x$, in degrees Celsius, "
         "and the gas used $y$, in cubic metres.",
+        "tables": _TEMPERATURE,
     },
     {
         "id": "revision_score",
         "lead": "A teacher records the revision time $x$, in hours, and the test score $y$, in marks, "
         "for six students.",
+        "tables": _REVISION,
     },
     {
         "id": "fertiliser_yield",
         "lead": "For six plots a grower records the mass of fertiliser $x$, in grams, "
         "and the yield $y$, in kilograms.",
+        "tables": _FERTILISER,
     },
 )
 
@@ -166,21 +207,27 @@ def _story(cover, points):
     )
 
 
-def _comment(kind, x_value, low, high):
-    if kind == "inside":
+def _comment(kind, x_value, low, high, strength):
+    if kind == "outside":
+        return (
+            f"The estimate is unreliable: ${x_value}$ lies outside the observed range from ${low}$ to ${high}$, "
+            "so the linear trend may not continue."
+        )
+    if strength == "strong":
         return (
             f"The estimate is reliable: the correlation is strong and ${x_value}$ lies inside "
             f"the observed range from ${low}$ to ${high}$."
         )
     return (
-        f"The estimate is unreliable: ${x_value}$ lies outside the observed range from ${low}$ to ${high}$, "
-        "so the linear trend may not continue."
+        f"The estimate is only moderately reliable: ${x_value}$ lies inside "
+        f"the observed range from ${low}$ to ${high}$, but the correlation is not strong."
     )
 
 
 def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard"):
     del clean_integers
-    item = choice(_TABLES)
+    cover = story_choice(COVERS)
+    item = choice(cover["tables"])
     points = item["points"]
     correlation, slope = item["correlation"], item["slope"]
     wanted = "outside" if difficulty == "challenging" else "inside"
@@ -191,10 +238,10 @@ def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard")
     if equation != _line(slope, item["intercept"])[0]:
         raise RuntimeError("Displayed regression equation drifted.")
     direction = "positive" if correlation > 0 else "negative"
-    strength = f"strong {direction} linear correlation"
+    strength = _strength(correlation)
+    described = f"{strength} {direction} linear correlation"
     low, high = points[0][0], points[-1][0]
-    reason = _comment(kind, x_value, low, high)
-    cover = choice(COVERS)
+    reason = _comment(kind, x_value, low, high, strength)
     intro = _story(cover, points)
     graph = (
         "bivar_r_line_extrapolate" if kind == "outside" else "bivar_r_line_interpolate"
@@ -209,7 +256,7 @@ def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard")
                 "Find Pearson's product-moment correlation coefficient $r$, and interpret it.",
                 2,
                 step(
-                    f"Read $r$ from the calculator. The value shows a {strength}:",
+                    f"Read $r$ from the calculator. The value shows a {described}:",
                     f"r = {three_sf(correlation)}",
                     "A1 A1",
                     rounding=ROUNDING_3SF,
@@ -243,7 +290,7 @@ def gen_bivariate_regression(clean_integers: bool, difficulty: str = "standard")
             if kind == "inside"
             else "Pearson r and linear regression, with an extrapolation"
         ),
-        family="Integer table with a strong correlation and stable three-significant-figure rounding",
+        family="Integer table on the story's own scale, with a stable three-significant-figure correlation",
         part_graph_id=graph,
         cover_id=cover["id"],
         numeric_id=f"{points}|x={x_value}",

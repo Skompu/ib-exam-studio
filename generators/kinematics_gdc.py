@@ -125,27 +125,63 @@ def _displacement(scale, mix):
     return scale * t**2 * sp.cos(t) + mix * t * sp.sin(t)
 
 
+def _sine_displacement(scale, mix):
+    return scale * t**2 * sp.sin(t) + mix * t * (1 - sp.cos(t))
+
+
+# Same turn counts as the cosine family. Verified to start at the origin.
+_SINE_SINGLE_SPECS = (
+    (1, 1, 4),
+    (1, 2, 5),
+    (1, 3, 5),
+    (1, 5, 4),
+    (1, 6, 5),
+    (2, 1, 4),
+    (2, 2, 4),
+    (2, 2, 5),
+)
+_SINE_DOUBLE_SPECS = (
+    (1, 1, 6),
+    (1, 1, 7),
+    (1, 2, 7),
+    (1, 3, 6),
+    (1, 4, 7),
+    (1, 5, 6),
+    (1, 6, 7),
+    (2, 1, 6),
+)
+
+
 def _bank():
     kept = []
-    for changes, specs in ((1, _SINGLE_SPECS), (2, _DOUBLE_SPECS)):
-        for scale, mix, upper in specs:
-            expression = _displacement(scale, mix)
-            if sp.simplify(expression.subs(t, 0)) != 0:
-                raise RuntimeError("Kinematics displacement must start at the origin.")
-            item = _consider(expression, upper, changes)
-            if item is None:
-                raise RuntimeError(
-                    f"Kinematics spec a={scale}, c={mix}, T={upper} failed for {changes} turn(s)."
-                )
-            item["scale"] = scale
-            item["mix"] = mix
-            kept.append(item)
+    families = (
+        ("cos", _displacement, ((1, _SINGLE_SPECS), (2, _DOUBLE_SPECS))),
+        ("sin", _sine_displacement, ((1, _SINE_SINGLE_SPECS), (2, _SINE_DOUBLE_SPECS))),
+    )
+    for family, build, branches in families:
+        for changes, specs in branches:
+            for scale, mix, upper in specs:
+                expression = build(scale, mix)
+                if sp.simplify(expression.subs(t, 0)) != 0:
+                    raise RuntimeError("Kinematics displacement must start at the origin.")
+                item = _consider(expression, upper, changes)
+                if item is None:
+                    raise RuntimeError(
+                        f"Kinematics {family} spec a={scale}, c={mix}, T={upper} "
+                        f"failed for {changes} turn(s)."
+                    )
+                item["scale"] = scale
+                item["mix"] = mix
+                item["family"] = family
+                kept.append(item)
     singles = [item for item in kept if item["changes"] == 1]
     doubles = [item for item in kept if item["changes"] == 2]
     if len(singles) < 8 or len(doubles) < 8:
         raise RuntimeError(
             f"Kinematics bank is too small: {len(singles)} single turns, {len(doubles)} double turns."
         )
+    if {item["family"] for item in singles} != {"cos", "sin"} or {item["family"] for item in doubles} != {"cos", "sin"}:
+        raise RuntimeError("Kinematics needs both displacement families.")
     return tuple(kept)
 
 
@@ -226,5 +262,5 @@ def gen_kinematics(clean_integers: bool, difficulty: str = "standard"):
         family="Displacement whose turning points are found on a GDC",
         part_graph_id=graph,
         cover_id="plain",
-        numeric_id=f"a={item['scale']}|c={item['mix']}|T={upper}",
+        numeric_id=f"{item['family']}|a={item['scale']}|c={item['mix']}|T={upper}",
     )
