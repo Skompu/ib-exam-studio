@@ -2195,6 +2195,7 @@ SL_EXCLUDED = frozenset({
     "vec_planes_gdc",
     "maclaurin",
     "maclaurin_product",
+    "ext_pdf_b",
     "ext_logistic",
     "ext_logistic_gdc",
     "paper3_geo",
@@ -2211,6 +2212,27 @@ SL_EXCLUDED = frozenset({
     "vec_two_planes",
     "ext_vectors",
 })
+
+
+# The scorer still deals only ext_ln. These same-mark stand-ins rotate into that
+# one Paper 1 slot afterwards, so a 100-mark paper never tries to take all of them.
+PAPER1_SECTION_B_FAMILY = {
+    "hl": ("ext_ln", "ext_exp_lin", "ext_pdf_b", "ext_linked_seq"),
+    "sl": ("ext_ln", "ext_exp_lin", "ext_linked_seq"),
+}
+
+
+def _rotate_paper1_section_b(paper, calculator: str, topic_seed: int, level: str):
+    """Replace the dealt logarithmic Section B item with one same-mark story.
+
+    Paper 2 is left alone. SL never receives the continuous-density member.
+    Every cohort of this paper still shares the key chosen here.
+    """
+    if calculator != "none" or "ext_ln" not in paper:
+        return paper
+    family = PAPER1_SECTION_B_FAMILY[level]
+    chosen = family[int(topic_seed) % len(family)]
+    return tuple(chosen if key == "ext_ln" else key for key in paper)
 
 
 def _pools(
@@ -2305,7 +2327,8 @@ def build_exam_blueprint(
     warm-up, then core, then advanced. Section B is appended. A full mock uses every
     extended question the paper actually has; a 50-mark test uses one. The topic seed
     picks among papers with the same best shape, so a redraw changes the topics
-    without giving up the mark total.
+    without giving up the mark total. On Paper 1, that same seed then rotates the
+    16-mark logarithmic Section B slot through one same-mark family.
     """
     if calculator not in {"none", "gdc"}:
         raise ValueError(f"Unknown calculator policy {calculator!r}.")
@@ -2329,7 +2352,8 @@ def build_exam_blueprint(
         raise RuntimeError(
             f"No slot blueprint within 2 marks of {target_marks} for calculator {calculator!r}."
         )
-    return papers[int(topic_seed) % len(papers)]
+    paper = papers[int(topic_seed) % len(papers)]
+    return _rotate_paper1_section_b(paper, calculator, int(topic_seed), level)
 
 
 def _replacement_fits(

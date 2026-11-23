@@ -5,6 +5,7 @@ from collections import Counter
 import pytest
 
 from registry import (
+    PAPER1_SECTION_B_FAMILY,
     SL_EXCLUDED,
     TASK_REGISTRY,
     _syllabus_area,
@@ -164,3 +165,41 @@ def test_sl_mock_is_80_and_the_hl_mock_stays_110():
     for key in ("induction", "diff_eq", "ext_model", "maclaurin", "ext_vectors"):
         assert key in SL_EXCLUDED
     assert "proof_direct" not in SL_EXCLUDED
+
+
+def test_paper1_rotates_the_sixteen_mark_section_b_slot():
+    hl = set(PAPER1_SECTION_B_FAMILY["hl"])
+    sl = set(PAPER1_SECTION_B_FAMILY["sl"])
+    seen = set()
+    for seed in range(2026, 2042):
+        paper = build_exam_blueprint("none", 100, seed, min_cohort_depth=1)
+        assert paper == build_exam_blueprint("none", 100, seed, min_cohort_depth=1)
+        assert _marks(paper) == 100
+        present = [key for key in paper if key in hl]
+        assert len(present) == 1
+        seen.add(present[0])
+        full = build_exam_blueprint("none", 110, seed, min_cohort_depth=1)
+        assert _marks(full) == 110
+        assert len([key for key in full if key in hl]) <= 1
+    assert seen == hl
+    for key in ("ext_exp_lin", "ext_pdf_b", "ext_linked_seq"):
+        assert TASK_REGISTRY[key].get("deal") is False
+
+    seen_sl = set()
+    for seed in range(2026, 2042):
+        for target in (50, 80):
+            paper = build_exam_blueprint("none", target, seed, min_cohort_depth=1, level="sl")
+            assert "ext_pdf_b" not in paper
+            present = [key for key in paper if key in hl]
+            assert set(present) <= sl
+            assert len(present) <= 1
+            if target == 80:
+                assert len(present) == 1
+                seen_sl.add(present[0])
+    assert seen_sl == sl
+
+    for seed in range(2026, 2032):
+        paper = build_exam_blueprint("gdc", 100, seed, min_cohort_depth=1)
+        assert "ext_gdc_model" in paper
+        assert "ext_gdc_stat" in paper
+        assert hl.isdisjoint(paper)

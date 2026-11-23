@@ -88,6 +88,12 @@ def verify_task(task: Task) -> None:
         _check_model(task, rounded=True)
     elif graph == "ext_lines_planes":
         _check_meeting_lines(task)
+    elif graph == "ext_exp_lin":
+        _check_exp_linear(task)
+    elif graph == "ext_pdf_b":
+        _check_density(task)
+    elif graph == "ext_linked_seq":
+        _check_linked_series(task)
 
 
 def _bind_retry(attempt: int):
@@ -200,6 +206,113 @@ def _check_model(task: Task, rounded: bool) -> None:
     _require_same(claimed, exact_k, claimed_src)
     rebuilt = bath + excess * sp.exp(-exact_k * elapsed)
     _require_same(rebuilt, sp.Integer(measured), "model substitution")
+
+
+def _check_exp_linear(task: Task) -> None:
+    compact = task.latex_main.replace(" ", "")
+    match = re.fullmatch(r"f\(x\)=(.+)e\^\{-x\}", compact)
+    if match is None:
+        raise SelfCheckError("The exponential-linear equation could not be read back.")
+    poly = _latex_to_expr(match.group(1))
+    if poly is None or len(poly.free_symbols) != 1:
+        raise SelfCheckError("The exponential-linear factor is not a function of x.")
+    symbol = next(iter(poly.free_symbols))
+    if sp.degree(sp.Poly(poly, symbol)) != 1:
+        raise SelfCheckError("The exponential-linear factor is not linear.")
+    function = poly * sp.exp(-symbol)
+    roots = [
+        sp.simplify(root)
+        for root in sp.solve(sp.diff(function, symbol), symbol)
+        if not getattr(root, "free_symbols", None) and root.is_real
+    ]
+    if len(roots) != 1:
+        raise SelfCheckError("The exponential-linear curve does not have one stationary point.")
+    stationary = roots[0]
+    point = _coordinate_claim(_part_tex(task, "b"))
+    if point is None:
+        raise SelfCheckError("The stationary point was not printed.")
+    claimed_x, claimed_y = point
+    if claimed_x is None or not _same_value(claimed_x, stationary):
+        raise SelfCheckError("The printed stationary x-coordinate does not match the curve.")
+    height = sp.simplify(function.subs(symbol, stationary))
+    if not _matches_printed(height, claimed_y):
+        raise SelfCheckError("The printed stationary y-coordinate does not match the curve.")
+
+
+def _check_density(task: Task) -> None:
+    compact = task.latex_main.replace(" ", "")
+    match = re.search(r"kx\((\d+)-x\).*0\\lex\\le(\d+)", compact)
+    if match is None or match.group(1) != match.group(2):
+        raise SelfCheckError("The density interval could not be read back.")
+    width = int(match.group(1))
+    constant_src = _assignment_rhs(_part_tex(task, "a"), "k")
+    constant = _latex_to_expr(constant_src) if constant_src else None
+    if constant is None or constant.free_symbols:
+        raise SelfCheckError("The normalising constant could not be read back.")
+    symbol = sp.symbols("x")
+    total = sp.integrate(constant * symbol * (width - symbol), (symbol, 0, width))
+    if sp.simplify(total - 1) != 0:
+        raise SelfCheckError("The printed density does not integrate to 1.")
+    expect_src = _labelled_rhs(_part_tex(task, "d"), r"E\(X\)")
+    claimed = _latex_to_expr(expect_src) if expect_src else None
+    if claimed is None or not _same_value(claimed, sp.Rational(width, 2)):
+        raise SelfCheckError("The printed expectation does not match the density.")
+
+
+def _check_linked_series(task: Task) -> None:
+    first_match = re.search(r"u_1\s*=\s*(-?\d+)", task.latex_main)
+    if first_match is None:
+        raise SelfCheckError("The first term could not be read back.")
+    first = sp.Integer(int(first_match.group(1)))
+    difference = None
+    ratio = None
+    for chunk in _part_tex(task, "a"):
+        for piece in _top_level_pieces(chunk):
+            compact = piece.replace(" ", "")
+            if compact.startswith("d="):
+                difference = _latex_to_expr(compact.split("=", 1)[1])
+            elif compact.startswith("r="):
+                ratio = _latex_to_expr(compact.split("=", 1)[1])
+    if ratio is None or difference is None or ratio.free_symbols or difference.free_symbols:
+        raise SelfCheckError("The common ratio could not be read back.")
+    if abs(sp.N(ratio)) >= 1:
+        raise SelfCheckError("The geometric ratio does not give a finite sum.")
+    linked = sp.simplify(first * (ratio - 1) / 2)
+    if not _same_value(difference, linked):
+        raise SelfCheckError("The common difference does not link the two sequences.")
+    infinity = sp.simplify(first / (1 - ratio))
+    sum_src = _labelled_rhs(_part_tex(task, "b"), r"S_\\infty")
+    claimed = _latex_to_expr(sum_src) if sum_src else None
+    if claimed is None or not _same_value(claimed, infinity):
+        raise SelfCheckError("The printed infinite sum does not match the ratio.")
+
+
+def _coordinate_claim(chunks: list[str]):
+    for chunk in chunks:
+        compact = chunk.replace(r"\,", "").replace(" ", "")
+        match = re.fullmatch(r"\((-?\d+),(.+)\)", compact)
+        if match is None:
+            continue
+        return _latex_to_expr(match.group(1)), match.group(2)
+    return None
+
+
+def _labelled_rhs(chunks: list[str], label: str) -> str | None:
+    pattern = re.compile(label + r"\s*=\s*(.+)")
+    for chunk in chunks:
+        match = pattern.search(chunk)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _matches_printed(exact, source: str) -> bool:
+    claimed = _latex_to_expr(source)
+    if claimed is not None and not claimed.free_symbols and _same_value(claimed, exact):
+        return True
+    if re.fullmatch(r"-?\d+(?:\.\d+)?", source.replace(" ", "")):
+        return _within_printed(exact, source)
+    return False
 
 
 def _check_meeting_lines(task: Task) -> None:
