@@ -50,7 +50,7 @@ def _sine(gdc: bool):
     return cover, amplitude, period, midline, fraction
 
 
-def _sine_task(gdc: bool):
+def _sine_task(gdc: bool, challenging: bool = False):
     cover, amplitude, period, midline, fraction = _sine(gdc)
     frequency = sp.simplify(2 * sp.pi / period)
     model = amplitude * sp.cos(frequency * t) + midline
@@ -87,12 +87,22 @@ def _sine_task(gdc: bool):
         angle = float(sp.acos(fraction))
         first = three_sf(period * angle / (2 * math.pi))
         second = three_sf(period * (2 * math.pi - angle) / (2 * math.pi))
-        time_tex = rf"t = {first},\ {second}"
-        time_prompt = (
-            f"Hence find the times during the first period when $h={sp.latex(target)}$. "
-            "Give your answers to three significant figures."
-        )
-        time_reason = f"Solve $\\cos(bt)={sp.latex(fraction)}$ on a GDC:"
+        if challenging:
+            time_tex = rf"t = {second}"
+            time_prompt = (
+                f"Hence find the later time during the first period when $h={sp.latex(target)}$. "
+                "Give your answer to three significant figures."
+            )
+            time_reason = (
+                f"Solve $\\cos(bt)={sp.latex(fraction)}$ and reject the first solution in the period:"
+            )
+        else:
+            time_tex = rf"t = {first},\ {second}"
+            time_prompt = (
+                f"Hence find the times during the first period when $h={sp.latex(target)}$. "
+                "Give your answers to three significant figures."
+            )
+            time_reason = f"Solve $\\cos(bt)={sp.latex(fraction)}$ on a GDC:"
         time_round = ROUNDING_3SF
         rate_tex = three_sf(max_rate)
         rate_prompt = (
@@ -102,9 +112,19 @@ def _sine_task(gdc: bool):
     else:
         first = sp.Rational(period, 4)
         second = sp.Rational(3 * period, 4)
-        time_tex = rf"t = {sp.latex(first)},\ {sp.latex(second)}"
-        time_prompt = f"Hence find the times during the first period when $h={midline}$."
-        time_reason = "The height is at the midline when $\\cos(bt)=0$:"
+        if challenging:
+            early = sp.Rational(period, 6)
+            late = sp.Rational(5 * period, 6)
+            time_tex = rf"t = {sp.latex(early)},\ {sp.latex(late)}"
+            time_prompt = (
+                f"Hence find the times during the first period when "
+                f"$h={midline + sp.Rational(amplitude, 2)}$."
+            )
+            time_reason = "The height is halfway from the midline to the maximum when $\\cos(bt)=\\dfrac{1}{2}$:"
+        else:
+            time_tex = rf"t = {sp.latex(first)},\ {sp.latex(second)}"
+            time_prompt = f"Hence find the times during the first period when $h={midline}$."
+            time_reason = "The height is at the midline when $\\cos(bt)=0$:"
         time_round = ""
         rate_tex = sp.latex(max_rate)
         rate_prompt = "Hence find the exact maximum rate of change of $h$."
@@ -168,13 +188,13 @@ def _sine_task(gdc: bool):
 
 
 def gen_extended_sine(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _sine_task(False)
+    del clean_integers
+    return _sine_task(False, difficulty == "challenging")
 
 
 def gen_extended_sine_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _sine_task(True)
+    del clean_integers
+    return _sine_task(True, difficulty == "challenging")
 
 
 def _fourth_digit_is_five(value) -> bool:
@@ -216,7 +236,7 @@ def _assert_exp_specs():
 _assert_exp_specs()
 
 
-def _exp_task(gdc: bool):
+def _exp_task(gdc: bool, challenging: bool = False):
     leading, stationary = choice(_EXP_SPECS)
     intercept = leading * (1 - stationary)
     function = (leading * x + intercept) * sp.exp(-x)
@@ -229,7 +249,9 @@ def _exp_task(gdc: bool):
         raise RuntimeError("Exponential stationary point was not constructed.")
     if sp.simplify(second.subs(x, inflection) * sp.exp(inflection)) != 0:
         raise RuntimeError("Exponential inflection was not constructed.")
-    signed = sp.simplify(sp.integrate(function, (x, 0, root)))
+    area_left =  stationary if challenging else 0
+    area_right = inflection if challenging else root
+    signed = sp.simplify(sp.integrate(function, (x, area_left, area_right)))
     area = sp.simplify(sp.Abs(signed))
     if area == 0:
         raise RuntimeError("Exponential area vanished.")
@@ -248,7 +270,7 @@ def _exp_task(gdc: bool):
         point_tex = three_sf(point)
         area_prompt = (
             f"Hence find the area of the region bounded by the curve and the $x$-axis between "
-            f"$x=0$ and $x={root}$. Give your answer to three significant figures."
+            f"$x={area_left}$ and $x={area_right}$. Give your answer to three significant figures."
         )
         point_bit = f"({stationary},\\, {point_tex})"
         area_round = ROUNDING_3SF
@@ -258,7 +280,7 @@ def _exp_task(gdc: bool):
         point_tex = sp.latex(point)
         area_prompt = (
             f"Hence find the exact area of the region bounded by the curve and the $x$-axis "
-            f"between $x=0$ and $x={root}$."
+            f"between $x={area_left}$ and $x={area_right}$."
         )
         point_bit = f"({stationary},\\, {point_tex})"
         area_round = ""
@@ -328,16 +350,16 @@ def _exp_task(gdc: bool):
 
 
 def gen_extended_exp(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _exp_task(False)
+    del clean_integers
+    return _exp_task(False, difficulty == "challenging")
 
 
 def gen_extended_exp_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _exp_task(True)
+    del clean_integers
+    return _exp_task(True, difficulty == "challenging")
 
 
-def _pdf_task(gdc: bool):
+def _pdf_task(gdc: bool, challenging: bool = False):
     width = choice((4, 5, 6, 8, 10))
     constant = sp.Rational(6, width ** 3)
     density = constant * x * (width - x)
@@ -347,7 +369,9 @@ def _pdf_task(gdc: bool):
     earlier = max(cut - 1, 1)
     if earlier >= cut:
         earlier = 0
-    probability = sp.simplify(1 - cdf.subs(x, cut))
+    probability = sp.simplify(
+        cdf.subs(x, cut) - cdf.subs(x, earlier) if challenging else 1 - cdf.subs(x, cut)
+    )
     given = sp.simplify(1 - cdf.subs(x, earlier))
     conditional = sp.simplify(probability / given)
     expect = sp.Rational(width, 2)
@@ -371,7 +395,11 @@ def _pdf_task(gdc: bool):
         cond_tex = three_sf(conditional)
         var_tex = three_sf(variance)
         rounding = ROUNDING_3SF
-        prob_prompt = f"Hence find $P(X > {cut})$, to three significant figures."
+        prob_prompt = (
+            f"Hence find $P({earlier} < X < {cut})$, to three significant figures."
+            if challenging
+            else f"Hence find $P(X > {cut})$, to three significant figures."
+        )
         var_prompt = "Hence find $\\mathrm{Var}(X)$, to three significant figures."
         cond_prompt = (
             f"Hence find $P(X > {cut} \\mid X > {earlier})$, to three significant figures."
@@ -381,7 +409,11 @@ def _pdf_task(gdc: bool):
         cond_tex = sp.latex(conditional)
         var_tex = sp.latex(variance)
         rounding = ""
-        prob_prompt = f"Hence find the exact value of $P(X > {cut})$."
+        prob_prompt = (
+            f"Hence find the exact value of $P({earlier} < X < {cut})$."
+            if challenging
+            else f"Hence find the exact value of $P(X > {cut})$."
+        )
         var_prompt = "Hence find the exact value of $\\mathrm{Var}(X)$."
         cond_prompt = f"Hence find the exact value of $P(X > {cut} \\mid X > {earlier})$."
     task = pack_task(
@@ -408,7 +440,12 @@ def _pdf_task(gdc: bool):
                 "c",
                 prob_prompt,
                 3,
-                step(f"Use $1-F({cut})$:", prob_tex, "M1 A1 A1", rounding=rounding),
+                step(
+                    f"Use $F({cut})-F({earlier})$:" if challenging else f"Use $1-F({cut})$:",
+                    prob_tex,
+                    "M1 A1 A1",
+                    rounding=rounding,
+                ),
             ),
             part(
                 "d",
@@ -443,13 +480,13 @@ def _pdf_task(gdc: bool):
 
 
 def gen_extended_pdf(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _pdf_task(False)
+    del clean_integers
+    return _pdf_task(False, difficulty == "challenging")
 
 
 def gen_extended_pdf_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _pdf_task(True)
+    del clean_integers
+    return _pdf_task(True, difficulty == "challenging")
 
 
 def _least_geometric(first, ratio, threshold) -> int:
@@ -477,7 +514,7 @@ _GDC_LINKS = (
 )
 
 
-def _series_task(gdc: bool):
+def _series_task(gdc: bool, challenging: bool = False):
     if gdc:
         first, ratio, powers = choice(_GDC_LINKS)
         difference = sp.Integer(sp.simplify(first * (ratio - 1) / 2))
@@ -490,7 +527,8 @@ def _series_task(gdc: bool):
     infinity = sp.simplify(first / (1 - ratio))
     threshold = sp.simplify(infinity - first / 2 ** power)
     count = _least_geometric(first, ratio, threshold)
-    arithmetic = sp.simplify(2 * (2 * first + 3 * difference))
+    term_count = count if challenging else 4
+    arithmetic = sp.simplify(sp.Rational(term_count, 2) * (2 * first + (term_count - 1) * difference))
     if gdc:
         count_prompt = (
             f"Hence find the least integer $n$ such that $S_n > {sp.latex(threshold)}$, "
@@ -540,11 +578,19 @@ def _series_task(gdc: bool):
             ),
             part(
                 "d",
-                "Find the sum of the first four terms of the arithmetic sequence.",
+                (
+                    f"Find the sum of the first ${term_count}$ terms of the arithmetic sequence."
+                    if challenging
+                    else "Find the sum of the first four terms of the arithmetic sequence."
+                ),
                 4,
                 step(
-                    "Use $S_4 = \\dfrac{4}{2}\\left(2u_1 + 3d\\right)$:",
-                    f"S_4 = {sp.latex(arithmetic)}",
+                    (
+                        f"Use the value of $n$ from (c) in $S_n = \\dfrac{{n}}{{2}}\\left(2u_1 + (n-1)d\\right)$:"
+                        if challenging
+                        else "Use $S_4 = \\dfrac{4}{2}\\left(2u_1 + 3d\\right)$:"
+                    ),
+                    f"S_{{{term_count}}} = {sp.latex(arithmetic)}",
                     "M1 A1 A1 A1",
                 ),
             ),
@@ -561,13 +607,13 @@ def _series_task(gdc: bool):
 
 
 def gen_extended_series(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _series_task(False)
+    del clean_integers
+    return _series_task(False, difficulty == "challenging")
 
 
 def gen_extended_series_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _series_task(True)
+    del clean_integers
+    return _series_task(True, difficulty == "challenging")
 
 
 def _cross(u, v):
@@ -609,17 +655,17 @@ def _place_point(*offsets):
     return tuple(point)
 
 
-def _lines_task(gdc: bool, triangle: bool = False):
+def _lines_task(gdc: bool, triangle: bool = False, challenging: bool = False):
     last_error = None
     for _ in range(40):
         try:
-            return _one_lines_task(gdc, triangle)
+            return _one_lines_task(gdc, triangle, challenging)
         except RuntimeError as exc:
             last_error = exc
     raise RuntimeError(f"Could not build an intersecting line-and-plane item. {last_error}")
 
 
-def _one_lines_task(gdc: bool, triangle: bool = False):
+def _one_lines_task(gdc: bool, triangle: bool = False, challenging: bool = False):
     order = choice(((0, 1, 2), (0, 2, 1), (1, 0, 2), (1, 2, 0), (2, 0, 1), (2, 1, 0)))
     signs = (choice((-1, 1)), choice((-1, 1)), choice((-1, 1)))
     base_d1, base_d2, base_k = choice(_LINE_PLANE)
@@ -676,9 +722,28 @@ def _one_lines_task(gdc: bool, triangle: bool = False):
         parts=[
             part(
                 "a",
-                "Find the coordinates of the point of intersection of $L_1$ and $L_2$.",
+                (
+                    "Show that $L_1$ and $L_2$ are not parallel, and find the coordinates of their point of intersection."
+                    if challenging
+                    else "Find the coordinates of the point of intersection of $L_1$ and $L_2$."
+                ),
                 3,
-                step("Solve $\\lambda \\mathbf{d_1} - \\mu \\mathbf{d_2} = \\mathbf{d_2}$:", meeting, "M1 A1 A1"),
+                *(
+                    (
+                        step(
+                            "The direction vectors are not scalar multiples, so the lines are not parallel:",
+                            r"\mathbf{d_1} \nparallel \mathbf{d_2}",
+                            "M1",
+                        ),
+                    )
+                    if challenging
+                    else ()
+                ),
+                step(
+                    "Solve $\\lambda \\mathbf{d_1} - \\mu \\mathbf{d_2} = \\mathbf{d_2}$:",
+                    meeting,
+                    "A1 A1" if challenging else "M1 A1 A1",
+                ),
             ),
             part(
                 "b",
@@ -736,23 +801,24 @@ def _one_lines_task(gdc: bool, triangle: bool = False):
 
 
 def gen_extended_lines(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _lines_task(False)
+    del clean_integers
+    return _lines_task(False, challenging=difficulty == "challenging")
 
 
 def gen_extended_lines_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _lines_task(True)
+    del clean_integers
+    return _lines_task(True, challenging=difficulty == "challenging")
 
 
 def gen_extended_triangle_gdc(clean_integers: bool = True, difficulty: str = "standard"):
     """Same 13-mark line-and-plane graph, with the triangle area instead of the parallelogram."""
-    del clean_integers, difficulty
-    return _lines_task(True, triangle=True)
+    del clean_integers
+    return _lines_task(True, triangle=True, challenging=difficulty == "challenging")
 
 
 def gen_extended_model_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
+    del clean_integers
+    hard = difficulty == "challenging"
     bath = choice((18, 22, 24))
     excess, ratio = choice(
         (
@@ -766,7 +832,7 @@ def gen_extended_model_gdc(clean_integers: bool = True, difficulty: str = "stand
     initial = bath + excess
     measured_gap = int(excess * ratio)
     measured = bath + measured_gap
-    later = bath + measured_gap // 2
+    later = bath + sp.Rational(excess, 2) if hard else bath + measured_gap // 2
     constant = sp.log(1 / ratio) / elapsed
     rate = -constant * (measured - bath)
     target_time = sp.log(sp.Rational(excess, later - bath)) / constant
@@ -811,10 +877,24 @@ def gen_extended_model_gdc(clean_integers: bool = True, difficulty: str = "stand
             ),
             part(
                 "c",
-                f"Hence find the time at which the temperature is ${later}^{{\\circ}}\\mathrm{{C}}$, "
-                "to three significant figures.",
+                (
+                    "Hence find the time at which the excess of the temperature over the bath has halved, "
+                    "to three significant figures."
+                    if hard
+                    else f"Hence find the time at which the temperature is ${later}^{{\\circ}}\\mathrm{{C}}$, "
+                    "to three significant figures."
+                ),
                 2,
-                step("Solve the model on a GDC:", f"t = {three_sf(target_time)}", "M1 A1", rounding=ROUNDING_3SF),
+                step(
+                    (
+                        "Set the excess equal to half its initial value and solve on a GDC:"
+                        if hard
+                        else "Solve the model on a GDC:"
+                    ),
+                    f"t = {three_sf(target_time)}",
+                    "M1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
             ),
             part(
                 "d",
@@ -855,7 +935,7 @@ def _wrap_turn(value, period):
     return reduced
 
 
-def _phase_task(gdc: bool):
+def _phase_task(gdc: bool, challenging: bool = False):
     amplitude = choice((3, 4, 5, 6))
     period = choice((10, 12, 15, 20)) if gdc else choice((12, 18, 24))
     midline = amplitude + choice((2, 4, 6, 8))
@@ -879,12 +959,23 @@ def _phase_task(gdc: bool):
         wrapped = sorted(value % float(period) for value in raw)
         if min(wrapped) < 1e-6 or abs(wrapped[0] - wrapped[1]) < 1e-3:
             raise RuntimeError("Phase height times are not two interior instants.")
-        time_tex = rf"t = {three_sf(wrapped[0])},\ {three_sf(wrapped[1])}"
-        time_prompt = (
-            f"Hence find the times during the first period when $h={sp.latex(target)}$. "
-            "Give your answers to three significant figures."
-        )
-        time_reason = f"Solve $\\cos(b(t-{sp.latex(shift)}))={sp.latex(fraction)}$ on a GDC:"
+        if challenging:
+            time_tex = rf"t = {three_sf(wrapped[1])}"
+            time_prompt = (
+                f"Hence find the later time during the first period when $h={sp.latex(target)}$. "
+                "Give your answer to three significant figures."
+            )
+            time_reason = (
+                f"Solve $\\cos(b(t-{sp.latex(shift)}))={sp.latex(fraction)}$ "
+                "and keep the later root in the period:"
+            )
+        else:
+            time_tex = rf"t = {three_sf(wrapped[0])},\ {three_sf(wrapped[1])}"
+            time_prompt = (
+                f"Hence find the times during the first period when $h={sp.latex(target)}$. "
+                "Give your answers to three significant figures."
+            )
+            time_reason = f"Solve $\\cos(b(t-{sp.latex(shift)}))={sp.latex(fraction)}$ on a GDC:"
         time_round = ROUNDING_3SF
         rate_tex = three_sf(max_rate)
         rate_prompt = (
@@ -892,9 +983,21 @@ def _phase_task(gdc: bool):
         )
         rate_round = ROUNDING_3SF
     else:
-        time_tex = rf"t = {sp.latex(first)},\ {sp.latex(second)}"
-        time_prompt = f"Hence find the times during the first period when $h={midline}$."
-        time_reason = "The height is at the midline when the cosine is zero:"
+        if challenging:
+            early = _wrap_turn(shift + sp.Rational(period, 6), period)
+            late = _wrap_turn(shift + sp.Rational(5 * period, 6), period)
+            if early == late:
+                raise RuntimeError("The half-amplitude times coincided.")
+            level = midline + sp.Rational(amplitude, 2)
+            time_tex = rf"t = {sp.latex(early)},\ {sp.latex(late)}"
+            time_prompt = f"Hence find the times during the first period when $h={level}$."
+            time_reason = (
+                "The height is halfway from the midline to the maximum when the cosine equals $\\dfrac{1}{2}$:"
+            )
+        else:
+            time_tex = rf"t = {sp.latex(first)},\ {sp.latex(second)}"
+            time_prompt = f"Hence find the times during the first period when $h={midline}$."
+            time_reason = "The height is at the midline when the cosine is zero:"
         time_round = ""
         rate_tex = sp.latex(max_rate)
         rate_prompt = "Hence find the exact maximum rate of change of $h$."
@@ -974,29 +1077,30 @@ def _phase_task(gdc: bool):
     return task
 
 
-def _phase_until(gdc: bool):
+def _phase_until(gdc: bool, challenging: bool = False):
     last_error = None
     for _ in range(20):
         try:
-            return _phase_task(gdc)
+            return _phase_task(gdc, challenging)
         except RuntimeError as exc:
             last_error = exc
     raise RuntimeError(f"Could not build a shifted cosine. {last_error}")
 
 
 def gen_extended_phase(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _phase_until(False)
+    del clean_integers
+    return _phase_until(False, difficulty == "challenging")
 
 
 def gen_extended_phase_gdc(clean_integers: bool = True, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _phase_until(True)
+    del clean_integers
+    return _phase_until(True, difficulty == "challenging")
 
 
 def gen_extended_clearance_gdc(clean_integers: bool = True, difficulty: str = "standard"):
     """12-mark GDC clearance, so a Paper 2 cooling question can swap to it."""
-    del clean_integers, difficulty
+    del clean_integers
+    hard = difficulty == "challenging"
     initial = choice((40, 50, 60, 80))
     ratio = choice((sp.Rational(2, 5), sp.Rational(3, 5), sp.Rational(4, 5), sp.Rational(1, 2)))
     elapsed = choice((4, 5, 6, 8))
@@ -1007,7 +1111,7 @@ def gen_extended_clearance_gdc(clean_integers: bool = True, difficulty: str = "s
     later_options = [value for value in (8, 10, 12, 16, 20, 24, 30) if value < measured]
     if not later_options:
         raise RuntimeError("No later concentration sits below the measured reading.")
-    later = choice(later_options)
+    later = sp.Rational(initial, 2) if hard else choice(later_options)
     constant = sp.log(sp.Rational(initial, measured)) / elapsed
     rate = -constant * measured
     target_time = sp.log(sp.Rational(initial, later)) / constant
@@ -1053,10 +1157,24 @@ def gen_extended_clearance_gdc(clean_integers: bool = True, difficulty: str = "s
             ),
             part(
                 "c",
-                f"Hence find the time at which the concentration is ${later}$ mg/L, "
-                "to three significant figures.",
+                (
+                    "Hence find the time at which the concentration has halved, "
+                    "to three significant figures."
+                    if hard
+                    else f"Hence find the time at which the concentration is ${later}$ mg/L, "
+                    "to three significant figures."
+                ),
                 2,
-                step("Solve the model on a GDC:", f"t = {three_sf(target_time)}", "M1 A1", rounding=ROUNDING_3SF),
+                step(
+                    (
+                        "Set $C$ equal to half the initial dose and solve on a GDC:"
+                        if hard
+                        else "Solve the model on a GDC:"
+                    ),
+                    f"t = {three_sf(target_time)}",
+                    "M1 A1",
+                    rounding=ROUNDING_3SF,
+                ),
             ),
             part(
                 "d",

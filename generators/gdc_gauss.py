@@ -64,14 +64,18 @@ def _features(rate, upper):
         lambda value: mp.e ** (-float(rate) * value**2) * mp.log(1 + value),
         [0, float(upper)],
     )
-    answers = (root, height, area)
+    tail = mp.quad(
+        lambda value: mp.e ** (-float(rate) * value**2) * mp.log(1 + value),
+        [float(root), float(upper)],
+    )
+    answers = (root, height, area, tail)
     if any(_fourth_digit_is_five(value) for value in answers):
         return None
     try:
         shown = tuple(three_sf(value) for value in answers)
     except RuntimeError:
         return None
-    if len(set(shown)) < 3:
+    if len(set(shown[:3])) < 3 or shown[3] in shown[:3]:
         return None
     return shown
 
@@ -82,7 +86,7 @@ def _bank():
         shown = _features(rate, upper)
         if shown is None:
             raise RuntimeError(f"Gaussian-log curve a={rate}, upper={upper} did not survive.")
-        station, height, area = shown
+        station, height, area, tail = shown
         found.append(
             {
                 "rate": rate,
@@ -90,6 +94,7 @@ def _bank():
                 "station": station,
                 "height": height,
                 "area": area,
+                "tail": tail,
                 "numeric_id": f"a={sp.sstr(rate)}|T={upper}|x={station}",
             }
         )
@@ -116,9 +121,22 @@ def _power(rate) -> str:
 
 
 def gen_gdc_gauss(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = deal(_BANK, exclude_numeric_ids, lambda row: row["numeric_id"])
     power = _power(item["rate"])
+    if difficulty == "challenging":
+        area_prompt = (
+            "Find the area bounded by the curve, the $x$-axis and the lines "
+            f"$x = {item['station']}$ and $x = {item['upper']}$."
+        )
+        area_value = item["tail"]
+        lower = item["station"]
+    else:
+        area_prompt = (
+            f"Find the area bounded by the curve, the $x$-axis and the line $x = {item['upper']}$."
+        )
+        area_value = item["area"]
+        lower = "0"
     task = pack_task(
         title="Paper 2: A Gaussian Curve on a GDC",
         intro=(
@@ -152,13 +170,13 @@ def gen_gdc_gauss(clean_integers: bool, difficulty: str = "standard", exclude_nu
             ),
             part(
                 "c",
-                f"Find the area bounded by the curve, the $x$-axis and the line $x = {item['upper']}$.",
+                area_prompt,
                 2,
                 step(
                     "Evaluate the definite integral numerically:",
                     (
-                        rf"\int_{{0}}^{{{item['upper']}}} "
-                        rf"\mathrm{{e}}^{{-{power}}}\ln(1+x)\,dx = {item['area']}"
+                        rf"\int_{{{lower}}}^{{{item['upper']}}} "
+                        rf"\mathrm{{e}}^{{-{power}}}\ln(1+x)\,dx = {area_value}"
                     ),
                     "M1 A1",
                 ),

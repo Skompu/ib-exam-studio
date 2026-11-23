@@ -50,6 +50,12 @@ from generators.complex_roots_demoivre import gen_complex_demoivre_roots
 from generators.complex_numbers import gen_complex_numbers
 from generators.core_skills import gen_geometric_sequence, gen_logarithms, gen_trigonometric_equation
 from generators.differential_equations import gen_differential_equation
+from generators.drill_topics import (
+    gen_drill_bayes,
+    gen_drill_binomial,
+    gen_drill_integral,
+    gen_drill_rates,
+)
 from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
 from generators.functions_extended import gen_extended_rational
@@ -1252,6 +1258,43 @@ TASK_REGISTRY = {
         "calculator": "gdc",
         "search": "logarithm area GDC",
     },
+    # Single-topic drills. A full paper never deals them; Swap and Topic Drill do.
+    "drill_binomial": {
+        "name": "Algebra: Binomial Theorem",
+        "func": gen_drill_binomial,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "deal": False,
+        "search": "binomial theorem general term independent fractional negative expansion",
+    },
+    "drill_rates": {
+        "name": "Calculus: Related Rates of Change",
+        "func": gen_drill_rates,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "deal": False,
+        "search": "related rates cone cylinder surface area chain rule",
+    },
+    "drill_integral": {
+        "name": "Calculus: Substitution and Integration by Parts",
+        "func": gen_drill_integral,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "deal": False,
+        "search": "integration by parts substitution logarithm exponential definite",
+    },
+    "drill_bayes": {
+        "name": "Probability: Bayes and Tree Diagrams",
+        "func": gen_drill_bayes,
+        "marks": 6,
+        "category": "Probability",
+        "section": "A",
+        "deal": False,
+        "search": "bayes tree diagram total probability unknown rate three branches",
+    },
 }
 
 PRESETS = {
@@ -2212,6 +2255,8 @@ SL_EXCLUDED = frozenset({
     "vec_lines_intersect",
     "vec_two_planes",
     "ext_vectors",
+    "drill_rates",
+    "drill_integral",
 })
 
 

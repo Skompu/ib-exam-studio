@@ -376,7 +376,8 @@ _TRIG_BANK = tuple(_trig_row(*row) for row in _TRIG)
 
 
 def _cross_trig(clean_integers, difficulty, exclude_numeric_ids, gdc):
-    del clean_integers, difficulty
+    del clean_integers
+    hard = difficulty == "challenging"
     item = deal(_TRIG_BANK, exclude_numeric_ids, lambda row: row["numeric_id"])
     return pack_task(
         title="Section B: Trigonometry and a Geometric Series",
@@ -418,11 +419,20 @@ def _cross_trig(clean_integers, difficulty, exclude_numeric_ids, gdc):
             ),
             part(
                 "d",
-                r"Find the sum to infinity of the geometric series with the same first term and common ratio $\cos^{2}\theta$.",
+                (
+                    r"Find the sum of the two sums to infinity: the series with common ratio $\sin^{2}\theta$ "
+                    r"and the series with the same first term and common ratio $\cos^{2}\theta$."
+                    if hard
+                    else r"Find the sum to infinity of the geometric series with the same first term and common ratio $\cos^{2}\theta$."
+                ),
                 4,
                 step(
-                    r"$\cos^{2}\theta = 1 - \sin^{2}\theta$, so the new sum is $u_1/\sin^{2}\theta$:",
-                    rf"S = {sp.latex(item['cosine_sum'])}",
+                    (
+                        r"The cosine-squared series sums to $u_1/\sin^{2}\theta$. Add it to the sum from (c):"
+                        if hard
+                        else r"$\cos^{2}\theta = 1 - \sin^{2}\theta$, so the new sum is $u_1/\sin^{2}\theta$:"
+                    ),
+                    rf"S = {sp.latex(item['sum'] + item['cosine_sum'] if hard else item['cosine_sum'])}",
                     "M1 A1 A1 A1",
                 ),
             ),
@@ -477,8 +487,16 @@ _LOG = _log_bank()
 
 
 def _cross_log(clean_integers, difficulty, exclude_numeric_ids, gdc):
-    del clean_integers, difficulty
+    del clean_integers
     item = deal(_LOG, exclude_numeric_ids, lambda row: row["numeric_id"])
+    if difficulty == "challenging":
+        area_left = item["s"]
+        area_right = 2 * item["s"]
+        area = sp.simplify(sp.Abs(sp.integrate(item["f"], (x, area_left, area_right))))
+    else:
+        area_left = 1
+        area_right = item["s"]
+        area = item["area"]
     return pack_task(
         title="Section B: A Logarithm, its Derivative and an Area",
         intro="The function $f$ is defined for $x > 0$.",
@@ -506,11 +524,14 @@ def _cross_log(clean_integers, difficulty, exclude_numeric_ids, gdc):
             ),
             part(
                 "c",
-                rf"Find the exact area enclosed by the curve, the line $x = 1$ and the line $x = {sp.latex(item['s'])}$.",
+                (
+                    rf"Find the exact area enclosed by the curve, the line $x = {sp.latex(area_left)}$ "
+                    rf"and the line $x = {sp.latex(area_right)}$."
+                ),
                 5,
                 step(
                     "Integrate and apply the limits. The antiderivative of $\\ln x$ is $x\\ln x - x$:",
-                    rf"\text{{Area}} = {sp.latex(item['area'])}",
+                    rf"\text{{Area}} = {sp.latex(area)}",
                     "M1 A1 M1 A1 A1",
                 ),
             ),

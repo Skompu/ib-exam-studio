@@ -143,8 +143,9 @@ def gen_two_planes(clean_integers: bool, difficulty: str = "standard", exclude_n
 
 
 def gen_two_planes_gdc(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
-    """Same planes, with the acute angle in degrees to 3 s.f."""
-    del clean_integers, difficulty
+    """Same planes, with the angle in degrees to 3 s.f."""
+    del clean_integers
+    hard = difficulty == "challenging"
     banned = set(exclude_numeric_ids or ())
     available = [item for item in _BANK if f"deg|{item[-1]}" not in banned]
     if not available:
@@ -165,7 +166,9 @@ def gen_two_planes_gdc(clean_integers: bool, difficulty: str = "standard", exclu
             numeric_id,
         ) = choice(available)
         try:
-            degrees = three_sf(math.degrees(math.acos(float(cosine))))
+            acute = math.degrees(math.acos(float(cosine)))
+            degrees = three_sf(180 - acute if hard else acute)
+            acute_tex = three_sf(acute) if hard else degrees
         except RuntimeError as exc:
             last_error = exc
             continue
@@ -183,11 +186,23 @@ def gen_two_planes_gdc(clean_integers: bool, difficulty: str = "standard", exclu
             parts=[
                 part(
                     "a",
-                    r"Find the acute angle $\theta$ between the planes.",
+                    (
+                        r"Find the obtuse angle $\theta$ between the planes."
+                        if hard
+                        else r"Find the acute angle $\theta$ between the planes."
+                    ),
                     3,
                     step(
-                        r"$\cos\theta = |\mathbf{n}_1\cdot\mathbf{n}_2|/(|\mathbf{n}_1|\,|\mathbf{n}_2|)$, then read $\theta$ from a GDC:",
-                        rf"\cos\theta = {sp.latex(cosine)}, \quad \theta = {degrees}^{{\circ}}",
+                        (
+                            r"Find the acute angle from $\cos\alpha = |\mathbf{n}_1\cdot\mathbf{n}_2|/(|\mathbf{n}_1|\,|\mathbf{n}_2|)$, then $\theta = 180^{\circ}-\alpha$:"
+                            if hard
+                            else r"$\cos\theta = |\mathbf{n}_1\cdot\mathbf{n}_2|/(|\mathbf{n}_1|\,|\mathbf{n}_2|)$, then read $\theta$ from a GDC:"
+                        ),
+                        (
+                            rf"\alpha = {acute_tex}^{{\circ}}, \quad \theta = {degrees}^{{\circ}}"
+                            if hard
+                            else rf"\cos\theta = {sp.latex(cosine)}, \quad \theta = {degrees}^{{\circ}}"
+                        ),
                         "M1 A1 A1",
                         rounding=ROUNDING_3SF,
                     ),

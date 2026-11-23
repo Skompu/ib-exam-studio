@@ -271,6 +271,7 @@ def _extended(
     family: str,
     cover_id: str = "forging",
     fig=None,
+    part_c_answer=None,
 ):
     _hide_equation(intro, latex_main)
     solution = _solution(symbol, reading)
@@ -295,7 +296,11 @@ def _extended(
                 "c",
                 prompts["c"],
                 2,
-                step(reasons["c"], f"t = {reading.later_time}", "M1 A1"),
+                step(
+                    reasons["c"],
+                    f"t = {reading.later_time if part_c_answer is None else part_c_answer}",
+                    "M1 A1",
+                ),
             ),
             part(
                 "d",
@@ -351,7 +356,14 @@ def _cooling_figure(reading: Reading):
     return fig
 
 
-def newton_extended(reading: Reading):
+def _half_answer(reading: Reading) -> str:
+    moment = reading.time_until(reading.limit + sp.Rational(reading.excess(), 2))
+    if moment is None:
+        raise RuntimeError("The half-excess time is not defined.")
+    return sp.latex(sp.simplify(moment))
+
+
+def newton_extended(reading: Reading, challenging: bool = False):
     intro = (
         "A hot metal forging is placed in a cooling bath. The temperature of the forging "
         "decreases at a rate directly proportional to the difference between its temperature "
@@ -374,7 +386,11 @@ def newton_extended(reading: Reading):
         {
             "a": "Write down a differential equation for $T$, where $k$ is a positive constant.",
             "b": "Hence find the exact value of $k$.",
-            "c": f"Hence find the exact time at which the temperature of the forging is ${reading.later_value}^{{\\circ}}\\mathrm{{C}}$.",
+            "c": (
+                "Hence find the exact time at which the excess of the temperature over the bath has halved."
+                if challenging
+                else f"Hence find the exact time at which the temperature of the forging is ${reading.later_value}^{{\\circ}}\\mathrm{{C}}."
+            ),
             "d": (
                 f"Hence find the exact rate of change of the temperature when the temperature is "
                 f"${reading.measured}^{{\\circ}}\\mathrm{{C}}$. Give the units."
@@ -391,8 +407,12 @@ def newton_extended(reading: Reading):
             ),
             "b": f"Use $T({reading.elapsed}) = {reading.measured}$:",
             "c": (
-                f"Solve ${reading.later_value} = {reading.limit} + {reading.excess()} e^{{-kt}}$ "
-                f"with $k = {_k_tex(reading)}$:"
+                "Set the excess equal to half its initial value:"
+                if challenging
+                else (
+                    f"Solve ${reading.later_value} = {reading.limit} + {reading.excess()} e^{{-kt}}$ "
+                    f"with $k = {_k_tex(reading)}$:"
+                )
             ),
             "d": (
                 f"Substitute the temperature ${reading.measured}$ into the differential equation. "
@@ -407,10 +427,11 @@ def newton_extended(reading: Reading):
         "Exponential approach to a fixed bath temperature, with k a clean logarithm",
         cover_id="forging",
         fig=_cooling_figure(reading),
+        part_c_answer=_half_answer(reading) if challenging else None,
     )
 
 
-def clearance_extended(reading: Reading):
+def clearance_extended(reading: Reading, challenging: bool = False):
     intro = (
         "A patient receives one intravenous dose of a drug. The concentration of the drug "
         "in the bloodstream then decreases at a rate directly proportional to the concentration "
@@ -430,7 +451,11 @@ def clearance_extended(reading: Reading):
         {
             "a": "Write down a differential equation for $C$, where $k$ is a positive constant.",
             "b": "Hence find the exact value of $k$.",
-            "c": f"Hence find the exact time at which the concentration is ${reading.later_value}\\ \\mathrm{{mg/L}}$.",
+            "c": (
+                "Hence find the exact time at which the concentration has halved."
+                if challenging
+                else f"Hence find the exact time at which the concentration is ${reading.later_value}\\ \\mathrm{{mg/L}}."
+            ),
             "d": (
                 f"Hence find the exact rate of change of the concentration when the concentration is "
                 f"${reading.measured}\\ \\mathrm{{mg/L}}$. Give the units."
@@ -447,8 +472,12 @@ def clearance_extended(reading: Reading):
             ),
             "b": f"Use $C({reading.elapsed}) = {reading.measured}$:",
             "c": (
-                f"Solve ${reading.later_value} = {reading.initial} e^{{-kt}}$ "
-                f"with $k = {_k_tex(reading)}$:"
+                "Set the concentration equal to half the initial dose:"
+                if challenging
+                else (
+                    f"Solve ${reading.later_value} = {reading.initial} e^{{-kt}}$ "
+                    f"with $k = {_k_tex(reading)}$:"
+                )
             ),
             "d": (
                 f"Substitute the concentration ${reading.measured}$ into the differential equation. "
@@ -462,4 +491,5 @@ def clearance_extended(reading: Reading):
         "Drug clearance: form the equation, find k, a later time, a rate, and the limit",
         "Exponential decay to zero concentration, with k a clean logarithm",
         cover_id="clearance",
+        part_c_answer=_half_answer(reading) if challenging else None,
     )

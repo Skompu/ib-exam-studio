@@ -65,7 +65,7 @@ def _pmf(trials, successes, proportion):
     return sp.binomial(trials, successes) * proportion ** successes * (1 - proportion) ** (trials - successes)
 
 
-def _binomial():
+def _binomial(difficulty: str):
     cover = story_choice(COVERS_BINOMIAL)
     for _ in range(40):
         trials = randint(10, 20)
@@ -78,7 +78,16 @@ def _binomial():
         tail = sum(_pmf(trials, count, proportion) for count in range(successes, trials + 1))
         if not (sp.Rational(1, 20) < tail < sp.Rational(19, 20)):
             continue
+        below = 1 - tail
         expected = sp.simplify(trials * proportion)
+        if difficulty == "challenging":
+            prompt_b = f"Hence find $P(X < {successes})$."
+            reason_b = "Use the complement of the upper tail from part (a)'s boundary:"
+            answer_b = f"P(X < {successes}) = 1 - P(X \\ge {successes}) = {three_sf(below)}"
+        else:
+            prompt_b = f"Find $P(X \\ge {successes})$."
+            reason_b = "Use the GDC cumulative function from this value through the last trial:"
+            answer_b = f"P(X \\ge {successes}) = {three_sf(tail)}"
         return pack_task(
             title="Paper 2: Binomial Distribution",
             intro=(
@@ -104,14 +113,9 @@ def _binomial():
                 ),
                 part(
                     "b",
-                    f"Find $P(X \\ge {successes})$.",
+                    prompt_b,
                     2,
-                    step(
-                        "Use the GDC cumulative function from this value through the last trial:",
-                        f"P(X \\ge {successes}) = {three_sf(tail)}",
-                        "M1 A1",
-                        rounding=ROUNDING_3SF,
-                    ),
+                    step(reason_b, answer_b, "M1 A1", rounding=ROUNDING_3SF),
                 ),
                 part(
                     "c",
@@ -137,21 +141,37 @@ def _quantile(probability):
     return mp.sqrt(2) * mp.erfinv(2 * mp.mpf(probability) - 1)
 
 
-def _inverse_normal():
+def _inverse_normal(difficulty: str):
     cover = story_choice(COVERS_NORMAL)
     mean = choice((80, 100, 150, 500))
     spread = choice((5, 8, 10, 12, 15))
     tail = choice((sp.Rational(8, 100), sp.Rational(12, 100), sp.Rational(15, 100)))
     upper = choice((True, False))
     percent = int(tail * 100)
-    if upper:
+    if difficulty == "challenging":
+        # The middle percentage leaves this tail on each side, so the upper
+        # boundary uses a lower-tail area of 1 minus one tail.
+        area = 1 - tail
+        story = f"the middle {100 - 2 * percent}%"
+        relation = "<"
+        statement = f"P(X < k) = {sp.latex(area)}"
+        reason = (
+            f"Each tail beyond the middle {100 - 2 * percent}% has probability "
+            f"{sp.latex(tail)}, so the upper boundary has lower-tail area "
+            f"{sp.latex(area)}:"
+        )
+    elif upper:
         area = 1 - tail
         story = f"the greatest {percent}%"
         relation = ">"
+        statement = f"P(X {relation} k) = {sp.latex(tail)}"
+        reason = "Convert the percentage tail into a probability about $k$:"
     else:
         area = tail
         story = f"the least {percent}%"
         relation = "<"
+        statement = f"P(X {relation} k) = {sp.latex(tail)}"
+        reason = "Convert the percentage tail into a probability about $k$:"
     cutoff = mean + spread * _quantile(area)
     # A memorised z-value would make the GDC unnecessary. Keep the tail off 5%.
     if abs(float(area) - 0.95) < 1e-9 or abs(float(area) - 0.05) < 1e-9:
@@ -170,13 +190,18 @@ def _inverse_normal():
             part(
                 "a",
                 (
-                    f"Write a probability statement for the boundary $k$ of {story} of "
+                    f"Write a probability statement for the upper boundary $k$ of {story} of "
                     f"{cover['observations']}."
+                    if difficulty == "challenging"
+                    else (
+                        f"Write a probability statement for the boundary $k$ of {story} of "
+                        f"{cover['observations']}."
+                    )
                 ),
                 2,
                 step(
-                    "Convert the percentage tail into a probability about $k$:",
-                    f"P(X {relation} k) = {sp.latex(tail)}",
+                    reason,
+                    statement,
                     "M1 A1",
                 ),
             ),
@@ -211,10 +236,10 @@ def _inverse_normal():
 
 
 def gen_gdc_distributions(clean_integers: bool, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _binomial()
+    del clean_integers
+    return _binomial(difficulty)
 
 
 def gen_gdc_invnorm(clean_integers: bool, difficulty: str = "standard"):
-    del clean_integers, difficulty
-    return _inverse_normal()
+    del clean_integers
+    return _inverse_normal(difficulty)

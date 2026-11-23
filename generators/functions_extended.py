@@ -77,9 +77,15 @@ _BANK = _bank()
 
 
 def gen_extended_rational(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = deal(_BANK, exclude_numeric_ids, lambda row: row["numeric_id"])
     pole = item["pole"]
+    if difficulty == "challenging":
+        area_right = item["right"]
+        area_exact = sp.Integer(pole) * sp.log(item["width"])
+    else:
+        area_right = item["upper"]
+        area_exact = item["exact"]
     task = pack_task(
         title="Section B: Rational Function, Asymptotes and Area",
         intro=rf"The function $f$ is defined for $x \neq {pole}$ by",
@@ -145,7 +151,7 @@ def gen_extended_rational(clean_integers: bool, difficulty: str = "standard", ex
                 "e",
                 (
                     "Hence find the exact area of the region bounded by the curve, "
-                    f"the oblique asymptote, and the lines $x = {item['lower']}$ and $x = {item['upper']}$."
+                    f"the oblique asymptote, and the lines $x = {item['lower']}$ and $x = {area_right}$."
                 ),
                 4,
                 step(
@@ -154,8 +160,8 @@ def gen_extended_rational(clean_integers: bool, difficulty: str = "standard", ex
                     "M1 A1",
                 ),
                 step(
-                    f"Integrate from ${item['lower']}$ to ${item['upper']}$:",
-                    rf"\text{{Area}} = {_ln(item['exact'])}",
+                    f"Integrate from ${item['lower']}$ to ${area_right}$:",
+                    rf"\text{{Area}} = {_ln(area_exact)}",
                     "M1 A1",
                 ),
             ),

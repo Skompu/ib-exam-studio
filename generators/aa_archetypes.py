@@ -95,11 +95,13 @@ def _velocity_bank():
                     probe = 6.0 if any(abs(root - 2) < 0.3 for root in roots) else 2.0
                     acceleration = sp.diff(velocity, _T)
                     rate = float(acceleration.subs(_T, probe))
+                    rest_rate = float(acceleration.subs(_T, min(roots)))
                     try:
                         root_tex = three_sf(min(roots))
                         distance_tex = three_sf(distance)
                         displacement_tex = three_sf(displacement)
                         rate_tex = three_sf(rate)
+                        rest_rate_tex = three_sf(rest_rate)
                     except RuntimeError:
                         continue
                     if distance_tex == displacement_tex:
@@ -115,6 +117,7 @@ def _velocity_bank():
                             "root_tex": root_tex,
                             "probe": probe,
                             "rate_tex": rate_tex,
+                            "rest_rate_tex": rest_rate_tex,
                             "distance_tex": distance_tex,
                             "displacement_tex": displacement_tex,
                             "id": f"a={amplitude}|b={frequency}|c={drift}|d={offset}",
@@ -145,8 +148,16 @@ def _velocity_figure(item):
 
 
 def gen_velocity_graph(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = choice(_available(_VELOCITY, set(exclude_numeric_ids or ()), lambda row: row["id"]))
+    if difficulty == "challenging":
+        rate_prompt = "Find the acceleration at the first instant the particle is at rest."
+        rate_reason = "Differentiate, then evaluate at the time from part (a):"
+        rate_tex = item["rest_rate_tex"]
+    else:
+        rate_prompt = f"Find the acceleration when $t={item['probe']:g}$."
+        rate_reason = "Differentiate, then read the value from a GDC:"
+        rate_tex = item["rate_tex"]
     fig = _velocity_figure(item)
     task = pack_task(
         title="Calculus: Velocity-time graph",
@@ -174,11 +185,15 @@ def gen_velocity_graph(clean_integers: bool = True, difficulty: str = "standard"
             ),
             part(
                 "b",
-                f"Find the acceleration when $t={item['probe']:g}$.",
+                rate_prompt,
                 2,
                 step(
-                    "Differentiate, then read the value from a GDC:",
-                    rf"v'({item['probe']:g}) = {item['rate_tex']}",
+                    rate_reason,
+                    (
+                        rf"v'({item['root_tex']}) = {rate_tex}"
+                        if difficulty == "challenging"
+                        else rf"v'({item['probe']:g}) = {rate_tex}"
+                    ),
                     "M1 A1",
                     rounding=ROUNDING_3SF,
                 ),
@@ -255,7 +270,7 @@ def _cylinder_figure(radius, height):
 
 
 def gen_solid_optimisation(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = choice(_available(_CYLINDERS, set(exclude_numeric_ids or ()), lambda row: row["id"]))
     radius = item["radius"]
     height = 2 * radius
@@ -295,7 +310,12 @@ def gen_solid_optimisation(clean_integers: bool = True, difficulty: str = "stand
             ),
             part(
                 "c",
-                "Hence find $\\dfrac{d^{2}S}{dx^{2}}$. Explain why this stationary point is a minimum, and find the minimum surface area.",
+                (
+                    "Hence find $\\dfrac{d^{2}S}{dx^{2}}$. Explain why this stationary point is a minimum, "
+                    "and find the minimum surface area and the corresponding height."
+                    if difficulty == "challenging"
+                    else "Hence find $\\dfrac{d^{2}S}{dx^{2}}$. Explain why this stationary point is a minimum, and find the minimum surface area."
+                ),
                 6,
                 step(
                     "Differentiate again:",
@@ -308,8 +328,16 @@ def gen_solid_optimisation(clean_integers: bool = True, difficulty: str = "stand
                     "M1 A1",
                 ),
                 step(
-                    "Substitute the stationary radius into $S$:",
-                    rf"S = {sp.latex(item['minimum'])}",
+                    (
+                        f"Substitute the stationary radius into $S$. Then $h = V/(\\pi x^{{2}}) = {2 * radius}$:"
+                        if difficulty == "challenging"
+                        else "Substitute the stationary radius into $S$:"
+                    ),
+                    (
+                        rf"S = {sp.latex(item['minimum'])}, \quad h = {2 * radius}"
+                        if difficulty == "challenging"
+                        else rf"S = {sp.latex(item['minimum'])}"
+                    ),
                     "A1 A1",
                 ),
             ),
@@ -331,7 +359,7 @@ _GDC_VOLUMES = (400, 500, 640, 800, 1000, 1200)
 
 
 def gen_solid_optimisation_gdc(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     banned = set(exclude_numeric_ids or ())
     volumes = [volume for volume in _GDC_VOLUMES if f"V={volume}" not in banned]
     if len(volumes) < 4 and not banned:
@@ -341,6 +369,7 @@ def gen_solid_optimisation_gdc(clean_integers: bool = True, difficulty: str = "s
     area = 6 * math.pi * radius**2
     radius_tex = three_sf(radius)
     area_tex = three_sf(area)
+    height_tex = three_sf(volume / (math.pi * radius**2))
     curvature = three_sf(12 * math.pi)
     fig = _cylinder_figure(max(radius, 1), max(2 * radius, 1))
     task = pack_task(
@@ -381,8 +410,14 @@ def gen_solid_optimisation_gdc(clean_integers: bool = True, difficulty: str = "s
             ),
             part(
                 "c",
-                "Hence find $\\dfrac{d^{2}S}{dx^{2}}$ at this value of $x$. "
-                "Explain why the stationary point is a minimum, and find the minimum surface area.",
+                (
+                    "Hence find $\\dfrac{d^{2}S}{dx^{2}}$ at this value of $x$. "
+                    "Explain why the stationary point is a minimum, and find the minimum surface area "
+                    "and the corresponding height."
+                    if difficulty == "challenging"
+                    else "Hence find $\\dfrac{d^{2}S}{dx^{2}}$ at this value of $x$. "
+                    "Explain why the stationary point is a minimum, and find the minimum surface area."
+                ),
                 6,
                 step(
                     "The second derivative at the stationary point is positive:",
@@ -391,8 +426,16 @@ def gen_solid_optimisation_gdc(clean_integers: bool = True, difficulty: str = "s
                     rounding=ROUNDING_3SF,
                 ),
                 step(
-                    "Substitute the stationary radius into $S$:",
-                    rf"S = {area_tex}",
+                    (
+                        "Substitute the stationary radius into $S$, then use $h = V/(\\pi x^{2})$:"
+                        if difficulty == "challenging"
+                        else "Substitute the stationary radius into $S$:"
+                    ),
+                    (
+                        rf"S = {area_tex}, \quad h = {height_tex}"
+                        if difficulty == "challenging"
+                        else rf"S = {area_tex}"
+                    ),
                     "M1 A1 A1",
                     rounding=ROUNDING_3SF,
                 ),
@@ -472,7 +515,7 @@ def _box_figure(item):
 
 
 def gen_box_regression(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = choice(_available(_BOXES, set(exclude_numeric_ids or ()), lambda row: row["id"]))
     mean_x, mean_y = item["mean"]
     slope = item["slope"]
@@ -513,13 +556,27 @@ def gen_box_regression(clean_integers: bool = True, difficulty: str = "standard"
             ),
             part(
                 "c",
-                "The regression line of $y$ on $x$ is "
-                f"$y-{mean_y}={sp.latex(slope)}(x-{mean_x})$, and the regression line of $x$ on $y$ is "
-                f"$x-{mean_x}={sp.latex(other)}(y-{mean_y})$. Find their point of intersection.",
+                (
+                    "The regression line of $y$ on $x$ is "
+                    f"$y-{mean_y}={sp.latex(slope)}(x-{mean_x})$. "
+                    f"Use it to estimate $y$ when $x={item['extra']}$."
+                    if difficulty == "challenging"
+                    else "The regression line of $y$ on $x$ is "
+                    f"$y-{mean_y}={sp.latex(slope)}(x-{mean_x})$, and the regression line of $x$ on $y$ is "
+                    f"$x-{mean_x}={sp.latex(other)}(y-{mean_y})$. Find their point of intersection."
+                ),
                 2,
                 step(
-                    "The slopes are not reciprocals, so the lines meet only at the mean point they were built through:",
-                    rf"({mean_x},\, {mean_y})",
+                    (
+                        "Substitute the extra reading into the line of $y$ on $x$:"
+                        if difficulty == "challenging"
+                        else "The slopes are not reciprocals, so the lines meet only at the mean point they were built through:"
+                    ),
+                    (
+                        rf"y = {sp.latex(sp.simplify(mean_y + slope * (item['extra'] - mean_x)))}"
+                        if difficulty == "challenging"
+                        else rf"({mean_x},\, {mean_y})"
+                    ),
                     "M1 A1",
                 ),
             ),
@@ -559,11 +616,13 @@ def _regression_sets():
         fitted, height = np.polyfit(x_values, y_values, 1)
         correlation = float(np.corrcoef(x_values, y_values)[0, 1])
         predicted = fitted * predict_x + height
+        outside = fitted * 20 + height
         try:
             slope_tex = three_sf(fitted)
             height_tex = three_sf(height)
             correlation_tex = three_sf(correlation)
             predicted_tex = three_sf(predicted)
+            outside_tex = three_sf(outside)
         except RuntimeError:
             continue
         # A second numerical path: the normal equations.
@@ -584,6 +643,7 @@ def _regression_sets():
                 "height_tex": height_tex,
                 "correlation_tex": correlation_tex,
                 "predicted_tex": predicted_tex,
+                "outside_tex": outside_tex,
                 "id": f"m={slope}|c={intercept}|x={predict_x}",
             }
         )
@@ -611,7 +671,7 @@ def _scatter(item):
 
 
 def gen_regression_gdc(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = choice(_available(_REGRESSIONS, set(exclude_numeric_ids or ()), lambda row: row["id"]))
     rows = [["x", *[str(point[0]) for point in item["points"]]], ["y", *[str(point[1]) for point in item["points"]]]]
     fig = _scatter(item)
@@ -621,7 +681,11 @@ def gen_regression_gdc(clean_integers: bool = True, difficulty: str = "standard"
             "The table shows eight observations. A graphic display calculator is required. "
             "Give every numerical answer to three significant figures."
         ),
-        latex_main=rf"n = 8, \quad \text{{predict at }} x = {item['predict_x']}",
+        latex_main=(
+            r"n = 8, \quad \text{predict at } x = 20"
+            if difficulty == "challenging"
+            else rf"n = 8, \quad \text{{predict at }} x = {item['predict_x']}"
+        ),
         parts=[
             part(
                 "a",
@@ -636,11 +700,20 @@ def gen_regression_gdc(clean_integers: bool = True, difficulty: str = "standard"
             ),
             part(
                 "b",
-                f"Use the regression line of $y$ on $x$ to estimate $y$ when $x={item['predict_x']}$.",
+                (
+                    "Use the regression line of $y$ on $x$ to estimate $y$ when $x=20$. "
+                    "State whether this estimate is interpolation or extrapolation."
+                    if difficulty == "challenging"
+                    else f"Use the regression line of $y$ on $x$ to estimate $y$ when $x={item['predict_x']}$."
+                ),
                 2,
                 step(
-                    "Substitute the given $x$ into the line from (a):",
-                    rf"y = {item['predicted_tex']}",
+                    (
+                        "Substitute $x=20$. This $x$ lies outside the data, so the estimate is an extrapolation:"
+                        if difficulty == "challenging"
+                        else "Substitute the given $x$ into the line from (a):"
+                    ),
+                    rf"y = {item['outside_tex'] if difficulty == 'challenging' else item['predicted_tex']}",
                     "M1 A1",
                     rounding=ROUNDING_3SF,
                 ),
@@ -771,7 +844,7 @@ def _bell(item):
 
 
 def gen_normal_binomial(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     item = choice(_available(_NORMAL_BINOMIAL, set(exclude_numeric_ids or ()), lambda row: row["id"]))
     fig = _bell(item)
     task = pack_task(
@@ -785,11 +858,23 @@ def gen_normal_binomial(clean_integers: bool = True, difficulty: str = "standard
         parts=[
             part(
                 "a",
-                f"Find $P(X < {item['threshold_tex']})$.",
+                (
+                    f"Find $P(X > {item['threshold_tex']})$."
+                    if difficulty == "challenging"
+                    else f"Find $P(X < {item['threshold_tex']})$."
+                ),
                 4,
                 step(
-                    "Use the GDC normal cumulative distribution:",
-                    rf"p = {item['probability_tex']}",
+                    (
+                        "Use the complement of the lower tail:"
+                        if difficulty == "challenging"
+                        else "Use the GDC normal cumulative distribution:"
+                    ),
+                    (
+                        rf"p = {three_sf(1 - float(item['probability_tex']))}"
+                        if difficulty == "challenging"
+                        else rf"p = {item['probability_tex']}"
+                    ),
                     "M1 A1 A1 A1",
                     rounding=ROUNDING_3SF,
                 ),
@@ -1002,14 +1087,25 @@ def _logistic_figure(item):
     return fig
 
 
-def _logistic_task(gdc: bool, item):
+def _logistic_task(gdc: bool, item, challenging: bool = False):
     capacity, initial, scale = item["k"], item["p0"], item["m"]
     solution = (
         rf"P(t) = \dfrac{{{capacity}\cdot {initial}\, e^{{t/{scale}}}}}"
         rf"{{{capacity - initial} + {initial}\, e^{{t/{scale}}}}}"
     )
-    if gdc:
+    if challenging:
+        reached = sp.simplify(item["when"] + item["m"] * sp.log(3))
+        time_reason = f"Set $P = 3\\times {item['k']}/4$ in the solution from (b) and solve for $t$:"
+        time_prompt = (
+            f"Hence find the time at which the population reaches three quarters of its carrying capacity"
+            + (", to three significant figures." if gdc else ".")
+        )
+        time_tex = three_sf(float(reached)) if gdc else sp.latex(reached)
+        time_round = ROUNDING_3SF if gdc else ""
+        intro_tail = " A graphic display calculator is required for the numerical value of $t$." if gdc else ""
+    elif gdc:
         time_tex = item["when_tex"]
+        time_reason = f"The growth rate $P({item['k']}-P)$ is greatest at $P={item['k']}/2$. Solve for $t$:"
         time_prompt = (
             "Hence find the time at which the population is growing most rapidly, "
             "to three significant figures."
@@ -1018,6 +1114,7 @@ def _logistic_task(gdc: bool, item):
         intro_tail = " A graphic display calculator is required for the numerical value of $t$."
     else:
         time_tex = sp.latex(item["when"])
+        time_reason = f"The growth rate $P({item['k']}-P)$ is greatest at $P={item['k']}/2$. Solve for $t$:"
         time_prompt = "Hence find the exact time at which the population is growing most rapidly."
         time_round = ""
         intro_tail = ""
@@ -1057,7 +1154,7 @@ def _logistic_task(gdc: bool, item):
                 time_prompt,
                 5,
                 step(
-                    f"The growth rate $P({capacity}-P)$ is greatest at $P={capacity}/2$. Solve for $t$:",
+                    time_reason,
                     rf"t = {time_tex}",
                     "M1 A1 A1 A1 A1",
                     rounding=time_round,
@@ -1075,20 +1172,20 @@ def _logistic_task(gdc: bool, item):
 
 
 def gen_logistic(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     banned = {value.removesuffix("|exact") for value in (exclude_numeric_ids or ())}
     item = choice(_available(_LOGISTIC, banned, lambda row: row["id"]))
-    task = _logistic_task(False, item)
+    task = _logistic_task(False, item, difficulty == "challenging")
     if task.marks != 16:
         raise RuntimeError("Logistic question must be worth 16 marks.")
     return task
 
 
 def gen_logistic_gdc(clean_integers: bool = True, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
     banned = {value.removesuffix("|gdc") for value in (exclude_numeric_ids or ())}
     item = choice(_available(_LOGISTIC, banned, lambda row: row["id"]))
-    task = _logistic_task(True, item)
+    task = _logistic_task(True, item, difficulty == "challenging")
     if task.marks != 16:
         raise RuntimeError("GDC logistic question must be worth 16 marks.")
     return task

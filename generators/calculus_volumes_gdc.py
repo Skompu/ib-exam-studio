@@ -18,14 +18,20 @@ mp.mp.dps = 25
 _CANDIDATES = (
     (1, 1),
     (1, 2),
+    (1, 3),
     (2, 1),
     (2, 2),
+    (2, 3),
     (3, 1),
+    (3, 2),
     (4, 2),
+    (4, 3),
+    (5, 2),
     (6, 1),
     (6, 2),
     (8, 1),
     (8, 2),
+    (8, 3),
 )
 
 
@@ -37,8 +43,8 @@ def _fourth_digit_is_five(value) -> bool:
     return len(digits) >= 4 and digits[3] == "5"
 
 
-def _volume(coefficient: int, upper: int):
-    integral = mp.quad(lambda value: mp.e ** (-coefficient * value * value), [0, upper])
+def _volume(coefficient: int, upper: int, lower: int = 0):
+    integral = mp.quad(lambda value: mp.e ** (-coefficient * value * value), [lower, upper])
     volume = mp.pi * integral
     if not (0.2 < float(volume) < 20):
         return None
@@ -64,42 +70,58 @@ def _curve(coefficient: int) -> str:
     return rf"e^{{-({coefficient}/2) x^{{2}}}}"
 
 
-def _bank():
+def _limit_tex(lower) -> str:
+    return "0" if lower == 0 else r"\dfrac{1}{2}"
+
+
+def _bank(lower):
     valid = []
     for coefficient, upper in _CANDIDATES:
-        shown = _volume(coefficient, upper)
+        if upper <= lower:
+            continue
+        shown = _volume(coefficient, upper, lower)
         if shown is None:
             continue
         valid.append((coefficient, upper, shown))
-    if len(valid) < 8:
+    minimum = 8 if lower == 0 else 4
+    if len(valid) < minimum:
         raise RuntimeError("Too few GDC volumes survive three-significant-figure rounding.")
     return tuple(valid)
 
 
-_BANK = _bank()
+_BANK = _bank(0)
+_HARD_BANK = _bank(0.5)
 
 
 def gen_volume_revolution_gdc(clean_integers: bool, difficulty: str = "standard", exclude_numeric_ids=None):
-    del clean_integers, difficulty
+    del clean_integers
+    lower = 0.5 if difficulty == "challenging" else 0
+    limit = _limit_tex(lower)
+    tag = "0" if lower == 0 else "1/2"
     banned = set(exclude_numeric_ids or ())
     available = [
-        item for item in _BANK
-        if f"c={item[0]}|b={item[1]}" not in banned
+        item for item in (_HARD_BANK if lower else _BANK)
+        if f"c={item[0]}|b={item[1]}|a={tag}" not in banned
     ]
     if not available:
         raise RuntimeError("No unused GDC volume remains.")
     coefficient, upper, shown = choice(available)
     curve = _curve(coefficient)
     squared = rf"e^{{-{coefficient}x^{{2}}}}" if coefficient != 1 else r"e^{-x^{2}}"
+    window = (
+        f"the $x$-axis and the lines $x = {limit}$ and $x = {upper}$"
+        if lower
+        else f"the $x$-axis and the line $x = {upper}$"
+    )
     task = pack_task(
         title="Paper 2: Volume of Revolution",
         intro=(
             "A graphic display calculator is required. "
-            "The region bounded by the curve, the $x$-axis and the line "
-            f"$x = {upper}$ is rotated through $360^\\circ$ about the $x$-axis. "
+            "The region bounded by the curve, "
+            f"{window} is rotated through $360^\\circ$ about the $x$-axis. "
             "Give the volume in cubic centimetres, to three significant figures."
         ),
-        latex_main=rf"y = {curve}, \quad 0 \le x \le {upper}",
+        latex_main=rf"y = {curve}, \quad {limit} \le x \le {upper}",
         parts=[
             part(
                 "a",
@@ -117,7 +139,7 @@ def gen_volume_revolution_gdc(clean_integers: bool, difficulty: str = "standard"
                 2,
                 step(
                     r"Use $V = \pi \int y^{2}\,\mathrm{d}x$ between the given limits:",
-                    rf"V = \pi \int_{{0}}^{{{upper}}} {squared}\,\mathrm{{d}}x",
+                    rf"V = \pi \int_{{{limit}}}^{{{upper}}} {squared}\,\mathrm{{d}}x",
                     "M1 A1",
                 ),
             ),
@@ -137,7 +159,7 @@ def gen_volume_revolution_gdc(clean_integers: bool, difficulty: str = "standard"
         family="Gaussian rotation about the x-axis, answered to 3 s.f.",
         part_graph_id="vol_rev_gdc_exp_log",
         cover_id="plain",
-        numeric_id=f"c={coefficient}|b={upper}",
+        numeric_id=f"c={coefficient}|b={upper}|a={tag}",
     )
     if task.marks != 6:
         raise RuntimeError("GDC volume question must be worth 6 marks.")
