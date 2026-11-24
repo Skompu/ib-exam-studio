@@ -81,6 +81,13 @@ from generators.drill_topics_e import (
     gen_drill_kinematics,
     gen_drill_vector,
 )
+from generators.drill_topics_f import (
+    gen_drill_exp_gdc,
+    gen_drill_finance_gdc,
+    gen_drill_intersect_gdc,
+    gen_drill_quad_gdc,
+    gen_drill_regress_gdc,
+)
 from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
 from generators.functions_extended import gen_extended_rational
@@ -1478,6 +1485,56 @@ TASK_REGISTRY = {
         "section": "A",
         "deal": False,
         "search": "scalar product angle area collinear perpendicular projection distance triangle",
+    },
+    "drill_quad_gdc": {
+        "name": "Paper 2: Quadratic Modelling and Optimisation",
+        "func": gen_drill_quad_gdc,
+        "marks": 6,
+        "category": "Functions",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "quadratic model vertex profit projectile optimisation GDC boundary conditions",
+    },
+    "drill_exp_gdc": {
+        "name": "Paper 2: Exponential Growth and Decay",
+        "func": gen_drill_exp_gdc,
+        "marks": 6,
+        "category": "Functions",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "exponential model growth decay threshold average rate GDC two readings",
+    },
+    "drill_intersect_gdc": {
+        "name": "Paper 2: Intersections on a GDC",
+        "func": gen_drill_intersect_gdc,
+        "marks": 6,
+        "category": "Functions",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "intersection inequality parameter tangent discriminant GDC graphical solution",
+    },
+    "drill_finance_gdc": {
+        "name": "Paper 2: Compound Interest, Depreciation and Loans",
+        "func": gen_drill_finance_gdc,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "compound interest depreciation loan annuity inflation doubling GDC nominal rate",
+    },
+    "drill_regress_gdc": {
+        "name": "Paper 2: Linear Regression and Correlation",
+        "func": gen_drill_regress_gdc,
+        "marks": 6,
+        "category": "Statistics",
+        "section": "A",
+        "calculator": "gdc",
+        "deal": False,
+        "search": "pearson correlation regression interpolation extrapolation inverse line missing value GDC",
     },
 }
 
