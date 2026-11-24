@@ -56,6 +56,17 @@ from generators.drill_topics import (
     gen_drill_integral,
     gen_drill_rates,
 )
+from generators.drill_topics_b import (
+    gen_drill_double,
+    gen_drill_maclaurin,
+    gen_drill_transform,
+    gen_drill_vieta,
+)
+from generators.drill_topics_c import (
+    gen_drill_count,
+    gen_drill_density,
+    gen_drill_induction,
+)
 from generators.functions_core import gen_functions
 from generators.functions_rational import gen_rational_asymptotes
 from generators.functions_extended import gen_extended_rational
@@ -1295,6 +1306,69 @@ TASK_REGISTRY = {
         "deal": False,
         "search": "bayes tree diagram total probability unknown rate three branches",
     },
+    "drill_vieta": {
+        "name": "Algebra: Polynomials and Viète",
+        "func": gen_drill_vieta,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "deal": False,
+        "search": "polynomial factor remainder theorem viete symmetric roots reciprocal",
+    },
+    "drill_transform": {
+        "name": "Functions: Transformations and Modulus",
+        "func": gen_drill_transform,
+        "marks": 6,
+        "category": "Functions",
+        "section": "A",
+        "deal": False,
+        "search": "transformation vertex asymptote modulus graph number of solutions",
+    },
+    "drill_double": {
+        "name": "Trigonometry: Double-Angle Equations",
+        "func": gen_drill_double,
+        "marks": 6,
+        "category": "Trigonometry",
+        "section": "A",
+        "deal": False,
+        "search": "double angle identity compound angle exact radians tangent",
+    },
+    "drill_maclaurin": {
+        "name": "Calculus: Maclaurin Series and Limits",
+        "func": gen_drill_maclaurin,
+        "marks": 7,
+        "category": "Calculus",
+        "section": "A",
+        "deal": False,
+        "search": "maclaurin series limit exponential cosine logarithm square root secant",
+    },
+    "drill_induction": {
+        "name": "Proof: Mathematical Induction",
+        "func": gen_drill_induction,
+        "marks": 7,
+        "category": "Proof",
+        "section": "A",
+        "deal": False,
+        "search": "induction base hypothesis step conclusion sum divisibility matrix power",
+    },
+    "drill_count": {
+        "name": "Algebra: Counting, Permutations and Combinations",
+        "func": gen_drill_count,
+        "marks": 6,
+        "category": "Algebra",
+        "section": "A",
+        "deal": False,
+        "search": "counting codes committee permutations seating even numbers restriction",
+    },
+    "drill_density": {
+        "name": "Probability: Continuous Density, Median and Variance",
+        "func": gen_drill_density,
+        "marks": 7,
+        "category": "Probability",
+        "section": "A",
+        "deal": False,
+        "search": "continuous density exact median quartile variance exponential quadratic",
+    },
 }
 
 PRESETS = {
@@ -2257,6 +2331,11 @@ SL_EXCLUDED = frozenset({
     "ext_vectors",
     "drill_rates",
     "drill_integral",
+    "drill_vieta",
+    "drill_maclaurin",
+    "drill_induction",
+    "drill_count",
+    "drill_density",
 })
 
 
